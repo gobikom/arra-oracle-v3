@@ -207,7 +207,7 @@ class OracleMCPServer {
         return {
           content: [{
             type: 'text',
-            text: `Error: Tool "${request.params.name}" is disabled by tool group config. Check ~/.arra-oracle-v2/config.json or arra.config.json.`
+            text: `Error: Tool "${request.params.name}" is disabled by tool group config. Check ${ORACLE_DATA_DIR}/config.json or arra.config.json.`
           }],
           isError: true
         };
