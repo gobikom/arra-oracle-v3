@@ -5,14 +5,14 @@
 ## Overview
 
 Arra Oracle v3 indexes philosophy from markdown files and provides:
-- **Semantic + keyword search** (ChromaDB + FTS5)
+- **Semantic + keyword search** (Vector DB + FTS5 hybrid)
 - **Decision guidance** via principles and patterns
 - **Learning capture** from sessions
 - **HTTP API** for web interfaces
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      ORACLE v2 SYSTEM                       │
+│                      ORACLE v3 SYSTEM                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
@@ -30,11 +30,43 @@ Arra Oracle v3 indexes philosophy from markdown files and provides:
 │         ┌──────────────────┼──────────────────┐             │
 │         │                  │                  │             │
 │  ┌──────▼──────┐   ┌───────▼───────┐  ┌───────▼───────┐    │
-│  │   SQLite    │   │   ChromaDB    │  │   Markdown    │    │
-│  │  (FTS5)     │   │   (vectors)   │  │   (source)    │    │
+│  │   SQLite    │   │  Vector DB   │  │   Markdown    │    │
+│  │  (FTS5)     │   │  (pluggable) │  │   (source)    │    │
 │  └─────────────┘   └───────────────┘  └───────────────┘    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
+```
+
+## Vector Search Backend (Pluggable)
+
+The vector backend is configured via environment variables. Multiple adapters are supported:
+
+| Backend | Env: `ORACLE_VECTOR_DB` | Embedding Provider | Use Case |
+|---------|------------------------|--------------------|----------|
+| **Qdrant Cloud** | `qdrant` | OpenAI `text-embedding-3-small` | Production (recommended) |
+| LanceDB | `lancedb` (default) | Ollama (local models) | Local development |
+| ChromaDB | `chroma` | ChromaDB internal | Legacy |
+| SQLite-vec | `sqlite-vec` | Ollama | Embedded |
+| Cloudflare Vectorize | `cloudflare-vectorize` | Cloudflare AI | Edge deployment |
+
+### Production Configuration (OpenClaw Server)
+
+```bash
+# systemd env vars (oracle-v2.service)
+ORACLE_VECTOR_DB=qdrant
+ORACLE_EMBEDDING_PROVIDER=openai
+# + EnvironmentFile for QDRANT_URL, QDRANT_API_KEY, OPENAI_API_KEY
+```
+
+Shares Qdrant Cloud instance with `my-ai-soul-mcp` (PSak Soul MCP). OpenAI `text-embedding-3-small` provides 1536-dimension embeddings.
+
+### Re-indexing Vectors
+
+```bash
+# Index all documents to vector DB (respects ORACLE_VECTOR_DB env var)
+source ~/.secrets/qdrant.env && source ~/.secrets/openai.env
+export ORACLE_VECTOR_DB=qdrant ORACLE_EMBEDDING_PROVIDER=openai
+bun src/scripts/index-model.ts bge-m3    # ~8s for 164 docs
 ```
 
 ## Components
@@ -137,7 +169,7 @@ CREATE TABLE indexing_status (
 
 1. **Sanitize query** - remove FTS5 special chars (`? * + - ( ) ^ ~ " ' : .`)
 2. **Run FTS5 search** - keyword matching on SQLite
-3. **Run vector search** - semantic similarity via ChromaDB
+3. **Run vector search** - semantic similarity via configured vector backend
 4. **Normalize scores:**
    - FTS5: `e^(-0.3 * |rank|)` (exponential decay)
    - Vector: `1 - distance` (convert to similarity)
@@ -147,7 +179,7 @@ CREATE TABLE indexing_status (
 
 ### Graceful Degradation
 
-- If ChromaDB unavailable → FTS5-only with warning
+- If vector backend unavailable → FTS5-only with warning
 - If query sanitization empties query → return original (will error)
 
 ## Logging

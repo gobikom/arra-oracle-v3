@@ -120,19 +120,50 @@ The indexer scans:
 - `ψ/memory/learnings/*.md` → learnings
 - `ψ/memory/retrospectives/**/*.md` → retrospectives
 
-## Optional: Vector Search
+## Vector Search Setup
 
-For semantic/vector search (in addition to keyword FTS5):
+Oracle supports multiple vector backends. Configure via env vars:
+
+### Option A: Qdrant Cloud + OpenAI (Recommended for Production)
+
+Managed service, no local models needed, shared with my-ai-soul-mcp.
 
 ```bash
-# Install uv (provides uvx)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Add to systemd service or .env
+ORACLE_VECTOR_DB=qdrant
+ORACLE_EMBEDDING_PROVIDER=openai
+QDRANT_URL=https://your-cluster.cloud.qdrant.io
+QDRANT_API_KEY=your-api-key
+OPENAI_API_KEY=your-openai-key
 
-# Restart server - will auto-connect to ChromaDB
+# Index existing documents
+source ~/.secrets/qdrant.env && source ~/.secrets/openai.env
+export ORACLE_VECTOR_DB=qdrant ORACLE_EMBEDDING_PROVIDER=openai
+bun src/scripts/index-model.ts bge-m3
+```
+
+### Option B: LanceDB + Ollama (Local Development)
+
+Free, fully local, requires Ollama running with embedding models.
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull bge-m3
+
+# No env vars needed (defaults to lancedb + ollama)
+bun src/scripts/index-model.ts bge-m3
+```
+
+### Option C: ChromaDB via uvx (Legacy)
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Restart server — auto-connects to ChromaDB
 bun run server
 ```
 
-Without uvx, Oracle falls back to FTS5-only search (still works).
+Without any vector backend, Oracle falls back to FTS5-only search (still works).
 
 ## Troubleshooting
 
@@ -155,12 +186,23 @@ Directory structure must be `ψ/memory/` not just `memory/`:
 ~/.oracle/seed/ψ/memory/resonance/
 ```
 
-### Vector search unavailable warning
+### Vector search returns "Not Found"
 
-uvx not installed. FTS5 keyword search still works. Install uv for vectors:
+Collection doesn't exist in Qdrant yet. Run the indexer:
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+bun src/scripts/index-model.ts bge-m3
 ```
+
+### Vector search returns "model does not exist" (OpenAI)
+
+The model registry is sending a local model name (bge-m3) to OpenAI instead of
+text-embedding-3-small. Ensure `ORACLE_EMBEDDING_PROVIDER=openai` is set — the
+factory will auto-map to the correct OpenAI model.
+
+### systemd service uses wrong repo
+
+Check `WorkingDirectory` in `~/.config/systemd/user/oracle-v2.service`. Must
+point to `arra-oracle-v3` repo, not `oracle-v2`.
 
 ## Uninstall
 
