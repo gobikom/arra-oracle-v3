@@ -62,6 +62,9 @@ export async function handleSearch(
     : '1=1';
   const projectParams = resolvedProject ? [resolvedProject] : [];
 
+  // Supersede filter: exclude superseded documents by default (Issue #5/#8)
+  const supersedeFilter = 'AND d.superseded_by IS NULL';
+
   // FTS5 search must use raw SQL (Drizzle doesn't support virtual tables)
   if (mode !== 'vector') {
     if (type === 'all') {
@@ -69,7 +72,7 @@ export async function handleSearch(
         SELECT COUNT(*) as total
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? AND ${projectFilter}
+        WHERE oracle_fts MATCH ? AND ${projectFilter} ${supersedeFilter}
       `);
       ftsTotal = (countStmt.get(safeQuery, ...projectParams) as { total: number }).total;
 
@@ -77,7 +80,7 @@ export async function handleSearch(
         SELECT f.id, f.content, d.type, d.source_file, d.concepts, d.project, rank as score
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? AND ${projectFilter}
+        WHERE oracle_fts MATCH ? AND ${projectFilter} ${supersedeFilter}
         ORDER BY rank
         LIMIT ?
       `);
@@ -96,7 +99,7 @@ export async function handleSearch(
         SELECT COUNT(*) as total
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? AND d.type = ? AND ${projectFilter}
+        WHERE oracle_fts MATCH ? AND d.type = ? AND ${projectFilter} ${supersedeFilter}
       `);
       ftsTotal = (countStmt.get(safeQuery, type, ...projectParams) as { total: number }).total;
 
@@ -104,7 +107,7 @@ export async function handleSearch(
         SELECT f.id, f.content, d.type, d.source_file, d.concepts, d.project, rank as score
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? AND d.type = ? AND ${projectFilter}
+        WHERE oracle_fts MATCH ? AND d.type = ? AND ${projectFilter} ${supersedeFilter}
         ORDER BY rank
         LIMIT ?
       `);
@@ -225,8 +228,22 @@ export async function handleSearch(
     }
   }
 
+  // Post-filter: remove superseded docs from vector results (FTS already filtered via SQL)
+  const supersededIds = new Set<string>();
+  const vectorIds = combined.filter(r => r.source === 'vector' || r.source === 'hybrid').map(r => r.id);
+  if (vectorIds.length > 0) {
+    const placeholders = vectorIds.map(() => '?').join(',');
+    const excludeRows = sqlite.prepare(
+      `SELECT id FROM oracle_documents WHERE id IN (${placeholders}) AND superseded_by IS NOT NULL`
+    ).all(...vectorIds) as { id: string }[];
+    for (const row of excludeRows) supersededIds.add(row.id);
+  }
+  const filtered = supersededIds.size > 0
+    ? combined.filter(r => !supersededIds.has(r.id))
+    : combined;
+
   // Apply pagination
-  const results = combined.slice(offset, offset + limit);
+  const results = filtered.slice(offset, offset + limit);
 
   // Log search
   const searchTime = Date.now() - startTime;
