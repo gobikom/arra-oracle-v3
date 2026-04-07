@@ -5,6 +5,20 @@
  * Handler implementations live in src/tools/.
  */
 
+// Load .env from the oracle directory — Claude Code may launch from a different cwd
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+try {
+  const envPath = resolve(import.meta.dir, '..', '.env');
+  const envText = readFileSync(envPath, 'utf-8');
+  for (const line of envText.split('\n')) {
+    const match = line.match(/^\s*([^#=\s][^=]*?)\s*=\s*(.*?)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+    }
+  }
+} catch {}
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
