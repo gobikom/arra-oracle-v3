@@ -29,6 +29,12 @@ describe('parseTtl', () => {
     expect(parseTtl('d')).toBeNull();
     expect(parseTtl('-5d')).toBeNull();
   });
+
+  it('should enforce max TTL of 365 days', () => {
+    expect(parseTtl('365d')).toBe(365);
+    expect(parseTtl('366d')).toBeNull();
+    expect(parseTtl('999999d')).toBeNull();
+  });
 });
 
 // ============================================================================

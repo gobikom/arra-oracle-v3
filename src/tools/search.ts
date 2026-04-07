@@ -396,8 +396,25 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   }));
 
   const combinedResults = combineResults(ftsResults, normalizedVectorResults);
-  const totalMatches = combinedResults.length;
-  const results = combinedResults.slice(offset, offset + limit);
+
+  // Post-filter: remove expired docs from vector results (FTS already filtered via SQL)
+  const expiredIds = new Set<string>();
+  if (normalizedVectorResults.length > 0) {
+    const ids = combinedResults.map(r => r.id);
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      const expiredRows = ctx.sqlite.prepare(
+        `SELECT id FROM oracle_documents WHERE id IN (${placeholders}) AND expires_at IS NOT NULL AND expires_at <= ?`
+      ).all(...ids, nowMs) as { id: string }[];
+      for (const row of expiredRows) expiredIds.add(row.id);
+    }
+  }
+  const filteredResults = expiredIds.size > 0
+    ? combinedResults.filter(r => !expiredIds.has(r.id))
+    : combinedResults;
+
+  const totalMatches = filteredResults.length;
+  const results = filteredResults.slice(offset, offset + limit);
 
   const ftsCount = results.filter((r) => r.source === 'fts').length;
   const vectorCount = results.filter((r) => r.source === 'vector').length;

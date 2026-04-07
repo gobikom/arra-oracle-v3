@@ -32,7 +32,8 @@ export function parseTtl(ttl: string | undefined | null): number | null {
   const match = ttl.match(/^(\d+)d$/);
   if (!match) return null;
   const days = parseInt(match[1], 10);
-  return days > 0 ? days : null;
+  if (days <= 0 || days > 365) return null;
+  return days;
 }
 
 /** Get default TTL in days based on title pattern prefix, or null for permanent */
@@ -181,7 +182,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
 
   const title = pattern.split('\n')[0].substring(0, 80);
   const conceptsList = coerceConcepts(concepts);
-  const ttlDays = parseTtl(ttl) ?? defaultTtlDays(pattern);
+  const ttlDays = parseTtl(ttl) ?? defaultTtlDays(title);
   const expiresAt = ttlDays ? now.getTime() + (ttlDays * 86400000) : null;
   const frontmatter = [
     '---',

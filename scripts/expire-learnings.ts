@@ -15,18 +15,27 @@
 import { createDatabase } from '../src/db/index.ts';
 
 const dryRun = process.argv.includes('--dry-run');
-const { sqlite } = createDatabase();
+
+let sqlite: ReturnType<typeof createDatabase>['sqlite'];
+try {
+  sqlite = createDatabase().sqlite;
+} catch (err) {
+  console.error('FATAL: Cannot open database:', err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
+
 const now = Date.now();
 
 // Find expired documents that haven't been superseded yet
 const expired = sqlite.prepare(`
-  SELECT id, source_file, ttl_days, expires_at, project
+  SELECT id, type, source_file, ttl_days, expires_at, project
   FROM oracle_documents
   WHERE expires_at IS NOT NULL
     AND expires_at <= ?
     AND superseded_by IS NULL
 `).all(now) as Array<{
   id: string;
+  type: string;
   source_file: string;
   ttl_days: number | null;
   expires_at: number;
@@ -48,7 +57,7 @@ if (dryRun) {
   process.exit(0);
 }
 
-// Batch expire in a transaction
+// Prepare statements once outside transaction
 const updateDoc = sqlite.prepare(`
   UPDATE oracle_documents
   SET superseded_by = 'system:auto-expire',
@@ -62,6 +71,9 @@ const insertLog = sqlite.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
+const getFtsContent = sqlite.prepare('SELECT content FROM oracle_fts WHERE id = ?');
+
+// Batch expire in a transaction
 const transaction = sqlite.transaction(() => {
   for (const doc of expired) {
     const reason = `Auto-expired after ${doc.ttl_days ?? '?'} days`;
@@ -69,24 +81,33 @@ const transaction = sqlite.transaction(() => {
     updateDoc.run(now, reason, doc.id);
 
     // Get title for audit log
-    const ftsRow = sqlite.prepare('SELECT content FROM oracle_fts WHERE id = ?').get(doc.id) as { content: string } | null;
+    const ftsRow = getFtsContent.get(doc.id) as { content: string } | null;
+    if (!ftsRow) {
+      console.error(`  WARNING: FTS row missing for ${doc.id} — audit title will be ID only`);
+    }
     const title = ftsRow?.content.split('\n')[0]?.substring(0, 80) ?? doc.id;
 
     insertLog.run(
-      doc.source_file,   // old_path
-      doc.id,            // old_id
-      title,             // old_title
-      'learning',        // old_type
-      reason,            // reason
-      now,               // superseded_at
+      doc.source_file,      // old_path
+      doc.id,               // old_id
+      title,                // old_title
+      doc.type,             // old_type — actual document type from DB
+      reason,               // reason
+      now,                  // superseded_at
       'system:auto-expire', // superseded_by
-      doc.project,       // project
+      doc.project,          // project
     );
 
     console.log(`  Expired: ${doc.id} (TTL: ${doc.ttl_days}d)`);
   }
 });
 
-transaction();
+try {
+  transaction();
+} catch (err) {
+  console.error('FATAL: Transaction failed:', err instanceof Error ? err.message : String(err));
+  console.error('No documents were expired (transaction rolled back).');
+  process.exit(1);
+}
 
 console.log(`\nDone. Expired ${expired.length} document(s).`);
