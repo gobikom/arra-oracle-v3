@@ -134,11 +134,35 @@ export function extractProjectFromSource(source?: string): string | null {
 }
 
 // ============================================================================
-// Handler
+// Shared Core Logic — used by both MCP handler and HTTP route
 // ============================================================================
 
-export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Promise<ToolResponse> {
-  const { pattern, source, concepts, project: projectInput, ttl } = input;
+export interface LearnDeps {
+  db: ToolContext['db'];
+  sqlite: ToolContext['sqlite'];
+  repoRoot: string;
+}
+
+export interface LearnInput {
+  pattern: string;
+  source?: string;
+  concepts?: string[] | string;
+  project?: string;
+  ttl?: string;
+  origin?: string;
+}
+
+export interface LearnResult {
+  success: true;
+  file: string;
+  id: string;
+  ttl?: string;
+  expires_at?: string;
+  message: string;
+}
+
+export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult {
+  const { pattern, source, ttl, origin } = input;
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
 
@@ -157,9 +181,9 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
   if ('needsInit' in vault) console.error(`[Vault] ${vault.hint}`);
   const vaultRoot = 'path' in vault ? vault.path : null;
 
-  const project = normalizeProject(projectInput)
+  const project = normalizeProject(input.project)
     || extractProjectFromSource(source)
-    || detectProject(ctx.repoRoot);
+    || detectProject(deps.repoRoot);
   const projectDir = (project || '_universal').toLowerCase();
 
   let filePath: string;
@@ -170,7 +194,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     filePath = path.join(dir, filename);
     sourceFileRel = `${projectDir}/ψ/memory/learnings/${filename}`;
   } else {
-    const dir = path.join(ctx.repoRoot, 'ψ/memory/learnings');
+    const dir = path.join(deps.repoRoot, 'ψ/memory/learnings');
     fs.mkdirSync(dir, { recursive: true });
     filePath = path.join(dir, filename);
     sourceFileRel = `ψ/memory/learnings/${filename}`;
@@ -181,7 +205,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
   }
 
   const title = pattern.split('\n')[0].substring(0, 80);
-  const conceptsList = coerceConcepts(concepts);
+  const conceptsList = coerceConcepts(input.concepts);
   const ttlDays = parseTtl(ttl) ?? defaultTtlDays(title);
   const expiresAt = ttlDays ? now.getTime() + (ttlDays * 86400000) : null;
   const frontmatter = [
@@ -208,7 +232,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
 
   const id = `learning_${dateStr}_${slug}`;
 
-  ctx.db.insert(oracleDocuments).values({
+  deps.db.insert(oracleDocuments).values({
     id,
     type: 'learning',
     sourceFile: sourceFileRel,
@@ -216,28 +240,41 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     createdAt: now.getTime(),
     updatedAt: now.getTime(),
     indexedAt: now.getTime(),
-    origin: null,
+    origin: origin || null,
     project,
     createdBy: 'arra_learn',
     expiresAt,
     ttlDays,
   }).run();
 
-  ctx.sqlite.prepare(`
+  deps.sqlite.prepare(`
     INSERT INTO oracle_fts (id, content, concepts)
     VALUES (?, ?, ?)
   `).run(id, frontmatter, conceptsList.join(' '));
 
   return {
+    success: true,
+    file: sourceFileRel,
+    id,
+    ...(ttlDays ? { ttl: `${ttlDays}d`, expires_at: new Date(expiresAt!).toISOString() } : {}),
+    message: `Pattern added to Oracle knowledge base${vaultRoot ? ' (vault)' : ''}${ttlDays ? ` (expires in ${ttlDays} days)` : ''}`,
+  };
+}
+
+// ============================================================================
+// MCP Handler — wraps createLearning in ToolResponse
+// ============================================================================
+
+export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Promise<ToolResponse> {
+  const result = createLearning(
+    { db: ctx.db, sqlite: ctx.sqlite, repoRoot: ctx.repoRoot },
+    input,
+  );
+
+  return {
     content: [{
       type: 'text',
-      text: JSON.stringify({
-        success: true,
-        file: sourceFileRel,
-        id,
-        ...(ttlDays ? { ttl: `${ttlDays}d`, expires_at: new Date(expiresAt!).toISOString() } : {}),
-        message: `Pattern added to Oracle knowledge base${vaultRoot ? ' (vault)' : ''}${ttlDays ? ` (expires in ${ttlDays} days)` : ''}`
-      }, null, 2)
+      text: JSON.stringify(result, null, 2)
     }]
   };
 }
