@@ -6,23 +6,27 @@ import type { Hono } from 'hono';
 import fs from 'fs';
 import path from 'path';
 import { REPO_ROOT } from '../config.ts';
-import { handleLearn } from '../server/handlers.ts';
+import { createLearning } from '../tools/learn.ts';
+import { db, sqlite } from '../db/index.ts';
 
 export function registerKnowledgeRoutes(app: Hono) {
-  // Learn
+  // Learn — uses shared createLearning() from tools/learn.ts
   app.post('/api/learn', async (c) => {
     try {
       const data = await c.req.json();
       if (!data.pattern) {
         return c.json({ error: 'Missing required field: pattern' }, 400);
       }
-      const result = handleLearn(
-        data.pattern,
-        data.source,
-        data.concepts,
-        data.origin,   // 'mother' | 'arthur' | 'volt' | 'human' (null = universal)
-        data.project,  // ghq-style project path (null = universal)
-        data.cwd       // Auto-detect project from cwd
+      const result = createLearning(
+        { db, sqlite, repoRoot: REPO_ROOT },
+        {
+          pattern: data.pattern,
+          source: data.source,
+          concepts: data.concepts,
+          project: data.project,
+          ttl: data.ttl,
+          origin: data.origin,
+        },
       );
       return c.json(result);
     } catch (error) {
