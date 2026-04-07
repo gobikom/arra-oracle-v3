@@ -55,6 +55,11 @@ export const searchToolDef = {
         type: 'string',
         enum: ['nomic', 'qwen3', 'bge-m3'],
         description: 'Embedding model: bge-m3 (default, multilingual Thai↔EN, 1024-dim), nomic (fast, 768-dim), or qwen3 (cross-language, 4096-dim)',
+      },
+      include_superseded: {
+        type: 'boolean',
+        description: 'Include superseded documents in results (default: false). Set true for audit trail or history review.',
+        default: false
       }
     },
     required: ['query']
@@ -309,7 +314,7 @@ export function combineResults(
 
 export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): Promise<ToolResponse> {
   const startTime = Date.now();
-  const { query, type = 'all', limit = 5, offset = 0, mode = 'hybrid', project, cwd, model } = input;
+  const { query, type = 'all', limit = 5, offset = 0, mode = 'hybrid', project, cwd, model, include_superseded = false } = input;
 
   if (!query || query.trim().length === 0) {
     throw new Error('Query cannot be empty');
@@ -332,6 +337,10 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const ttlFilter = 'AND (d.expires_at IS NULL OR d.expires_at > ?)';
   const ttlParams = [nowMs];
 
+  // Supersede filter: exclude superseded documents by default (Issue #7)
+  const supersedeFilter = include_superseded ? '' : 'AND d.superseded_by IS NULL';
+
+
   let warning: string | undefined;
   let vectorSearchError = false;
 
@@ -343,7 +352,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
         SELECT f.id, f.content, d.type, d.source_file, d.concepts, rank
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? ${projectFilter} ${ttlFilter}
+        WHERE oracle_fts MATCH ? ${projectFilter} ${ttlFilter} ${supersedeFilter}
         ORDER BY rank
         LIMIT ?
       `);
@@ -353,7 +362,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
         SELECT f.id, f.content, d.type, d.source_file, d.concepts, rank
         FROM oracle_fts f
         JOIN oracle_documents d ON f.id = d.id
-        WHERE oracle_fts MATCH ? AND d.type = ? ${projectFilter} ${ttlFilter}
+        WHERE oracle_fts MATCH ? AND d.type = ? ${projectFilter} ${ttlFilter} ${supersedeFilter}
         ORDER BY rank
         LIMIT ?
       `);
@@ -397,20 +406,25 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
 
   const combinedResults = combineResults(ftsResults, normalizedVectorResults);
 
-  // Post-filter: remove expired docs from vector results (FTS already filtered via SQL)
-  const expiredIds = new Set<string>();
+  // Post-filter: remove expired + superseded docs from vector results (FTS already filtered via SQL)
+  const excludeIds = new Set<string>();
   if (normalizedVectorResults.length > 0) {
     const ids = combinedResults.map(r => r.id);
     if (ids.length > 0) {
       const placeholders = ids.map(() => '?').join(',');
-      const expiredRows = ctx.sqlite.prepare(
-        `SELECT id FROM oracle_documents WHERE id IN (${placeholders}) AND expires_at IS NOT NULL AND expires_at <= ?`
-      ).all(...ids, nowMs) as { id: string }[];
-      for (const row of expiredRows) expiredIds.add(row.id);
+      const conditions = ['(expires_at IS NOT NULL AND expires_at <= ?)'];
+      const params: any[] = [...ids, nowMs];
+      if (!include_superseded) {
+        conditions.push('(superseded_by IS NOT NULL)');
+      }
+      const excludeRows = ctx.sqlite.prepare(
+        `SELECT id FROM oracle_documents WHERE id IN (${placeholders}) AND (${conditions.join(' OR ')})`
+      ).all(...params) as { id: string }[];
+      for (const row of excludeRows) excludeIds.add(row.id);
     }
   }
-  const filteredResults = expiredIds.size > 0
-    ? combinedResults.filter(r => !expiredIds.has(r.id))
+  const filteredResults = excludeIds.size > 0
+    ? combinedResults.filter(r => !excludeIds.has(r.id))
     : combinedResults;
 
   const totalMatches = filteredResults.length;
