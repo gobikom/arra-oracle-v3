@@ -50,23 +50,27 @@ export async function handleList(ctx: ToolContext, input: OracleListInput): Prom
     throw new Error(`Invalid type: ${type}. Must be one of: ${validTypes.join(', ')}`);
   }
 
-  // TTL filter: exclude expired documents (Issue #4)
+  // TTL + supersede filters (Issue #4, #7)
   const nowMs = Date.now();
+  const activeFilter = '(expires_at IS NULL OR expires_at > ?) AND superseded_by IS NULL';
 
   const countResult = type === 'all'
-    ? ctx.sqlite.prepare('SELECT count(*) as total FROM oracle_documents WHERE (expires_at IS NULL OR expires_at > ?)').get(nowMs) as { total: number }
-    : ctx.sqlite.prepare('SELECT count(*) as total FROM oracle_documents WHERE type = ? AND (expires_at IS NULL OR expires_at > ?)').get(type, nowMs) as { total: number };
+    ? ctx.sqlite.prepare(`SELECT count(*) as total FROM oracle_documents WHERE ${activeFilter}`).get(nowMs) as { total: number }
+    : ctx.sqlite.prepare(`SELECT count(*) as total FROM oracle_documents WHERE type = ? AND ${activeFilter}`).get(type, nowMs) as { total: number };
   const total = countResult?.total ?? 0;
 
   const expiredResult = ctx.sqlite.prepare('SELECT count(*) as cnt FROM oracle_documents WHERE expires_at IS NOT NULL AND expires_at <= ?').get(nowMs) as { cnt: number };
   const expiredCount = expiredResult?.cnt ?? 0;
+
+  const supersededResult = ctx.sqlite.prepare('SELECT count(*) as cnt FROM oracle_documents WHERE superseded_by IS NOT NULL').get() as { cnt: number };
+  const supersededCount = supersededResult?.cnt ?? 0;
 
   const listStmt = type === 'all'
     ? ctx.sqlite.prepare(`
         SELECT d.id, d.type, d.source_file, d.concepts, d.indexed_at, f.content
         FROM oracle_documents d
         JOIN oracle_fts f ON d.id = f.id
-        WHERE (d.expires_at IS NULL OR d.expires_at > ?)
+        WHERE (d.expires_at IS NULL OR d.expires_at > ?) AND d.superseded_by IS NULL
         ORDER BY d.indexed_at DESC
         LIMIT ? OFFSET ?
       `)
@@ -74,7 +78,7 @@ export async function handleList(ctx: ToolContext, input: OracleListInput): Prom
         SELECT d.id, d.type, d.source_file, d.concepts, d.indexed_at, f.content
         FROM oracle_documents d
         JOIN oracle_fts f ON d.id = f.id
-        WHERE d.type = ? AND (d.expires_at IS NULL OR d.expires_at > ?)
+        WHERE d.type = ? AND (d.expires_at IS NULL OR d.expires_at > ?) AND d.superseded_by IS NULL
         ORDER BY d.indexed_at DESC
         LIMIT ? OFFSET ?
       `);
@@ -96,7 +100,7 @@ export async function handleList(ctx: ToolContext, input: OracleListInput): Prom
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify({ documents, total, limit, offset, type, expired: expiredCount }, null, 2)
+      text: JSON.stringify({ documents, total, limit, offset, type, expired: expiredCount, superseded: supersededCount }, null, 2)
     }]
   };
 }
