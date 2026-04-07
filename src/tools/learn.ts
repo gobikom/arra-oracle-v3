@@ -7,7 +7,7 @@
 
 import path from 'path';
 import fs from 'fs';
-import { oracleDocuments } from '../db/schema.ts';
+import { oracleDocuments, learnLog } from '../db/schema.ts';
 import { detectProject } from '../server/project-detect.ts';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import type { ToolContext, ToolResponse, OracleLearnInput } from './types.ts';
@@ -251,6 +251,20 @@ export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult 
     INSERT INTO oracle_fts (id, content, concepts)
     VALUES (?, ?, ?)
   `).run(id, frontmatter, conceptsList.join(' '));
+
+  // Log the learning (was lost during createLearning refactor)
+  try {
+    deps.db.insert(learnLog).values({
+      documentId: id,
+      patternPreview: pattern.substring(0, 100),
+      source: source || 'Oracle Learn',
+      concepts: JSON.stringify(conceptsList),
+      createdAt: now.getTime(),
+      project: project || null,
+    }).run();
+  } catch (e) {
+    console.error('Failed to log learning:', e);
+  }
 
   return {
     success: true,
