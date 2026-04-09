@@ -76,7 +76,7 @@ export const searchToolDef = {
  */
 export function sanitizeFtsQuery(query: string): string {
   let sanitized = query
-    .replace(/[?*+\-()^~"':.\/]/g, ' ')
+    .replace(/[?*+\-()^~"':.\/%]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

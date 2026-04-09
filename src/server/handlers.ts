@@ -42,7 +42,7 @@ export async function handleSearch(
   // Remove FTS5 special characters and HTML: ? * + - ( ) ^ ~ " ' : < > { } [ ] ; / \
   const safeQuery = query
     .replace(/<[^>]*>/g, ' ')           // Strip HTML tags
-    .replace(/[?*+\-()^~"':;<>{}[\]\\\/]/g, ' ')  // Strip FTS5 + SQL special chars
+    .replace(/[?*+\-()^~"':;<>{}[\]\\\/%]/g, ' ')  // Strip FTS5 + SQL special chars (incl. %)
     .replace(/\s+/g, ' ')
     .trim();
   if (!safeQuery) {

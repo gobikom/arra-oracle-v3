@@ -21,6 +21,8 @@ describe('sanitizeFtsQuery', () => {
     expect(sanitizeFtsQuery('test*')).toBe('test');
     expect(sanitizeFtsQuery('a + b')).toBe('a b');
     expect(sanitizeFtsQuery('NOT this')).toBe('NOT this');
+    expect(sanitizeFtsQuery('disk 64%')).toBe('disk 64');
+    expect(sanitizeFtsQuery('80% usage')).toBe('80 usage');
   });
 
   it('should handle quotes', () => {
