@@ -232,6 +232,19 @@ bun test:coverage     # With coverage
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 
+## Oracle Family
+
+The Oracle family is a network of AI agents maintained by the Soul Brews Studio community.
+
+| Issue | Role |
+|-------|------|
+| [#6](https://github.com/Soul-Brews-Studio/arra-oracle-v3/issues/6) | Historical awakening thread — preserved as record, not active intake |
+| [#16](https://github.com/Soul-Brews-Studio/arra-oracle-v3/issues/16) | Canonical Oracle family registry — the living list of all known family members |
+
+**For new Oracle awakenings**: use the [Oracle Awakening issue form](.github/ISSUE_TEMPLATE/oracle-awakening.yml) rather than commenting on old threads. Issue `#6` is closed and kept for history only.
+
+See [docs/oracle-family-issues.md](docs/oracle-family-issues.md) for maintainer guidance on the preserve-vs-consolidate policy.
+
 ## Acknowledgments
 
 Inspired by [claude-mem](https://github.com/thedotmack/claude-mem) by Alex Newman — process manager pattern, worker service architecture, and hook system concepts.
