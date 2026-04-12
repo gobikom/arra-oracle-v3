@@ -359,6 +359,7 @@ curl -s http://localhost:47778/.well-known/oauth-authorization-server | python3 
 # 2. Register a test client
 CLIENT=$(curl -s -X POST http://localhost:47778/register \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $MCP_AUTH_TOKEN" \
   -d '{"redirect_uris":["http://localhost:9999/callback"],"client_name":"test","grant_types":["authorization_code"],"response_types":["code"]}')
 echo $CLIENT | python3 -m json.tool
 
