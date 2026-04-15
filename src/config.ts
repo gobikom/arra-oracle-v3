@@ -70,8 +70,10 @@ export const ORACLE_BIND_HOST = (process.env.ORACLE_BIND_HOST || '').trim() || '
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1']);
 if (!LOOPBACK_HOSTS.has(ORACLE_BIND_HOST)) {
   console.warn(
-    `⚠️  SECURITY: ORACLE_BIND_HOST=${ORACLE_BIND_HOST} binds non-loopback. `
-    + `/api/* routes are still unauthenticated until issue #12 Stage 2 lands — server is exposed.`,
+    `⚠️  ORACLE_BIND_HOST=${ORACLE_BIND_HOST} binds non-loopback. `
+    + `/api/* is gated by Bearer token (issue #12 Stage 2 complete), but exposing the port `
+    + `widens the attack surface for credential theft / brute-force attempts. Keep loopback `
+    + `unless you have a specific reason and have audited the additional risk.`,
   );
 }
 
