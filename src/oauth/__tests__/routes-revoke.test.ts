@@ -515,4 +515,25 @@ describe('validateRedirectUri unit (#17.4)', () => {
     expect(() => validateRedirectUri('http://127.0.0.1:9999/cb')).not.toThrow();
     expect(() => validateRedirectUri('http://[::1]/cb')).not.toThrow();
   });
+
+  test('module export resists hostname-bypass tricks', async () => {
+    const { validateRedirectUri, RedirectUriValidationError } = await import('../provider.ts');
+    // Subdomain attacks — host is NOT localhost/127.0.0.1, should reject.
+    expect(() => validateRedirectUri('http://localhost.evil.com/cb')).toThrow(RedirectUriValidationError);
+    expect(() => validateRedirectUri('http://127.0.0.1.evil.com/cb')).toThrow(RedirectUriValidationError);
+    // Userinfo strip — WHATWG URL strips `evil@` so hostname becomes
+    // `localhost` (the USER chose to include credentials in the URI, but
+    // the redirect destination is still loopback, which is allowed). This
+    // is documented behaviour — we explicitly assert it does NOT throw so
+    // a future regression that "fixes" this by rejecting userinfo does
+    // not break existing clients using http://user@localhost/cb.
+    expect(() => validateRedirectUri('http://evil@localhost/cb')).not.toThrow();
+    // Decimal IPv4 encoding — WHATWG URL normalises to dotted-quad.
+    // `2130706433` is 127.0.0.1 in decimal; WHATWG should normalise to
+    // `127.0.0.1` at parse time, which then passes the strict check.
+    expect(() => validateRedirectUri('http://2130706433/cb')).not.toThrow();
+    // Trailing dot on hostname — WHATWG preserves the dot; strict equality
+    // against 'localhost' fails. Should reject.
+    expect(() => validateRedirectUri('http://localhost./cb')).toThrow(RedirectUriValidationError);
+  });
 });

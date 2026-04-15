@@ -931,7 +931,10 @@ export class OAuthProvider {
     let clientSecret: string;
 
     if (hasBasic) {
-      const encoded = authHeader.slice(6).trim(); // slice off "Basic " (6 chars) — case already normalised via toLowerCase check
+      // Strip the "Basic " / "basic " prefix. Both variants are 6 bytes
+      // so a fixed slice(6) works without re-lowercasing — the case check
+      // was already done above via toLowerCase().startsWith('basic ').
+      const encoded = authHeader.slice(6).trim();
       let decoded: string;
       try {
         decoded = Buffer.from(encoded, 'base64').toString('utf-8');
