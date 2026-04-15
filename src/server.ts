@@ -177,7 +177,7 @@ app.all('/mcp', async (c) => {
 console.log(`
 🔮 Arra Oracle HTTP Server running! (Hono.js)
 
-   Bind: http://${ORACLE_BIND_HOST}:${PORT}
+   Bind: http://${ORACLE_BIND_HOST.includes(':') ? `[${ORACLE_BIND_HOST}]` : ORACLE_BIND_HOST}:${PORT}
 
    Endpoints:
    - GET  /api/health          Health check

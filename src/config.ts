@@ -53,11 +53,8 @@ export const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || '';
 // current edge gate; binding non-loopback bypasses it entirely.
 export const ORACLE_BIND_HOST = (process.env.ORACLE_BIND_HOST || '').trim() || '127.0.0.1';
 
-if (
-  ORACLE_BIND_HOST !== '127.0.0.1'
-  && ORACLE_BIND_HOST !== 'localhost'
-  && ORACLE_BIND_HOST !== '::1'
-) {
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1']);
+if (!LOOPBACK_HOSTS.has(ORACLE_BIND_HOST)) {
   console.warn(
     `⚠️  SECURITY: ORACLE_BIND_HOST=${ORACLE_BIND_HOST} binds non-loopback. `
     + `/api/* routes are still unauthenticated until issue #12 Stage 2 lands — server is exposed.`,
