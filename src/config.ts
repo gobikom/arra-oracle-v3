@@ -44,6 +44,18 @@ export const CHROMADB_DIR = path.join(HOME_DIR, C.CHROMADB_DIR_NAME);
 // If empty, /mcp will reject all requests with 401 (fail-safe)
 export const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || '';
 
+// /api/* Bearer token (issue #12 Stage 2). Optional-enforce: if empty, the
+// api-auth middleware allows all /api/* requests through (backward-compat
+// deployment window). When set, every /api/* request except /api/health
+// must carry `Authorization: Bearer <token>` matching exactly.
+//
+// Provisioned via ~/.secrets/oracle-api.env (mode 600), loaded by systemd
+// EnvironmentFile. See issue #12 for the rollout sequence: deploy this PR
+// first (no clients sending tokens, env unset → no impact), then update
+// clients to send the header, then a follow-up PR flips the middleware
+// from optional-enforce to required-enforce.
+export const ORACLE_API_TOKEN = (process.env.ORACLE_API_TOKEN || '').trim();
+
 // HTTP bind host. Defaults to 127.0.0.1 so the server is reachable only via
 // localhost / a reverse proxy.
 //

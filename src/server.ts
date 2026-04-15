@@ -18,7 +18,8 @@ import {
   performGracefulShutdown,
 } from './process-manager/index.ts';
 
-import { PORT, ORACLE_BIND_HOST, ORACLE_DATA_DIR, MCP_AUTH_TOKEN, MCP_OAUTH_PIN, MCP_EXTERNAL_URL } from './config.ts';
+import { PORT, ORACLE_BIND_HOST, ORACLE_DATA_DIR, MCP_AUTH_TOKEN, MCP_OAUTH_PIN, MCP_EXTERNAL_URL, ORACLE_API_TOKEN } from './config.ts';
+import { apiAuthMiddleware } from './middleware/api-auth.ts';
 import { db, closeDb, indexingStatus } from './db/index.ts';
 
 // Route modules
@@ -94,6 +95,10 @@ app.use('*', async (c, next) => {
   c.header('X-XSS-Protection', '1; mode=block');
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
 });
+
+// /api/* Bearer token auth (issue #12 Stage 2). Optional-enforce until
+// ORACLE_API_TOKEN env is set; /api/health is always exempted.
+app.use('*', apiAuthMiddleware);
 
 // Register all route modules (order matters: auth middleware first)
 registerAuthRoutes(app);
@@ -205,6 +210,7 @@ console.log(`
    - ALL /mcp                  Streamable HTTP MCP endpoint
 `);
 console.log(MCP_AUTH_TOKEN ? '   🔑 MCP auth: Bearer token configured' : '   ⚠️  MCP auth: Bearer token NOT configured');
+console.log(ORACLE_API_TOKEN ? '   🔑 /api/* auth: Bearer token enforced (ORACLE_API_TOKEN set)' : '   ⚠️  /api/* auth: open (ORACLE_API_TOKEN not set — issue #12 Stage 2 deployment window)');
 if (MCP_OAUTH_PIN) {
   console.log(`   🔐 OAuth 2.1: enabled (${MCP_EXTERNAL_URL})`);
   console.log('      Endpoints: /.well-known/oauth-authorization-server, /authorize, /token, /register');
