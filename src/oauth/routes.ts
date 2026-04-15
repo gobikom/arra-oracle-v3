@@ -17,7 +17,7 @@
 
 import type { Hono } from 'hono';
 import { MCP_EXTERNAL_URL } from '../config.ts';
-import { getOAuthProvider } from './provider.ts';
+import { getOAuthProvider, RedirectUriValidationError } from './provider.ts';
 
 export function registerOAuthRoutes(app: Hono): void {
   // ─── Discovery metadata ────────────────────────────────────────────────
@@ -83,8 +83,20 @@ export function registerOAuthRoutes(app: Hono): void {
         scope: body.scope as string | undefined,
         token_endpoint_auth_method: body.token_endpoint_auth_method as string | undefined,
       });
-    } catch {
-      return c.json({ error: 'temporarily_unavailable: failed to persist client registration' }, 503);
+    } catch (err) {
+      // Finding #17.4: map redirect_uri validation errors to 400
+      // invalid_redirect_uri (RFC 6749 §4.1.2.1) instead of the generic
+      // 503. Any other error (e.g., saveState failure) stays 503.
+      if (err instanceof RedirectUriValidationError) {
+        return c.json(
+          { error: 'invalid_redirect_uri', error_description: err.message },
+          400,
+        );
+      }
+      return c.json(
+        { error: 'temporarily_unavailable: failed to persist client registration' },
+        503,
+      );
     }
 
     return c.json(client, 201);
@@ -174,37 +186,82 @@ export function registerOAuthRoutes(app: Hono): void {
   // ─── Token revocation ─────────────────────────────────────────────────
 
   app.post('/revoke', async (c) => {
-    let token: string | undefined;
+    // Finding #17.5: RFC 7009 §2.1 requires the revocation endpoint to
+    // authenticate the client. We accept HTTP Basic (preferred) or
+    // client_id/client_secret in the form body (fallback). Both together
+    // is a 400 per RFC 6749 §2.3.1. Unauthenticated calls are 401 with
+    // WWW-Authenticate per RFC 7009.
+    const authHeader = c.req.header('Authorization') ?? '';
+
+    let formBody: {
+      client_id?: string;
+      client_secret?: string;
+      token?: string;
+    } = {};
 
     const contentType = c.req.header('Content-Type') || '';
     if (contentType.includes('application/x-www-form-urlencoded')) {
       const text = await c.req.text();
       const params = new URLSearchParams(text);
-      token = params.get('token') ?? undefined;
+      formBody = {
+        client_id: params.get('client_id') ?? undefined,
+        client_secret: params.get('client_secret') ?? undefined,
+        token: params.get('token') ?? undefined,
+      };
     } else {
       try {
-        const body = await c.req.json() as Record<string, string>;
-        token = body.token;
+        const body = (await c.req.json()) as Record<string, string>;
+        formBody = {
+          client_id: body.client_id,
+          client_secret: body.client_secret,
+          token: body.token,
+        };
       } catch {
-        // ignore
+        // No parseable body — still go through auth check below (will
+        // fail without credentials in either Basic or form body).
       }
     }
 
+    const provider = getOAuthProvider();
+    const authResult = provider.authenticateRevokeRequest(authHeader, {
+      client_id: formBody.client_id,
+      client_secret: formBody.client_secret,
+    });
+
+    if (!authResult.ok) {
+      if (authResult.status === 401) {
+        // RFC 7009: 401 responses include WWW-Authenticate so clients can
+        // retry with Basic credentials.
+        c.header('WWW-Authenticate', 'Basic realm="oauth"');
+      }
+      return c.json(
+        { error: authResult.error, error_description: authResult.errorDescription },
+        authResult.status,
+      );
+    }
+
+    const token = formBody.token;
     if (token) {
       try {
-        getOAuthProvider().revokeToken(token);
+        // Pass the authenticated clientId so revokeToken can enforce
+        // token-client binding per RFC 7009 §2.1 (no cross-client leak).
+        provider.revokeToken(token, authResult.clientId);
       } catch (err) {
-        // revokeToken now throws on saveState persistence failure. Surface
-        // a 500 so the caller knows the revocation did not stick — the
+        // revokeToken throws on saveState persistence failure. Surface a
+        // 500 so the caller knows the revocation did not stick — the
         // previous silent-swallow behaviour would have returned 200 while
         // the token remained valid on disk (next restart would restore it).
         console.error('[OAuth] /revoke: persistence failed', err);
-        return c.json({ error: 'server_error', error_description: 'Revocation failed to persist' }, 500);
+        return c.json(
+          { error: 'server_error', error_description: 'Revocation failed to persist' },
+          500,
+        );
       }
     }
 
-    // RFC 7009: return 200 for unknown/missing tokens (no token existence oracle).
-    // Successful revocation also returns 200.
+    // RFC 7009: return 200 for unknown/missing tokens (no token existence
+    // oracle), successful revocation, and silently-ignored cross-client
+    // revoke attempts. The response body is intentionally empty.
     return c.json({}, 200);
   });
 
