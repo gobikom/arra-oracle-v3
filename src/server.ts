@@ -116,8 +116,21 @@ registerKnowledgeRoutes(app);
 registerSupersedeRoutes(app);
 registerFileRoutes(app);
 
-// OAuth 2.1 routes — mount before /mcp so discovery endpoints are available
+// OAuth 2.1 routes — mount before /mcp so discovery endpoints are available.
+// Eagerly construct the OAuthProvider singleton at startup (not lazily on
+// first request) so that state-file parse failures or other constructor
+// throws surface during process startup, while the operator is watching.
+// The lazy-singleton path would otherwise defer the failure to the first
+// OAuth request — past the startup banner, invisible to anyone not hitting
+// an oauth endpoint. Refs #17 PR-B1 review.
 if (MCP_OAUTH_PIN) {
+  try {
+    getOAuthProvider();
+  } catch (err) {
+    console.error('🔥 FATAL: OAuthProvider failed to initialize at startup:', err);
+    console.error('🔥 Refusing to serve requests — oracle-http process exiting.');
+    process.exit(1);
+  }
   registerOAuthRoutes(app);
 }
 

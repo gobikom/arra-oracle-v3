@@ -10,11 +10,11 @@
  * - Single PIN, single user (same as PSak)
  * - Atomic file writes for crash safety (temp file + rename)
  * - crypto.timingSafeEqual for PIN comparison to prevent timing attacks
- * - IP-based rate limiting for PIN brute-force protection
+ * - Server-side lockout for PIN brute-force protection (no trust in forwarded IP headers)
  */
 
-import { randomBytes, createHash, timingSafeEqual } from 'crypto';
-import { writeFileSync, readFileSync, renameSync, existsSync, mkdirSync, chmodSync } from 'fs';
+import { randomBytes, createHash, createHmac, timingSafeEqual } from 'crypto';
+import { writeFileSync, readFileSync, renameSync, existsSync, mkdirSync, chmodSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 
@@ -44,7 +44,7 @@ interface IssuedCode {
   issued_at: number;
 }
 
-/** Rate-limit window for a single IP */
+/** Rate-limit window for the single-user PIN flow */
 interface RateLimitRecord {
   count: number;
   resetAt: number;
@@ -68,8 +68,21 @@ export class OAuthProvider {
   // code → issued code data (after PIN verification, before token exchange)
   private issuedCodes: Map<string, IssuedCode> = new Map();
 
-  // Rate limiting: ip → {count, resetAt}
-  private pinAttempts: Map<string, RateLimitRecord> = new Map();
+  // Single-user OAuth flow: shared lockout window cannot be bypassed with spoofed headers.
+  private pinAttemptWindow: RateLimitRecord | null = null;
+
+  // Per-process HMAC key for constant-time comparisons that must tolerate
+  // varying input lengths. Secrecy is not required — its only job is to
+  // give timingSafeEqual two equal-length digests so the compare runs
+  // without leaking length via short-circuit behaviour. Matches the pattern
+  // used in src/middleware/api-auth.ts (issue #12 Stage 2A).
+  private readonly hmacKey: Buffer = randomBytes(32);
+
+  // Consecutive-failure counter for the periodic sweep — lets us escalate
+  // the log level on sustained failures (e.g., disk full) so operators
+  // notice a real problem instead of dismissing a single repeated warning
+  // as transient noise. Reset to 0 on any successful sweep.
+  private sweepFailureCount = 0;
 
   private static readonly MAX_PIN_ATTEMPTS = 10;
   private static readonly PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -79,6 +92,36 @@ export class OAuthProvider {
     this.stateFile = join(ORACLE_DATA_DIR, '.oauth-state.json');
     this.state = this.loadState();
     this.cleanExpiredTokens();
+
+    // Periodic expiry sweep — the eviction logic in cleanExpiredTokens()
+    // only runs on construction and on /authorize traffic. A server that
+    // receives only token-verification traffic (common steady-state) would
+    // never sweep abandoned issuedCodes, pending authorizations, or expired
+    // tokens, defeating the memory-leak fix. Run every AUTH_CODE_TTL_MS
+    // (5 min) so the worst-case memory footprint is bounded by that window
+    // even under a long-running idle server.
+    //
+    // .unref() so the timer does NOT keep the Node event loop alive — the
+    // process can still exit cleanly on SIGINT/SIGTERM. Test code that
+    // wants to tick the sweep manually still has runExpirySweep().
+    const sweepTimer = setInterval(() => {
+      try {
+        this.cleanExpiredTokens();
+        this.sweepFailureCount = 0;
+      } catch (err) {
+        // Escalate after 3 consecutive failures — a single transient error
+        // (e.g., a brief fs hiccup) logs as a warning, but a sustained
+        // problem (disk full, permissions drift) escalates to error so an
+        // operator watching logs can distinguish "noise" from "real".
+        this.sweepFailureCount += 1;
+        const level = this.sweepFailureCount >= 3 ? 'error' : 'warn';
+        console[level](
+          `[OAuth] Periodic expiry sweep failed (consecutive=${this.sweepFailureCount}):`,
+          err,
+        );
+      }
+    }, AUTH_CODE_TTL_MS);
+    sweepTimer.unref();
   }
 
   // ─── State persistence ───────────────────────────────────────────────────
@@ -91,24 +134,64 @@ export class OAuthProvider {
       const raw = readFileSync(this.stateFile, 'utf-8');
       return JSON.parse(raw) as OAuthState;
     } catch (err) {
-      console.error('[OAuth] Failed to parse state file, starting with empty state:', err);
-      return { clients: {}, tokens: {} };
+      // FAIL SAFE: preserve the corrupt file for forensics, then throw.
+      // The previous behaviour — swallowing the parse error and returning
+      // { clients: {}, tokens: {} } — would silently wipe every registered
+      // client and every outstanding access token on a transient parse
+      // failure. That is strictly worse than loud startup failure: it turns
+      // a recoverable problem (restore from backup, fix the file) into
+      // unrecoverable data loss that operators would not notice until users
+      // started getting invalid_token errors hours later.
+      const corrupt = `${this.stateFile}.corrupt.${Date.now()}`;
+      let preservedAt: string | null = null;
+      try {
+        renameSync(this.stateFile, corrupt);
+        preservedAt = corrupt;
+        console.error(`[OAuth] State file corrupt — preserved at ${corrupt}`);
+      } catch (renameErr) {
+        // Rename failed (cross-device, permissions, disk full). Delete the
+        // corrupt file so the next startup attempt has a clean slate — an
+        // infinite boot-fail loop (same corrupt file trips the same error
+        // forever) is strictly worse than losing the already-unreadable
+        // state file. We still throw so the operator notices, and we log
+        // exactly which fallback path was taken so they can investigate.
+        console.error('[OAuth] State file corrupt AND rename failed:', renameErr);
+        try {
+          rmSync(this.stateFile, { force: true });
+          console.error('[OAuth] Corrupt state file deleted after rename failure — next start will use empty state');
+        } catch (rmErr) {
+          console.error('[OAuth] State file corrupt AND rename failed AND delete failed:', rmErr);
+        }
+      }
+      throw new Error(
+        '[OAuth] Failed to parse OAuth state file. '
+        + (preservedAt
+          ? `Corrupt state preserved at ${preservedAt} for forensics. `
+          : 'Rename failed — corrupt file was deleted as last-resort recovery. ')
+        + 'Refusing to start silently with empty state — this would wipe all registered '
+        + 'clients and tokens without operator awareness.',
+        { cause: err },
+      );
     }
   }
 
   /** Atomic write: write to temp file then rename — crash-safe. Sets 0600 permissions. */
   private saveState(): void {
+    let tmp: string | null = null;
     try {
       const dir = dirname(this.stateFile);
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
-      const tmp = join(tmpdir(), `.oauth-state-${Date.now()}-${randomBytes(4).toString('hex')}.tmp`);
+      tmp = join(tmpdir(), `.oauth-state-${Date.now()}-${randomBytes(4).toString('hex')}.tmp`);
       writeFileSync(tmp, JSON.stringify(this.state, null, 2), 'utf-8');
       chmodSync(tmp, 0o600);
       renameSync(tmp, this.stateFile);
     } catch (err) {
-      console.error('[OAuth] saveState failed — token state may be inconsistent:', err);
+      if (tmp && existsSync(tmp)) {
+        rmSync(tmp, { force: true });
+      }
+      throw new Error('[OAuth] Failed to persist OAuth state to disk', { cause: err });
     }
   }
 
@@ -130,19 +213,28 @@ export class OAuthProvider {
       }
     }
 
-    // Clean expired rate-limit windows
-    for (const [ip, record] of this.pinAttempts.entries()) {
-      if (now > record.resetAt) {
-        this.pinAttempts.delete(ip);
+    // Clean expired issued auth codes. Happy path: exchangeAuthorizationCode
+    // removes the code on token exchange. Sad path: client abandons flow
+    // after PIN verification (exchanges nothing). Without eviction, abandoned
+    // codes accumulate in the Map for the lifetime of the server process —
+    // unbounded memory growth from any unauthenticated /authorize + login flood.
+    for (const [code, data] of this.issuedCodes.entries()) {
+      if (now - data.issued_at > AUTH_CODE_TTL_MS) {
+        this.issuedCodes.delete(code);
       }
+    }
+
+    // Clean expired global rate-limit window
+    if (this.pinAttemptWindow && now > this.pinAttemptWindow.resetAt) {
+      this.pinAttemptWindow = null;
     }
   }
 
   // ─── Rate limiting ───────────────────────────────────────────────────────
 
-  private checkRateLimit(ip: string): { allowed: boolean; attemptsLeft: number } {
+  private checkRateLimit(): { allowed: boolean; attemptsLeft: number } {
     const now = Date.now();
-    const record = this.pinAttempts.get(ip);
+    const record = this.pinAttemptWindow;
 
     if (!record || now > record.resetAt) {
       return { allowed: true, attemptsLeft: OAuthProvider.MAX_PIN_ATTEMPTS };
@@ -152,12 +244,19 @@ export class OAuthProvider {
     return { allowed: attemptsLeft > 0, attemptsLeft };
   }
 
-  private recordFailedAttempt(ip: string): number {
+  private recordFailedAttempt(stateKey: string): number {
     const now = Date.now();
-    const record = this.pinAttempts.get(ip);
+    const record = this.pinAttemptWindow;
+    const pending = this.pendingAuthorizations.get(stateKey);
+
+    if (!pending) {
+      return 0;
+    }
+
+    pending.failed_attempts += 1;
 
     if (!record || now > record.resetAt) {
-      this.pinAttempts.set(ip, { count: 1, resetAt: now + OAuthProvider.PIN_LOCKOUT_MS });
+      this.pinAttemptWindow = { count: 1, resetAt: now + OAuthProvider.PIN_LOCKOUT_MS };
       return OAuthProvider.MAX_PIN_ATTEMPTS - 1;
     }
 
@@ -165,8 +264,12 @@ export class OAuthProvider {
     return Math.max(0, OAuthProvider.MAX_PIN_ATTEMPTS - record.count);
   }
 
-  private resetAttempts(ip: string): void {
-    this.pinAttempts.delete(ip);
+  private resetAttempts(stateKey: string): void {
+    this.pinAttemptWindow = null;
+    const pending = this.pendingAuthorizations.get(stateKey);
+    if (pending) {
+      pending.failed_attempts = 0;
+    }
   }
 
   // ─── Registration auth ───────────────────────────────────────────────────
@@ -182,17 +285,20 @@ export class OAuthProvider {
       console.warn('[OAuth] /register: MCP_AUTH_TOKEN not set — registration is unprotected');
       return true;
     }
-    const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    const expected = Buffer.from(MCP_AUTH_TOKEN, 'utf-8');
-    const provided = Buffer.from(providedToken, 'utf-8');
-    const maxLen = Math.max(expected.length, provided.length);
-    return (
-      expected.length === provided.length &&
-      timingSafeEqual(
-        Buffer.concat([expected, Buffer.alloc(maxLen - expected.length)]),
-        Buffer.concat([provided, Buffer.alloc(maxLen - provided.length)]),
-      )
-    );
+    // Match src/middleware/api-auth.ts behaviour exactly: extract the token,
+    // .trim() whitespace, and short-circuit on empty before running HMAC.
+    // The empty-token early-out is safe (it is not a secret-dependent branch —
+    // it depends only on the attacker-controlled header) and saves work.
+    const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!providedToken) return false;
+    // HMAC normalisation: both sides get hashed to a fixed 32-byte digest
+    // before timingSafeEqual sees them. The previous implementation short-
+    // circuited on `expected.length === provided.length &&` BEFORE calling
+    // timingSafeEqual, leaking the secret's length via timing (same bug
+    // class as the api-auth middleware fix from issue #12 Stage 2A).
+    const expectedDigest = createHmac('sha256', this.hmacKey).update(MCP_AUTH_TOKEN).digest();
+    const providedDigest = createHmac('sha256', this.hmacKey).update(providedToken).digest();
+    return timingSafeEqual(expectedDigest, providedDigest);
   }
 
   // ─── Client registration (RFC 7591) ─────────────────────────────────────
@@ -213,7 +319,13 @@ export class OAuthProvider {
     };
 
     this.state.clients[client_id] = client;
-    this.saveState();
+    try {
+      this.saveState();
+    } catch (error) {
+      delete this.state.clients[client_id];
+      console.error('[OAuth] Client registration aborted: failed to persist state', error);
+      throw error;
+    }
 
     console.log(`[OAuth] Client registered: ${client_id} (${metadata.client_name ?? 'unnamed'})`);
     return client;
@@ -274,6 +386,7 @@ export class OAuthProvider {
       redirect_uri: params.redirect_uri,
       resource: params.resource,
       created_at: Date.now(),
+      failed_attempts: 0,
     });
 
     console.log(`[OAuth] Authorization started for client: ${params.client_id}`);
@@ -332,17 +445,15 @@ export class OAuthProvider {
   /**
    * Verify PIN and issue authorization code.
    * Returns redirect URI with code param, or error info.
-   * @param ip - Client IP address for rate limiting (pass 'unknown' if unavailable)
    */
   handleLoginCallback(
     stateKey: string,
     pin: string,
-    ip: string = 'unknown',
   ): { redirectUri: string } | { error: string; status: number; showLoginPage?: boolean } {
     // Rate limit check
-    const rateCheck = this.checkRateLimit(ip);
+    const rateCheck = this.checkRateLimit();
     if (!rateCheck.allowed) {
-      console.warn(`[OAuth] PIN rate limit exceeded for IP: ${ip}`);
+      console.warn('[OAuth] PIN rate limit exceeded');
       return { error: 'Too many failed attempts. Please try again in 15 minutes.', status: 429, showLoginPage: true };
     }
 
@@ -372,15 +483,15 @@ export class OAuthProvider {
     const pinMatch = lengthMatch && bytesMatch;
 
     if (!pinMatch) {
-      const attemptsLeft = this.recordFailedAttempt(ip);
-      console.warn(`[OAuth] Failed PIN attempt from IP: ${ip}, attempts remaining: ${attemptsLeft}`);
+      const attemptsLeft = this.recordFailedAttempt(stateKey);
+      console.warn(`[OAuth] Failed PIN attempt for state ${stateKey}, attempts remaining: ${attemptsLeft}`);
       const msg = attemptsLeft > 0
         ? `Incorrect PIN (${attemptsLeft} attempts remaining)`
         : 'Incorrect PIN — account locked for 15 minutes';
       return { error: msg, status: 403, showLoginPage: true };
     }
 
-    this.resetAttempts(ip);
+    this.resetAttempts(stateKey);
 
     // Issue authorization code — one-time use
     const code = randomBytes(24).toString('hex');
@@ -456,7 +567,13 @@ export class OAuthProvider {
       expires_at,
       resource: codeData.resource,
     };
-    this.saveState();
+    try {
+      this.saveState();
+    } catch (error) {
+      delete this.state.tokens[access_token];
+      console.error('[OAuth] Access token issuance aborted: failed to persist state', error);
+      return { error: 'temporarily_unavailable: failed to persist token state', status: 503 };
+    }
 
     console.log(`[OAuth] Access token issued for client: ${codeData.client_id}`);
 
@@ -481,7 +598,11 @@ export class OAuthProvider {
     if (data) {
       if (data.expires_at < Date.now()) {
         delete this.state.tokens[token];
-        this.saveState();
+        try {
+          this.saveState();
+        } catch (error) {
+          console.error('[OAuth] Failed to persist expired-token cleanup', error);
+        }
         return null;
       }
       return {
@@ -515,10 +636,34 @@ export class OAuthProvider {
   // ─── Token revocation ────────────────────────────────────────────────────
 
   revokeToken(token: string): void {
-    if (this.state.tokens[token]) {
-      delete this.state.tokens[token];
+    const current = this.state.tokens[token];
+    if (!current) return;
+
+    // Snapshot rather than capturing the reference — if any future code path
+    // mutates the token record in-flight (e.g., sliding-window expiry update,
+    // scope narrowing), the rollback must restore the ORIGINAL value, not
+    // whatever happens to be sitting at that reference at catch time. Object
+    // spread is shallow, so explicitly deep-copy the `scopes` array — the
+    // only mutable nested field in the token record shape. Keeping this
+    // explicit (not reaching for structuredClone) documents the invariant
+    // at the rollback boundary where it matters.
+    const snapshot = { ...current, scopes: [...current.scopes] };
+
+    delete this.state.tokens[token];
+    try {
       this.saveState();
       console.log('[OAuth] Token revoked');
+    } catch (error) {
+      // Roll back in-memory deletion so memory + disk stay consistent.
+      // The previous behaviour logged "Token revoked" even on persistence
+      // failure — operators had no signal, and the token would reappear
+      // on next restart (disk state is authoritative at startup). Worse,
+      // an attacker whose token was "revoked" but not persisted could
+      // keep using it for the current process lifetime with no audit
+      // trail. Re-throw so /revoke returns 500 and the client knows.
+      this.state.tokens[token] = snapshot;
+      console.error('[OAuth] Token revocation failed to persist — state restored', error);
+      throw new Error('Failed to persist token revocation', { cause: error });
     }
   }
 
@@ -530,6 +675,26 @@ export class OAuthProvider {
 
   getClientCount(): number {
     return Object.keys(this.state.clients).length;
+  }
+
+  /**
+   * @internal — test-only accessor. Do not call from production code.
+   * Exposes the current size of the in-memory issuedCodes Map so unit
+   * tests can assert TTL eviction behaviour.
+   */
+  getIssuedCodeCount(): number {
+    return this.issuedCodes.size;
+  }
+
+  /**
+   * @internal — test-only entry point. Do not call from production code.
+   * Force-triggers the expiry sweep (normally called from the constructor
+   * and from /authorize traffic + the periodic setInterval). Used by unit
+   * tests to deterministically exercise eviction after fast-forwarding the
+   * clock via Date.now monkey-patch.
+   */
+  runExpirySweep(): void {
+    this.cleanExpiredTokens();
   }
 }
 
