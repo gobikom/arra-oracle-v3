@@ -13,7 +13,7 @@
  * - Server-side lockout for PIN brute-force protection (no trust in forwarded IP headers)
  */
 
-import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+import { randomBytes, createHash, createHmac, timingSafeEqual } from 'crypto';
 import { writeFileSync, readFileSync, renameSync, existsSync, mkdirSync, chmodSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -71,6 +71,13 @@ export class OAuthProvider {
   // Single-user OAuth flow: shared lockout window cannot be bypassed with spoofed headers.
   private pinAttemptWindow: RateLimitRecord | null = null;
 
+  // Per-process HMAC key for constant-time comparisons that must tolerate
+  // varying input lengths. Secrecy is not required — its only job is to
+  // give timingSafeEqual two equal-length digests so the compare runs
+  // without leaking length via short-circuit behaviour. Matches the pattern
+  // used in src/middleware/api-auth.ts (issue #12 Stage 2A).
+  private readonly hmacKey: Buffer = randomBytes(32);
+
   private static readonly MAX_PIN_ATTEMPTS = 10;
   private static readonly PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
   private static readonly MAX_PENDING_AUTHORIZATIONS = 100;
@@ -91,8 +98,27 @@ export class OAuthProvider {
       const raw = readFileSync(this.stateFile, 'utf-8');
       return JSON.parse(raw) as OAuthState;
     } catch (err) {
-      console.error('[OAuth] Failed to parse state file, starting with empty state:', err);
-      return { clients: {}, tokens: {} };
+      // FAIL SAFE: preserve the corrupt file for forensics, then throw.
+      // The previous behaviour — swallowing the parse error and returning
+      // { clients: {}, tokens: {} } — would silently wipe every registered
+      // client and every outstanding access token on a transient parse
+      // failure. That is strictly worse than loud startup failure: it turns
+      // a recoverable problem (restore from backup, fix the file) into
+      // unrecoverable data loss that operators would not notice until users
+      // started getting invalid_token errors hours later.
+      const corrupt = `${this.stateFile}.corrupt.${Date.now()}`;
+      try {
+        renameSync(this.stateFile, corrupt);
+        console.error(`[OAuth] State file corrupt — preserved at ${corrupt}`);
+      } catch (renameErr) {
+        console.error('[OAuth] State file corrupt AND rename failed:', renameErr);
+      }
+      throw new Error(
+        '[OAuth] Failed to parse OAuth state file. Corrupt state preserved for forensics. '
+        + 'Refusing to start with empty state — this would silently wipe all registered '
+        + 'clients and tokens. Investigate the preserved file or delete it manually to start fresh.',
+        { cause: err },
+      );
     }
   }
 
@@ -131,6 +157,17 @@ export class OAuthProvider {
     for (const [stateKey, pending] of this.pendingAuthorizations.entries()) {
       if (now - pending.created_at > AUTH_CODE_TTL_MS) {
         this.pendingAuthorizations.delete(stateKey);
+      }
+    }
+
+    // Clean expired issued auth codes. Happy path: exchangeAuthorizationCode
+    // removes the code on token exchange. Sad path: client abandons flow
+    // after PIN verification (exchanges nothing). Without eviction, abandoned
+    // codes accumulate in the Map for the lifetime of the server process —
+    // unbounded memory growth from any unauthenticated /authorize + login flood.
+    for (const [code, data] of this.issuedCodes.entries()) {
+      if (now - data.issued_at > AUTH_CODE_TTL_MS) {
+        this.issuedCodes.delete(code);
       }
     }
 
@@ -196,16 +233,14 @@ export class OAuthProvider {
       return true;
     }
     const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    const expected = Buffer.from(MCP_AUTH_TOKEN, 'utf-8');
-    const provided = Buffer.from(providedToken, 'utf-8');
-    const maxLen = Math.max(expected.length, provided.length);
-    return (
-      expected.length === provided.length &&
-      timingSafeEqual(
-        Buffer.concat([expected, Buffer.alloc(maxLen - expected.length)]),
-        Buffer.concat([provided, Buffer.alloc(maxLen - provided.length)]),
-      )
-    );
+    // HMAC normalisation: both sides get hashed to a fixed 32-byte digest
+    // before timingSafeEqual sees them. The previous implementation short-
+    // circuited on `expected.length === provided.length &&` BEFORE calling
+    // timingSafeEqual, leaking the secret's length via timing (same bug
+    // class as the api-auth middleware fix from issue #12 Stage 2A).
+    const expectedDigest = createHmac('sha256', this.hmacKey).update(MCP_AUTH_TOKEN).digest();
+    const providedDigest = createHmac('sha256', this.hmacKey).update(providedToken).digest();
+    return timingSafeEqual(expectedDigest, providedDigest);
   }
 
   // ─── Client registration (RFC 7591) ─────────────────────────────────────
@@ -543,14 +578,24 @@ export class OAuthProvider {
   // ─── Token revocation ────────────────────────────────────────────────────
 
   revokeToken(token: string): void {
-    if (this.state.tokens[token]) {
-      delete this.state.tokens[token];
-      try {
-        this.saveState();
-      } catch (error) {
-        console.error('[OAuth] Failed to persist token revocation', error);
-      }
+    const existing = this.state.tokens[token];
+    if (!existing) return;
+
+    delete this.state.tokens[token];
+    try {
+      this.saveState();
       console.log('[OAuth] Token revoked');
+    } catch (error) {
+      // Roll back in-memory deletion so memory + disk stay consistent.
+      // The previous behaviour logged "Token revoked" even on persistence
+      // failure — operators had no signal, and the token would reappear
+      // on next restart (disk state is authoritative at startup). Worse,
+      // an attacker whose token was "revoked" but not persisted could
+      // keep using it for the current process lifetime with no audit
+      // trail. Re-throw so /revoke returns 500 and the client knows.
+      this.state.tokens[token] = existing;
+      console.error('[OAuth] Token revocation failed to persist — state restored', error);
+      throw new Error('Failed to persist token revocation', { cause: error });
     }
   }
 
@@ -562,6 +607,15 @@ export class OAuthProvider {
 
   getClientCount(): number {
     return Object.keys(this.state.clients).length;
+  }
+
+  getIssuedCodeCount(): number {
+    return this.issuedCodes.size;
+  }
+
+  /** Force a sweep of expired codes/pending/tokens. Test-only entry point. */
+  runExpirySweep(): void {
+    this.cleanExpiredTokens();
   }
 }
 

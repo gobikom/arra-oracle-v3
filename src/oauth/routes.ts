@@ -191,10 +191,20 @@ export function registerOAuthRoutes(app: Hono): void {
     }
 
     if (token) {
-      getOAuthProvider().revokeToken(token);
+      try {
+        getOAuthProvider().revokeToken(token);
+      } catch (err) {
+        // revokeToken now throws on saveState persistence failure. Surface
+        // a 500 so the caller knows the revocation did not stick — the
+        // previous silent-swallow behaviour would have returned 200 while
+        // the token remained valid on disk (next restart would restore it).
+        console.error('[OAuth] /revoke: persistence failed', err);
+        return c.json({ error: 'server_error', error_description: 'Revocation failed to persist' }, 500);
+      }
     }
 
-    // RFC 7009: always return 200 even if token unknown
+    // RFC 7009: return 200 for unknown/missing tokens (no token existence oracle).
+    // Successful revocation also returns 200.
     return c.json({}, 200);
   });
 
