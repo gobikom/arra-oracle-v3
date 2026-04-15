@@ -113,7 +113,7 @@ describe('loadState fail-safe on corrupt state (fix #17.3)', () => {
     fs.writeFileSync(STATE_FILE, '{ "tokens": { broken json ', 'utf-8');
 
     resetOAuthProvider();
-    expect(() => new OAuthProvider()).toThrow(/Refusing to start with empty state/);
+    expect(() => new OAuthProvider()).toThrow(/Refusing to start silently with empty state/);
 
     // Corrupt file renamed out of the way, not deleted.
     expect(fs.existsSync(STATE_FILE)).toBe(false);
@@ -123,6 +123,24 @@ describe('loadState fail-safe on corrupt state (fix #17.3)', () => {
 
   test('empty/missing state file is still OK (no throw)', () => {
     expect(() => makeProvider()).not.toThrow();
+  });
+
+  test('still throws even when rename of corrupt file also fails', () => {
+    fs.writeFileSync(STATE_FILE, '{ broken json', 'utf-8');
+
+    // Make renameSync fail by chmod'ing the data dir read-only so the
+    // rename operation cannot write the new `.corrupt.<ts>` name. The
+    // fallback path must still delete the corrupt file and still throw
+    // so the operator notices.
+    fs.chmodSync(TEST_DATA_DIR, 0o555);
+    try {
+      resetOAuthProvider();
+      // Must throw — the second-line-of-defense is to still refuse to
+      // start silently even when rename failed.
+      expect(() => new OAuthProvider()).toThrow(/Failed to parse OAuth state file/);
+    } finally {
+      fs.chmodSync(TEST_DATA_DIR, 0o755);
+    }
   });
 });
 
@@ -152,14 +170,58 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
       throw new Error('disk full (simulated)');
     };
 
-    expect(() => provider.revokeToken('tkn-rollback')).toThrow(/Failed to persist token revocation/);
-    // Rolled back — token still present in memory.
-    expect(provider.getTokenCount()).toBe(1);
+    try {
+      expect(() => provider.revokeToken('tkn-rollback')).toThrow(/Failed to persist token revocation/);
+      // Rolled back — token still present in memory.
+      expect(provider.getTokenCount()).toBe(1);
+    } finally {
+      // Always restore real saveState so a failed assertion above doesn't
+      // leave the patched saveState active for the next assertion below.
+      providerAny.saveState = originalSave;
+    }
 
-    // Restore real saveState and confirm revoke actually works.
-    providerAny.saveState = originalSave;
+    // Confirm revoke actually works with the real saveState after rollback.
     expect(() => provider.revokeToken('tkn-rollback')).not.toThrow();
     expect(provider.getTokenCount()).toBe(0);
+  });
+
+  test('rollback restores a snapshot, not a reference — protects against mid-flight mutation', () => {
+    const provider = makeProvider();
+    const providerAny = provider as unknown as {
+      state: { tokens: Record<string, { client_id: string; scopes: string[]; expires_at: number }> };
+      saveState: () => void;
+    };
+
+    const original = {
+      client_id: 'test',
+      scopes: ['read', 'write'],
+      expires_at: Date.now() + 60_000,
+    };
+    providerAny.state.tokens['tkn-snap'] = original;
+
+    const originalSave = providerAny.saveState.bind(provider);
+    providerAny.saveState = () => {
+      // Simulate a concurrent mutation that happens while the save is
+      // failing (e.g., another code path updating expires_at before the
+      // rollback completes). If revokeToken captures by reference, the
+      // rollback would restore the mutated value. With a snapshot it
+      // restores the original.
+      original.scopes = ['MUTATED'];
+      original.expires_at = 1;
+      throw new Error('disk full (simulated)');
+    };
+
+    try {
+      expect(() => provider.revokeToken('tkn-snap')).toThrow();
+      // The restored record must have the ORIGINAL scopes and expires_at,
+      // not the mutated ones — because we snapshotted via spread before delete.
+      const restored = providerAny.state.tokens['tkn-snap'];
+      expect(restored).toBeDefined();
+      expect(restored.scopes).toEqual(['read', 'write']);
+      expect(restored.expires_at).toBeGreaterThan(1);
+    } finally {
+      providerAny.saveState = originalSave;
+    }
   });
 
   test('revoking a nonexistent token is a clean no-op', () => {

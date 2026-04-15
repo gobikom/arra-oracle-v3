@@ -86,6 +86,26 @@ export class OAuthProvider {
     this.stateFile = join(ORACLE_DATA_DIR, '.oauth-state.json');
     this.state = this.loadState();
     this.cleanExpiredTokens();
+
+    // Periodic expiry sweep — the eviction logic in cleanExpiredTokens()
+    // only runs on construction and on /authorize traffic. A server that
+    // receives only token-verification traffic (common steady-state) would
+    // never sweep abandoned issuedCodes, pending authorizations, or expired
+    // tokens, defeating the memory-leak fix. Run every AUTH_CODE_TTL_MS
+    // (5 min) so the worst-case memory footprint is bounded by that window
+    // even under a long-running idle server.
+    //
+    // .unref() so the timer does NOT keep the Node event loop alive — the
+    // process can still exit cleanly on SIGINT/SIGTERM. Test code that
+    // wants to tick the sweep manually still has runExpirySweep().
+    const sweepTimer = setInterval(() => {
+      try {
+        this.cleanExpiredTokens();
+      } catch (err) {
+        console.error('[OAuth] Periodic expiry sweep failed (non-fatal):', err);
+      }
+    }, AUTH_CODE_TTL_MS);
+    sweepTimer.unref();
   }
 
   // ─── State persistence ───────────────────────────────────────────────────
@@ -107,16 +127,33 @@ export class OAuthProvider {
       // unrecoverable data loss that operators would not notice until users
       // started getting invalid_token errors hours later.
       const corrupt = `${this.stateFile}.corrupt.${Date.now()}`;
+      let preservedAt: string | null = null;
       try {
         renameSync(this.stateFile, corrupt);
+        preservedAt = corrupt;
         console.error(`[OAuth] State file corrupt — preserved at ${corrupt}`);
       } catch (renameErr) {
+        // Rename failed (cross-device, permissions, disk full). Delete the
+        // corrupt file so the next startup attempt has a clean slate — an
+        // infinite boot-fail loop (same corrupt file trips the same error
+        // forever) is strictly worse than losing the already-unreadable
+        // state file. We still throw so the operator notices, and we log
+        // exactly which fallback path was taken so they can investigate.
         console.error('[OAuth] State file corrupt AND rename failed:', renameErr);
+        try {
+          rmSync(this.stateFile, { force: true });
+          console.error('[OAuth] Corrupt state file deleted after rename failure — next start will use empty state');
+        } catch (rmErr) {
+          console.error('[OAuth] State file corrupt AND rename failed AND delete failed:', rmErr);
+        }
       }
       throw new Error(
-        '[OAuth] Failed to parse OAuth state file. Corrupt state preserved for forensics. '
-        + 'Refusing to start with empty state — this would silently wipe all registered '
-        + 'clients and tokens. Investigate the preserved file or delete it manually to start fresh.',
+        '[OAuth] Failed to parse OAuth state file. '
+        + (preservedAt
+          ? `Corrupt state preserved at ${preservedAt} for forensics. `
+          : 'Rename failed — corrupt file was deleted as last-resort recovery. ')
+        + 'Refusing to start silently with empty state — this would wipe all registered '
+        + 'clients and tokens without operator awareness.',
         { cause: err },
       );
     }
@@ -232,7 +269,12 @@ export class OAuthProvider {
       console.warn('[OAuth] /register: MCP_AUTH_TOKEN not set — registration is unprotected');
       return true;
     }
-    const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    // Match src/middleware/api-auth.ts behaviour exactly: extract the token,
+    // .trim() whitespace, and short-circuit on empty before running HMAC.
+    // The empty-token early-out is safe (it is not a secret-dependent branch —
+    // it depends only on the attacker-controlled header) and saves work.
+    const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!providedToken) return false;
     // HMAC normalisation: both sides get hashed to a fixed 32-byte digest
     // before timingSafeEqual sees them. The previous implementation short-
     // circuited on `expected.length === provided.length &&` BEFORE calling
@@ -578,8 +620,14 @@ export class OAuthProvider {
   // ─── Token revocation ────────────────────────────────────────────────────
 
   revokeToken(token: string): void {
-    const existing = this.state.tokens[token];
-    if (!existing) return;
+    const current = this.state.tokens[token];
+    if (!current) return;
+
+    // Snapshot (spread) rather than capturing the reference — if any future
+    // code path mutates the token record in-flight (e.g., sliding-window
+    // expiry update), the rollback must restore the ORIGINAL value, not
+    // whatever happens to be sitting at that reference at catch time.
+    const snapshot = { ...current };
 
     delete this.state.tokens[token];
     try {
@@ -593,7 +641,7 @@ export class OAuthProvider {
       // an attacker whose token was "revoked" but not persisted could
       // keep using it for the current process lifetime with no audit
       // trail. Re-throw so /revoke returns 500 and the client knows.
-      this.state.tokens[token] = existing;
+      this.state.tokens[token] = snapshot;
       console.error('[OAuth] Token revocation failed to persist — state restored', error);
       throw new Error('Failed to persist token revocation', { cause: error });
     }
@@ -609,11 +657,22 @@ export class OAuthProvider {
     return Object.keys(this.state.clients).length;
   }
 
+  /**
+   * @internal — test-only accessor. Do not call from production code.
+   * Exposes the current size of the in-memory issuedCodes Map so unit
+   * tests can assert TTL eviction behaviour.
+   */
   getIssuedCodeCount(): number {
     return this.issuedCodes.size;
   }
 
-  /** Force a sweep of expired codes/pending/tokens. Test-only entry point. */
+  /**
+   * @internal — test-only entry point. Do not call from production code.
+   * Force-triggers the expiry sweep (normally called from the constructor
+   * and from /authorize traffic + the periodic setInterval). Used by unit
+   * tests to deterministically exercise eviction after fast-forwarding the
+   * clock via Date.now monkey-patch.
+   */
   runExpirySweep(): void {
     this.cleanExpiredTokens();
   }
