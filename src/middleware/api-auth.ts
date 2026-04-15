@@ -12,11 +12,12 @@
  *   middleware. Tests inject a token directly; production wires
  *   `ORACLE_API_TOKEN` from config at startup. This avoids module-cache
  *   gymnastics in test isolation.
- * - **Optional-enforce**: if the configured token is empty, the middleware
- *   ALLOWS all requests through (backward-compat deployment window for
- *   issue #12 Stage 2 rollout). When the token is set, every gated request
- *   must carry `Authorization: Bearer <token>` matching exactly. A
- *   follow-up PR will retire optional-enforce after all clients ship.
+ * - **Required-enforce**: the factory throws at startup if the token is
+ *   empty. Every gated request must carry `Authorization: Bearer <token>`
+ *   matching exactly. There is no compat path — issue #12 Stage 2 rollout
+ *   is complete (clients ship the header, server enforces). Misconfigured
+ *   environments fail loudly at startup rather than silently allowing
+ *   unauthenticated traffic through.
  * - The path `/api/health` is always exempted so liveness probes
  *   (auto-ops watchdog, k8s-style monitors) keep working with no special
  *   config.
@@ -41,6 +42,15 @@ const HEALTH_PATH = '/api/health';
 const BEARER_PREFIX = 'Bearer ';
 
 export function createApiAuthMiddleware(token: string): MiddlewareHandler {
+  const configuredToken = token.trim();
+  if (!configuredToken) {
+    throw new Error(
+      'createApiAuthMiddleware: ORACLE_API_TOKEN is required (issue #12 Stage 2 '
+      + 'flip-default complete, no compat path). Provision via '
+      + '~/.secrets/oracle-api.env and wire into systemd EnvironmentFile.',
+    );
+  }
+
   // Per-process random key. Used only to normalise comparison inputs to
   // equal length via HMAC-SHA256 before timingSafeEqual sees them. Defeats
   // the length-leak side channel in raw timingSafeEqual (which throws on
@@ -53,8 +63,6 @@ export function createApiAuthMiddleware(token: string): MiddlewareHandler {
     return timingSafeEqual(ah, bh);
   }
 
-  const configuredToken = token.trim();
-
   return async (c, next) => {
     // CORS preflight always passes. Browsers send OPTIONS without an
     // Authorization header to discover allowed methods/headers; blocking
@@ -63,14 +71,8 @@ export function createApiAuthMiddleware(token: string): MiddlewareHandler {
       return next();
     }
 
-    // Health probe always exempt regardless of enforcement state.
+    // Health probe always exempt so liveness checks keep working.
     if (c.req.path === HEALTH_PATH) {
-      return next();
-    }
-
-    // Optional-enforce: no token configured → allow (compat deployment
-    // window). When the token is provisioned in env, this branch goes away.
-    if (!configuredToken) {
       return next();
     }
 

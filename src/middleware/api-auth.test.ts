@@ -26,24 +26,13 @@ function buildApp(token: string) {
   return app;
 }
 
-describe('createApiAuthMiddleware — compat mode (token unset)', () => {
-  it('allows /api/* with no Authorization header', async () => {
-    const app = buildApp('');
-    const res = await app.request('/api/search');
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, route: 'search' });
+describe('createApiAuthMiddleware — startup validation', () => {
+  it('throws when token is empty string', () => {
+    expect(() => createApiAuthMiddleware('')).toThrow(/ORACLE_API_TOKEN is required/);
   });
 
-  it('treats whitespace-only token as compat mode', async () => {
-    const app = buildApp('   ');
-    const res = await app.request('/api/search');
-    expect(res.status).toBe(200);
-  });
-
-  it('still allows /api/health without Authorization', async () => {
-    const app = buildApp('');
-    const res = await app.request('/api/health');
-    expect(res.status).toBe(200);
+  it('throws when token is whitespace-only', () => {
+    expect(() => createApiAuthMiddleware('   ')).toThrow(/ORACLE_API_TOKEN is required/);
   });
 });
 
