@@ -78,6 +78,12 @@ export class OAuthProvider {
   // used in src/middleware/api-auth.ts (issue #12 Stage 2A).
   private readonly hmacKey: Buffer = randomBytes(32);
 
+  // Consecutive-failure counter for the periodic sweep — lets us escalate
+  // the log level on sustained failures (e.g., disk full) so operators
+  // notice a real problem instead of dismissing a single repeated warning
+  // as transient noise. Reset to 0 on any successful sweep.
+  private sweepFailureCount = 0;
+
   private static readonly MAX_PIN_ATTEMPTS = 10;
   private static readonly PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
   private static readonly MAX_PENDING_AUTHORIZATIONS = 100;
@@ -101,8 +107,18 @@ export class OAuthProvider {
     const sweepTimer = setInterval(() => {
       try {
         this.cleanExpiredTokens();
+        this.sweepFailureCount = 0;
       } catch (err) {
-        console.error('[OAuth] Periodic expiry sweep failed (non-fatal):', err);
+        // Escalate after 3 consecutive failures — a single transient error
+        // (e.g., a brief fs hiccup) logs as a warning, but a sustained
+        // problem (disk full, permissions drift) escalates to error so an
+        // operator watching logs can distinguish "noise" from "real".
+        this.sweepFailureCount += 1;
+        const level = this.sweepFailureCount >= 3 ? 'error' : 'warn';
+        console[level](
+          `[OAuth] Periodic expiry sweep failed (consecutive=${this.sweepFailureCount}):`,
+          err,
+        );
       }
     }, AUTH_CODE_TTL_MS);
     sweepTimer.unref();
@@ -623,11 +639,15 @@ export class OAuthProvider {
     const current = this.state.tokens[token];
     if (!current) return;
 
-    // Snapshot (spread) rather than capturing the reference — if any future
-    // code path mutates the token record in-flight (e.g., sliding-window
-    // expiry update), the rollback must restore the ORIGINAL value, not
-    // whatever happens to be sitting at that reference at catch time.
-    const snapshot = { ...current };
+    // Snapshot rather than capturing the reference — if any future code path
+    // mutates the token record in-flight (e.g., sliding-window expiry update,
+    // scope narrowing), the rollback must restore the ORIGINAL value, not
+    // whatever happens to be sitting at that reference at catch time. Object
+    // spread is shallow, so explicitly deep-copy the `scopes` array — the
+    // only mutable nested field in the token record shape. Keeping this
+    // explicit (not reaching for structuredClone) documents the invariant
+    // at the rollback boundary where it matters.
+    const snapshot = { ...current, scopes: [...current.scopes] };
 
     delete this.state.tokens[token];
     try {
