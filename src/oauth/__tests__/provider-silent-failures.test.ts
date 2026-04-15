@@ -12,9 +12,17 @@
  */
 
 import { describe, expect, test, beforeEach, afterAll, mock } from 'bun:test';
+import { createHash } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+
+// Helper: matches OAuthProvider.hashToken — storage is keyed by sha256hex
+// since finding #17.7 (PR-B2). Tests that seed tokens directly on the
+// internal state map must use the same hashing so revokeToken can find them.
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 // Single data dir for all tests in this file. Module-level mock can only
 // capture ORACLE_DATA_DIR once, so we create one dir up front and clean
@@ -158,7 +166,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
       state: { tokens: Record<string, unknown> };
       saveState: () => void;
     };
-    providerAny.state.tokens['tkn-rollback'] = {
+    providerAny.state.tokens[hashToken('tkn-rollback')] = {
       client_id: 'test',
       scopes: ['read'],
       expires_at: Date.now() + 60_000,
@@ -197,7 +205,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
       scopes: ['read', 'write'],
       expires_at: Date.now() + 60_000,
     };
-    providerAny.state.tokens['tkn-snap'] = original;
+    providerAny.state.tokens[hashToken('tkn-snap')] = original;
 
     const originalSave = providerAny.saveState.bind(provider);
     providerAny.saveState = () => {
@@ -215,7 +223,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
       expect(() => provider.revokeToken('tkn-snap')).toThrow();
       // The restored record must have the ORIGINAL scopes and expires_at,
       // not the mutated ones — because we snapshotted via spread before delete.
-      const restored = providerAny.state.tokens['tkn-snap'];
+      const restored = providerAny.state.tokens[hashToken('tkn-snap')];
       expect(restored).toBeDefined();
       expect(restored.scopes).toEqual(['read', 'write']);
       expect(restored.expires_at).toBeGreaterThan(1);

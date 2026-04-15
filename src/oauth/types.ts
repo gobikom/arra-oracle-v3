@@ -14,7 +14,17 @@ export interface OAuthTokenData {
 
 export interface OAuthState {
   clients: Record<string, OAuthClientInfo>;
+  /**
+   * Keyed by sha256hex(rawAccessToken) when `tokenKeyVersion === 'sha256'`.
+   * Legacy state files (tokenKeyVersion absent) are keyed by the raw token
+   * and migrated in-place on load — see OAuthProvider.migrateTokenKeys.
+   */
   tokens: Record<string, OAuthTokenData>;
+  /**
+   * Token storage scheme version. Absent = legacy raw-key (migrated on load).
+   * 'sha256' = keys are SHA-256(token) hex (hash-before-lookup side-channel fix).
+   */
+  tokenKeyVersion?: 'sha256';
 }
 
 export interface OAuthClientInfo {

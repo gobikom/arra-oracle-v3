@@ -19,7 +19,7 @@ import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 
 import { MCP_OAUTH_PIN, MCP_EXTERNAL_URL, ORACLE_DATA_DIR, MCP_AUTH_TOKEN } from '../config.ts';
-import type { OAuthState, OAuthClientInfo, PendingAuthorization } from './types.ts';
+import type { OAuthState, OAuthClientInfo, OAuthTokenData, PendingAuthorization } from './types.ts';
 
 export const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const AUTH_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -48,6 +48,63 @@ interface IssuedCode {
 interface RateLimitRecord {
   count: number;
   resetAt: number;
+}
+
+/**
+ * Thrown when a redirect_uri fails the allowlist check.
+ * Caught by /register and mapped to HTTP 400 invalid_redirect_uri per RFC 6749.
+ */
+export class RedirectUriValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RedirectUriValidationError';
+  }
+}
+
+/**
+ * RFC 8252-compliant redirect_uri allowlist. Rejects:
+ *   - Non-HTTPS HTTP (except loopback: localhost, 127.0.0.1, ::1)
+ *   - Non-HTTP(S) schemes (javascript:, data:, ftp:, file:, custom-scheme:, ...)
+ *   - Malformed URIs (anything the URL constructor rejects)
+ *
+ * Allows:
+ *   - https:// (any host)
+ *   - http://localhost[:port][/path]
+ *   - http://127.0.0.1[:port][/path]
+ *   - http://[::1][:port][/path]
+ *
+ * Called at TWO enforcement points (defense in depth):
+ *   1. OAuthProvider.registerClient — before persisting the client
+ *   2. OAuthProvider.authorize — before redirecting (catches tampered/grandfathered state)
+ */
+export function validateRedirectUri(uri: string): void {
+  if (typeof uri !== 'string' || uri.length === 0) {
+    throw new RedirectUriValidationError('redirect_uri must be a non-empty string');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    throw new RedirectUriValidationError(`redirect_uri is not a valid URL: ${uri}`);
+  }
+  if (parsed.protocol === 'https:') return;
+  if (parsed.protocol === 'http:') {
+    // WHATWG URL returns IPv6 hostnames WITH brackets (e.g. "[::1]"). Node
+    // strips them in some versions, Bun preserves them — accept both shapes.
+    const host = parsed.hostname;
+    if (
+      host === 'localhost'
+      || host === '127.0.0.1'
+      || host === '::1'
+      || host === '[::1]'
+    ) return;
+    throw new RedirectUriValidationError(
+      `redirect_uri scheme http:// only allowed for loopback (got host=${host})`,
+    );
+  }
+  throw new RedirectUriValidationError(
+    `redirect_uri scheme not allowed: ${parsed.protocol}`,
+  );
 }
 
 /** Escape user-supplied strings for safe HTML interpolation */
@@ -84,6 +141,12 @@ export class OAuthProvider {
   // as transient noise. Reset to 0 on any successful sweep.
   private sweepFailureCount = 0;
 
+  // Set by loadState() when token-key migration runs. The constructor checks
+  // this AFTER loadState returns and calls saveState() once to persist the
+  // migrated shape. We cannot saveState() from inside loadState() because
+  // this.state is not yet assigned — doing so would serialize `undefined`.
+  private needsPostLoadSave = false;
+
   private static readonly MAX_PIN_ATTEMPTS = 10;
   private static readonly PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
   private static readonly MAX_PENDING_AUTHORIZATIONS = 100;
@@ -91,6 +154,15 @@ export class OAuthProvider {
   constructor() {
     this.stateFile = join(ORACLE_DATA_DIR, '.oauth-state.json');
     this.state = this.loadState();
+    // Persist migrated state immediately so a crash between now and the next
+    // organic write does not re-trigger migration on restart. saveState()
+    // throws on failure → eager-init pattern in server.ts catches it and
+    // exits non-zero, giving the operator a loud signal instead of silent
+    // "half-migrated" state (PR-B1 lesson).
+    if (this.needsPostLoadSave) {
+      this.saveState();
+      this.needsPostLoadSave = false;
+    }
     this.cleanExpiredTokens();
 
     // Periodic expiry sweep — the eviction logic in cleanExpiredTokens()
@@ -128,11 +200,50 @@ export class OAuthProvider {
 
   private loadState(): OAuthState {
     if (!existsSync(this.stateFile)) {
-      return { clients: {}, tokens: {} };
+      return { clients: {}, tokens: {}, tokenKeyVersion: 'sha256' };
     }
     try {
       const raw = readFileSync(this.stateFile, 'utf-8');
-      return JSON.parse(raw) as OAuthState;
+      const parsed = JSON.parse(raw) as OAuthState;
+
+      // Defensive normalisation — an older state file or hand-edited file may
+      // omit fields. We never THROW on missing shape here (operator may be
+      // recovering from a backup); we just fill in defaults.
+      if (!parsed.clients || typeof parsed.clients !== 'object') parsed.clients = {};
+      if (!parsed.tokens || typeof parsed.tokens !== 'object') parsed.tokens = {};
+
+      // Finding #17.4: warn on grandfathered invalid redirect_uris. Do NOT
+      // delete or auto-migrate — operator must re-register. ("Nothing
+      // deleted, only superseded.") Warnings are logged once at startup so
+      // they surface in the usual log-scanning workflow.
+      for (const [clientId, client] of Object.entries(parsed.clients)) {
+        const uris = Array.isArray(client.redirect_uris) ? client.redirect_uris : [];
+        for (const uri of uris) {
+          try {
+            validateRedirectUri(uri);
+          } catch (vErr) {
+            console.warn(
+              `[OAuth] Grandfathered invalid redirect_uri for client=${clientId}: ${uri} — ${
+                vErr instanceof Error ? vErr.message : String(vErr)
+              } — operator must re-register`,
+            );
+          }
+        }
+      }
+
+      // Finding #17.7: migrate token key scheme from raw-token to
+      // sha256(token). Idempotent — if already 'sha256' this is a no-op.
+      // If migration throws (e.g., OOM on a huge token map), the exception
+      // propagates out of loadState and eager-init catches it at startup.
+      const migratedCount = this.migrateTokenKeys(parsed);
+      if (migratedCount > 0) {
+        console.log(
+          `[OAuth] Migrated ${migratedCount} token(s) from raw-key to sha256-key storage`,
+        );
+        this.needsPostLoadSave = true;
+      }
+
+      return parsed;
     } catch (err) {
       // FAIL SAFE: preserve the corrupt file for forensics, then throw.
       // The previous behaviour — swallowing the parse error and returning
@@ -230,6 +341,48 @@ export class OAuthProvider {
     }
   }
 
+  // ─── Token key hashing (finding #17.7) ──────────────────────────────────
+
+  /**
+   * SHA-256 hex digest of a raw access token. Used as the key into
+   * state.tokens so that JS object property lookups no longer leak timing
+   * information tied to the raw token value. The digest is deterministic
+   * and constant-time to compute; subsequent object lookup leaks only on
+   * the digest value, which is indistinguishable from random for an
+   * attacker who does not already know the token.
+   */
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Re-key state.tokens from raw-token-as-key to sha256(rawToken)-as-key.
+   * Idempotent: if state.tokenKeyVersion === 'sha256' this returns 0 without
+   * touching the map. Otherwise every entry is re-hashed and the version
+   * marker is set. Returns the number of entries migrated (0 = already
+   * migrated or empty map).
+   *
+   * NOTE: This mutates the passed state object in place. The caller
+   * (loadState) is responsible for triggering a subsequent saveState() so
+   * the migration is durable — see constructor's `needsPostLoadSave` flag.
+   */
+  private migrateTokenKeys(state: OAuthState): number {
+    if (state.tokenKeyVersion === 'sha256') return 0;
+    const entries = Object.entries(state.tokens ?? {});
+    if (entries.length === 0) {
+      state.tokenKeyVersion = 'sha256';
+      return 0;
+    }
+    const migrated: Record<string, OAuthTokenData> = {};
+    for (const [rawToken, value] of entries) {
+      const hashed = createHash('sha256').update(rawToken).digest('hex');
+      migrated[hashed] = value;
+    }
+    state.tokens = migrated;
+    state.tokenKeyVersion = 'sha256';
+    return entries.length;
+  }
+
   // ─── Rate limiting ───────────────────────────────────────────────────────
 
   private checkRateLimit(): { allowed: boolean; attemptsLeft: number } {
@@ -304,13 +457,24 @@ export class OAuthProvider {
   // ─── Client registration (RFC 7591) ─────────────────────────────────────
 
   registerClient(metadata: Partial<OAuthClientInfo>): OAuthClientInfo {
+    // Finding #17.4: validate every redirect_uri against the allowlist
+    // BEFORE persisting. Throws RedirectUriValidationError on any invalid
+    // entry; caller in routes.ts maps that to HTTP 400.
+    const redirect_uris = metadata.redirect_uris || [];
+    if (redirect_uris.length === 0) {
+      throw new RedirectUriValidationError('at least one redirect_uri is required');
+    }
+    for (const uri of redirect_uris) {
+      validateRedirectUri(uri);
+    }
+
     const client_id = `oracle-${randomBytes(12).toString('hex')}`;
     const client_secret = randomBytes(24).toString('hex');
 
     const client: OAuthClientInfo = {
       client_id,
       client_secret,
-      redirect_uris: metadata.redirect_uris || [],
+      redirect_uris,
       client_name: metadata.client_name,
       grant_types: metadata.grant_types || ['authorization_code'],
       response_types: metadata.response_types || ['code'],
@@ -357,6 +521,19 @@ export class OAuthProvider {
 
     if (!client.redirect_uris.includes(params.redirect_uri)) {
       return { error: 'redirect_uri not registered for client' };
+    }
+
+    // Finding #17.4: second enforcement point (defense in depth). The
+    // inclusion check above guards against unregistered URIs, but the
+    // URI itself could still be invalid if it was persisted before this
+    // fix (grandfathered) or if state.clients was tampered with directly
+    // on disk. Re-validate the scheme here so /authorize never issues a
+    // 302 redirect to a javascript:, data:, or custom-scheme URI.
+    try {
+      validateRedirectUri(params.redirect_uri);
+    } catch (vErr) {
+      const msg = vErr instanceof Error ? vErr.message : 'invalid redirect_uri';
+      return { error: `invalid redirect_uri: ${msg}` };
     }
 
     if (params.code_challenge_method !== 'S256') {
@@ -560,8 +737,12 @@ export class OAuthProvider {
 
     const access_token = randomBytes(32).toString('hex');
     const expires_at = Date.now() + TOKEN_TTL_MS;
+    // Finding #17.7: store under sha256(token), not raw token, so the
+    // JS dict-key timing side-channel is closed at issue time too (otherwise
+    // migration would only help legacy tokens).
+    const tokenKey = this.hashToken(access_token);
 
-    this.state.tokens[access_token] = {
+    this.state.tokens[tokenKey] = {
       client_id: codeData.client_id,
       scopes: codeData.scopes,
       expires_at,
@@ -570,7 +751,7 @@ export class OAuthProvider {
     try {
       this.saveState();
     } catch (error) {
-      delete this.state.tokens[access_token];
+      delete this.state.tokens[tokenKey];
       console.error('[OAuth] Access token issuance aborted: failed to persist state', error);
       return { error: 'temporarily_unavailable: failed to persist token state', status: 503 };
     }
@@ -593,11 +774,16 @@ export class OAuthProvider {
   verifyAccessToken(token: string): AuthInfo | null {
     if (!token) return null;
 
-    // 1. OAuth-issued tokens
-    const data = this.state.tokens[token];
+    // 1. OAuth-issued tokens — hash-before-lookup (finding #17.7).
+    // The SHA-256 computation is the constant-time component; the object
+    // property access that follows leaks only on the digest value, which
+    // is indistinguishable from random for an attacker who does not
+    // already know the token.
+    const tokenKey = this.hashToken(token);
+    const data = this.state.tokens[tokenKey];
     if (data) {
       if (data.expires_at < Date.now()) {
-        delete this.state.tokens[token];
+        delete this.state.tokens[tokenKey];
         try {
           this.saveState();
         } catch (error) {
@@ -635,9 +821,40 @@ export class OAuthProvider {
 
   // ─── Token revocation ────────────────────────────────────────────────────
 
-  revokeToken(token: string): void {
-    const current = this.state.tokens[token];
+  /**
+   * Revoke an access token.
+   *
+   * @param token                  raw access token to revoke
+   * @param authenticatedClientId  if supplied, enforces RFC 7009 §2.1
+   *                               token-client binding: the token MUST have
+   *                               been issued to this client or the call is
+   *                               silently ignored (return 200 to caller,
+   *                               token remains active) — this is the
+   *                               spec-compliant way to not leak token
+   *                               existence across clients.
+   *
+   * Hash-before-lookup (finding #17.7): the map is keyed by sha256(token),
+   * so the dict-access timing side-channel is closed here as it is in
+   * verifyAccessToken and exchangeAuthorizationCode.
+   */
+  revokeToken(token: string, authenticatedClientId?: string): void {
+    const tokenKey = this.hashToken(token);
+    const current = this.state.tokens[tokenKey];
     if (!current) return;
+
+    // Finding #17.5: token-client binding. If the caller authenticated as
+    // client X but the token belongs to client Y, we MUST NOT reveal that
+    // the token exists (RFC 7009 §2.1 — "the authorization server responds
+    // with HTTP status code 200 if the token has been revoked successfully
+    // or if the client submitted an invalid token"). Returning silently
+    // here means the HTTP handler will return 200, and the attacker sees
+    // the same response whether or not the token existed.
+    if (authenticatedClientId !== undefined && current.client_id !== authenticatedClientId) {
+      console.warn(
+        `[OAuth] /revoke: client ${authenticatedClientId} attempted to revoke token belonging to ${current.client_id} — ignored (not leaked)`,
+      );
+      return;
+    }
 
     // Snapshot rather than capturing the reference — if any future code path
     // mutates the token record in-flight (e.g., sliding-window expiry update,
@@ -649,10 +866,10 @@ export class OAuthProvider {
     // at the rollback boundary where it matters.
     const snapshot = { ...current, scopes: [...current.scopes] };
 
-    delete this.state.tokens[token];
+    delete this.state.tokens[tokenKey];
     try {
       this.saveState();
-      console.log('[OAuth] Token revoked');
+      console.log(`[OAuth] Token revoked (client=${current.client_id})`);
     } catch (error) {
       // Roll back in-memory deletion so memory + disk stay consistent.
       // The previous behaviour logged "Token revoked" even on persistence
@@ -661,10 +878,143 @@ export class OAuthProvider {
       // an attacker whose token was "revoked" but not persisted could
       // keep using it for the current process lifetime with no audit
       // trail. Re-throw so /revoke returns 500 and the client knows.
-      this.state.tokens[token] = snapshot;
+      this.state.tokens[tokenKey] = snapshot;
       console.error('[OAuth] Token revocation failed to persist — state restored', error);
       throw new Error('Failed to persist token revocation', { cause: error });
     }
+  }
+
+  // ─── /revoke client authentication (finding #17.5) ──────────────────────
+
+  /**
+   * Authenticate a /revoke request per RFC 7009 §2.1.
+   *
+   * Accepts client credentials via either:
+   *   - HTTP Basic: `Authorization: Basic base64(client_id:client_secret)` (preferred)
+   *   - Form body:  `client_id=X&client_secret=Y` (fallback)
+   *
+   * Rejects with HTTP 400 if BOTH are present (RFC 6749 §2.3.1:
+   * "the client MUST NOT use more than one authentication method in each
+   * request").
+   *
+   * client_secret is compared via HMAC-normalised timingSafeEqual using
+   * this.hmacKey — the same pattern as checkRegistrationAuth (see that
+   * method's comment for the full rationale on why the HMAC key does not
+   * need to be secret; its only job is to give timingSafeEqual two equal-
+   * length digests so the compare runs without leaking length via
+   * short-circuit behaviour).
+   *
+   * On unknown client_id we still run a dummy constant-time compare so that
+   * attackers cannot distinguish "client does not exist" from "wrong
+   * secret" by timing the response.
+   */
+  authenticateRevokeRequest(
+    authHeader: string,
+    formBody: { client_id?: string; client_secret?: string },
+  ):
+    | { ok: true; clientId: string }
+    | { ok: false; status: 400 | 401; error: string; errorDescription: string } {
+    const hasBasic = authHeader.toLowerCase().startsWith('basic ');
+    const hasForm = !!(formBody.client_id || formBody.client_secret);
+
+    if (hasBasic && hasForm) {
+      return {
+        ok: false,
+        status: 400,
+        error: 'invalid_request',
+        errorDescription:
+          'use only one client authentication method (RFC 6749 §2.3.1)',
+      };
+    }
+
+    let clientId: string;
+    let clientSecret: string;
+
+    if (hasBasic) {
+      const encoded = authHeader.slice(6).trim(); // slice off "Basic " (6 chars) — case already normalised via toLowerCase check
+      let decoded: string;
+      try {
+        decoded = Buffer.from(encoded, 'base64').toString('utf-8');
+      } catch {
+        return {
+          ok: false,
+          status: 401,
+          error: 'invalid_client',
+          errorDescription: 'malformed Basic auth',
+        };
+      }
+      const colonIdx = decoded.indexOf(':');
+      if (colonIdx < 0) {
+        return {
+          ok: false,
+          status: 401,
+          error: 'invalid_client',
+          errorDescription: 'malformed Basic auth (missing colon)',
+        };
+      }
+      clientId = decoded.slice(0, colonIdx);
+      clientSecret = decoded.slice(colonIdx + 1);
+    } else if (hasForm) {
+      clientId = formBody.client_id ?? '';
+      clientSecret = formBody.client_secret ?? '';
+    } else {
+      return {
+        ok: false,
+        status: 401,
+        error: 'invalid_client',
+        errorDescription: 'client authentication required',
+      };
+    }
+
+    if (!clientId || !clientSecret) {
+      return {
+        ok: false,
+        status: 401,
+        error: 'invalid_client',
+        errorDescription: 'client_id and client_secret required',
+      };
+    }
+
+    const client = this.state.clients[clientId];
+    if (!client || !client.client_secret) {
+      // Dummy compare to equalise timing between "client missing" and
+      // "client exists but secret wrong". Without this, an attacker can
+      // enumerate valid client_ids by measuring response time.
+      const dummy = createHmac('sha256', this.hmacKey)
+        .update('dummy-secret-for-timing-parity')
+        .digest();
+      const providedDigest = createHmac('sha256', this.hmacKey)
+        .update(clientSecret)
+        .digest();
+      // Throwaway — we deliberately discard the result so the compiler
+      // cannot optimise it out. timingSafeEqual requires equal-length
+      // buffers; both are 32-byte SHA-256 digests, so this is safe.
+      timingSafeEqual(dummy, providedDigest);
+      return {
+        ok: false,
+        status: 401,
+        error: 'invalid_client',
+        errorDescription: 'invalid credentials',
+      };
+    }
+
+    const expectedDigest = createHmac('sha256', this.hmacKey)
+      .update(client.client_secret)
+      .digest();
+    const providedDigest = createHmac('sha256', this.hmacKey)
+      .update(clientSecret)
+      .digest();
+
+    if (!timingSafeEqual(expectedDigest, providedDigest)) {
+      return {
+        ok: false,
+        status: 401,
+        error: 'invalid_client',
+        errorDescription: 'invalid credentials',
+      };
+    }
+
+    return { ok: true, clientId };
   }
 
   // ─── Accessors for testing ───────────────────────────────────────────────
