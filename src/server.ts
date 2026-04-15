@@ -212,7 +212,7 @@ console.log(`
    - ALL /mcp                  Streamable HTTP MCP endpoint
 `);
 console.log(MCP_AUTH_TOKEN ? '   🔑 MCP auth: Bearer token configured' : '   ⚠️  MCP auth: Bearer token NOT configured');
-console.log(ORACLE_API_TOKEN ? '   🔑 /api/* auth: Bearer token enforced (ORACLE_API_TOKEN set)' : '   ⚠️  /api/* auth: open (ORACLE_API_TOKEN not set — issue #12 Stage 2 deployment window)');
+console.log('   🔑 /api/* auth: Bearer token required (issue #12 Stage 2 complete)');
 console.log('   ℹ️  /api/health: always exempt (liveness probes unaffected); OPTIONS preflight always exempt');
 if (MCP_OAUTH_PIN) {
   console.log(`   🔐 OAuth 2.1: enabled (${MCP_EXTERNAL_URL})`);
