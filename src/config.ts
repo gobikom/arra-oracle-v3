@@ -44,6 +44,23 @@ export const CHROMADB_DIR = path.join(HOME_DIR, C.CHROMADB_DIR_NAME);
 // If empty, /mcp will reject all requests with 401 (fail-safe)
 export const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || '';
 
+// HTTP bind host. Defaults to 127.0.0.1 so the server is reachable only via
+// localhost / a reverse proxy.
+//
+// WARNING: /api/* routes are currently UNAUTHENTICATED (issue #12 Stage 2
+// pending — auth middleware not yet shipped). Do NOT set ORACLE_BIND_HOST to
+// 0.0.0.0 until that lands. The reverse proxy (nginx basic_auth) is the only
+// current edge gate; binding non-loopback bypasses it entirely.
+export const ORACLE_BIND_HOST = (process.env.ORACLE_BIND_HOST || '').trim() || '127.0.0.1';
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1']);
+if (!LOOPBACK_HOSTS.has(ORACLE_BIND_HOST)) {
+  console.warn(
+    `⚠️  SECURITY: ORACLE_BIND_HOST=${ORACLE_BIND_HOST} binds non-loopback. `
+    + `/api/* routes are still unauthenticated until issue #12 Stage 2 lands — server is exposed.`,
+  );
+}
+
 // OAuth 2.1 — PIN-based auth for Claude Desktop / claude.ai Custom Connectors
 // If MCP_OAUTH_PIN is empty, OAuth routes are not mounted (Bearer-only mode)
 export const MCP_OAUTH_PIN = process.env.MCP_OAUTH_PIN || '';
