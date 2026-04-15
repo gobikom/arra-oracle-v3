@@ -63,8 +63,8 @@
     "sqlite-vec": "^0.1.7-alpha.2"
   },
   "overrides": {
-    "undici": "^6.25.0",
-    "@hono/node-server": "^1.19.14"
+    "undici": "6.25.0",
+    "@hono/node-server": "1.19.14"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
