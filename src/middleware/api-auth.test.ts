@@ -1,84 +1,63 @@
 /**
- * Unit tests for /api/* Bearer auth middleware.
+ * Unit tests for the /api/* Bearer auth middleware factory.
  *
- * Covers the three configuration states:
- *   1. Token unset → optional-enforce (allow all) — backward compat window
- *   2. Token set + missing/wrong header → 401
- *   3. Token set + correct header → pass through
- *   4. /api/health is always exempted regardless of token state
- *   5. Non-/api/* paths are not gated
+ * Uses the `createApiAuthMiddleware(token)` factory directly so each test
+ * builds an isolated middleware with a known token — no env mutation, no
+ * module re-import gymnastics, no module-cache assumptions.
  *
- * The middleware is imported via dynamic import after setting/clearing
- * process.env.ORACLE_API_TOKEN so each test gets a fresh module evaluation
- * with the correct env state. Hono's request lifecycle is exercised via
- * a small in-test app rather than a full server spawn.
+ * Mount path mirrors production: `app.use('/api/*', mw)` so Hono's router
+ * decides path matching.
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
+import { createApiAuthMiddleware } from './api-auth.ts';
 
 const TEST_TOKEN = 'test-token-9c3a7b1e-f482-49ad';
 
-async function buildApp() {
-  // Re-import so the middleware reads the current env value
-  delete require.cache?.[require.resolve('./api-auth.ts')];
-  delete require.cache?.[require.resolve('../config.ts')];
-  const { apiAuthMiddleware } = await import(`./api-auth.ts?cache=${Date.now()}`);
+function buildApp(token: string) {
   const app = new Hono();
-  app.use('*', apiAuthMiddleware);
+  app.use('/api/*', createApiAuthMiddleware(token));
   app.get('/api/search', (c) => c.json({ ok: true, route: 'search' }));
+  app.options('/api/search', (c) => c.json({ ok: true, route: 'search-options' }));
   app.get('/api/health', (c) => c.json({ ok: true, route: 'health' }));
   app.get('/mcp', (c) => c.json({ ok: true, route: 'mcp' }));
   app.get('/', (c) => c.json({ ok: true, route: 'root' }));
   return app;
 }
 
-describe('apiAuthMiddleware', () => {
-  let savedToken: string | undefined;
-
-  beforeEach(() => {
-    savedToken = process.env.ORACLE_API_TOKEN;
-  });
-
-  afterEach(() => {
-    if (savedToken === undefined) delete process.env.ORACLE_API_TOKEN;
-    else process.env.ORACLE_API_TOKEN = savedToken;
-  });
-
-  it('allows /api/* without auth when ORACLE_API_TOKEN is unset (compat window)', async () => {
-    delete process.env.ORACLE_API_TOKEN;
-    const app = await buildApp();
+describe('createApiAuthMiddleware — compat mode (token unset)', () => {
+  it('allows /api/* with no Authorization header', async () => {
+    const app = buildApp('');
     const res = await app.request('/api/search');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, route: 'search' });
   });
 
-  it('allows /api/* without auth when ORACLE_API_TOKEN is empty string', async () => {
-    process.env.ORACLE_API_TOKEN = '';
-    const app = await buildApp();
+  it('treats whitespace-only token as compat mode', async () => {
+    const app = buildApp('   ');
     const res = await app.request('/api/search');
     expect(res.status).toBe(200);
   });
 
-  it('allows /api/* without auth when ORACLE_API_TOKEN is whitespace-only', async () => {
-    process.env.ORACLE_API_TOKEN = '   ';
-    const app = await buildApp();
-    const res = await app.request('/api/search');
+  it('still allows /api/health without Authorization', async () => {
+    const app = buildApp('');
+    const res = await app.request('/api/health');
     expect(res.status).toBe(200);
   });
+});
 
-  it('rejects /api/* with 401 when token set and Authorization header missing', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+describe('createApiAuthMiddleware — enforce mode (token set)', () => {
+  it('rejects /api/* with 401 when Authorization missing', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/search');
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error).toMatch(/missing/i);
   });
 
-  it('rejects /api/* with 401 when Authorization header is not Bearer scheme', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+  it('rejects /api/* with 401 on non-Bearer scheme', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/search', {
       headers: { Authorization: `Basic ${TEST_TOKEN}` },
     });
@@ -86,8 +65,7 @@ describe('apiAuthMiddleware', () => {
   });
 
   it('rejects /api/* with 401 when Bearer token is empty', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/search', {
       headers: { Authorization: 'Bearer ' },
     });
@@ -95,8 +73,7 @@ describe('apiAuthMiddleware', () => {
   });
 
   it('rejects /api/* with 401 when Bearer token is wrong', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/search', {
       headers: { Authorization: 'Bearer wrong-token-value' },
     });
@@ -106,8 +83,7 @@ describe('apiAuthMiddleware', () => {
   });
 
   it('accepts /api/* with correct Bearer token', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/search', {
       headers: { Authorization: `Bearer ${TEST_TOKEN}` },
     });
@@ -115,33 +91,47 @@ describe('apiAuthMiddleware', () => {
     expect(await res.json()).toEqual({ ok: true, route: 'search' });
   });
 
-  it('always allows /api/health regardless of token state (no header)', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+  it('accepts /api/* when Bearer header has extra whitespace around token', async () => {
+    const app = buildApp(TEST_TOKEN);
+    const res = await app.request('/api/search', {
+      headers: { Authorization: `Bearer   ${TEST_TOKEN}   ` },
+    });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('createApiAuthMiddleware — exemptions', () => {
+  it('always allows /api/health (no header)', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/health');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, route: 'health' });
   });
 
-  it('always allows /api/health regardless of token state (with wrong header)', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+  it('always allows /api/health (with wrong header)', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/api/health', {
       headers: { Authorization: 'Bearer wrong' },
     });
     expect(res.status).toBe(200);
   });
 
-  it('does not gate /mcp (handled by separate MCP auth)', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+  it('allows OPTIONS preflight without Authorization (CORS preflight)', async () => {
+    const app = buildApp(TEST_TOKEN);
+    const res = await app.request('/api/search', { method: 'OPTIONS' });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('createApiAuthMiddleware — non-/api paths unaffected', () => {
+  it('does not touch /mcp', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/mcp');
     expect(res.status).toBe(200);
   });
 
-  it('does not gate root (/) or non-/api/* paths', async () => {
-    process.env.ORACLE_API_TOKEN = TEST_TOKEN;
-    const app = await buildApp();
+  it('does not touch root /', async () => {
+    const app = buildApp(TEST_TOKEN);
     const res = await app.request('/');
     expect(res.status).toBe(200);
   });

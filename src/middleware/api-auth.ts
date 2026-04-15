@@ -1,71 +1,89 @@
 /**
  * /api/* Bearer Token Auth Middleware
  *
- * Protects unauthenticated /api/* routes (search, list, forum, settings,
- * supersede, traces, etc.) behind a Bearer token.
+ * Protects /api/* routes (search, list, forum, settings, supersede, traces,
+ * etc.) behind a Bearer token. Mounted via `app.use('/api/*', …)` so Hono's
+ * router decides path matching — this middleware does NOT do its own path
+ * filtering, which avoids URL normalisation / dot-segment / encoding bypasses
+ * that a string-prefix check (`startsWith('/api/')`) would expose.
  *
  * Design:
- * - Optional-enforce: if `ORACLE_API_TOKEN` env is unset/empty, the middleware
- *   ALLOWS all requests (backward-compatible with current clients). This is
- *   the deployment window during which clients are coordinated to start
- *   sending the Bearer header. A separate follow-up PR will flip this to
- *   required-enforce once all callers are confirmed sending tokens.
- * - When the token IS set, every /api/* request must carry
- *   `Authorization: Bearer <token>` matching exactly. Comparison uses
- *   timing-safe equality to avoid leaking match progress under load.
- * - `/api/health` is always exempted from auth so liveness probes and
- *   monitoring (auto-ops watchdog) keep working with no special config.
+ * - **Factory pattern**: `createApiAuthMiddleware(token)` returns a configured
+ *   middleware. Tests inject a token directly; production wires
+ *   `ORACLE_API_TOKEN` from config at startup. This avoids module-cache
+ *   gymnastics in test isolation.
+ * - **Optional-enforce**: if the configured token is empty, the middleware
+ *   ALLOWS all requests through (backward-compat deployment window for
+ *   issue #12 Stage 2 rollout). When the token is set, every gated request
+ *   must carry `Authorization: Bearer <token>` matching exactly. A
+ *   follow-up PR will retire optional-enforce after all clients ship.
+ * - The path `/api/health` is always exempted so liveness probes
+ *   (auto-ops watchdog, k8s-style monitors) keep working with no special
+ *   config.
+ * - OPTIONS preflight is always allowed so browser CORS preflight reaches
+ *   the actual request handler without a 401 that would surface as an
+ *   opaque CORS failure on the client side.
+ * - **Token comparison** uses HMAC normalisation + `timingSafeEqual` so the
+ *   compare runs in constant time regardless of input length. The HMAC key
+ *   is fresh per process via `randomBytes(32)` — its only job is to give
+ *   `timingSafeEqual` two equal-length digests; secrecy is not required.
  *
- * This middleware does NOT cover the /mcp endpoint, which has its own
- * MCP_AUTH_TOKEN / OAuth path in server.ts. /mcp remains gated by that.
+ * This middleware does NOT cover the /mcp endpoint (separate
+ * `MCP_AUTH_TOKEN` / OAuth path in server.ts, unchanged).
  *
- * Refs: issue #12 Stage 2 — full timeline in the issue tracker.
+ * Refs: issue #12 Stage 2.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { MiddlewareHandler } from 'hono';
-import { ORACLE_API_TOKEN } from '../config.ts';
 
 const HEALTH_PATH = '/api/health';
+const BEARER_PREFIX = 'Bearer ';
 
-// HMAC key for timing-safe comparison. Using a process-lifetime random key
-// means an attacker cannot pre-compute valid HMACs even if they obtain the
-// token by some other means; comparison normalises both sides through HMAC
-// before timingSafeEqual sees them, defeating length-leak side channels.
-const _hmacKey = createHmac('sha256', String(Math.random())).digest();
+export function createApiAuthMiddleware(token: string): MiddlewareHandler {
+  // Per-process random key. Used only to normalise comparison inputs to
+  // equal length via HMAC-SHA256 before timingSafeEqual sees them. Defeats
+  // the length-leak side channel in raw timingSafeEqual (which throws on
+  // unequal input lengths and can otherwise leak match progress).
+  const hmacKey = randomBytes(32);
 
-function constantTimeEquals(a: string, b: string): boolean {
-  const ah = createHmac('sha256', _hmacKey).update(a).digest();
-  const bh = createHmac('sha256', _hmacKey).update(b).digest();
-  return timingSafeEqual(ah, bh);
+  function constantTimeEquals(a: string, b: string): boolean {
+    const ah = createHmac('sha256', hmacKey).update(a).digest();
+    const bh = createHmac('sha256', hmacKey).update(b).digest();
+    return timingSafeEqual(ah, bh);
+  }
+
+  const configuredToken = token.trim();
+
+  return async (c, next) => {
+    // CORS preflight always passes. Browsers send OPTIONS without an
+    // Authorization header to discover allowed methods/headers; blocking
+    // it here would surface as an opaque CORS failure, not a clear 401.
+    if (c.req.method === 'OPTIONS') {
+      return next();
+    }
+
+    // Health probe always exempt regardless of enforcement state.
+    if (c.req.path === HEALTH_PATH) {
+      return next();
+    }
+
+    // Optional-enforce: no token configured → allow (compat deployment
+    // window). When the token is provisioned in env, this branch goes away.
+    if (!configuredToken) {
+      return next();
+    }
+
+    const authHeader = c.req.header('Authorization') || '';
+    if (!authHeader.startsWith(BEARER_PREFIX)) {
+      return c.json({ error: 'Unauthorized: missing Bearer token' }, 401);
+    }
+
+    const presented = authHeader.slice(BEARER_PREFIX.length).trim();
+    if (!presented || !constantTimeEquals(presented, configuredToken)) {
+      return c.json({ error: 'Unauthorized: invalid token' }, 401);
+    }
+
+    return next();
+  };
 }
-
-export const apiAuthMiddleware: MiddlewareHandler = async (c, next) => {
-  // Only gate /api/* — other routes (/, /mcp, /oauth/*, etc.) are unaffected
-  if (!c.req.path.startsWith('/api/')) {
-    return next();
-  }
-
-  // Always allow health probes through
-  if (c.req.path === HEALTH_PATH) {
-    return next();
-  }
-
-  // Optional-enforce: no token configured → allow (compat window)
-  if (!ORACLE_API_TOKEN) {
-    return next();
-  }
-
-  // Token configured → require Bearer header
-  const authHeader = c.req.header('Authorization') || '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return c.json({ error: 'Unauthorized: missing Bearer token' }, 401);
-  }
-
-  const presented = authHeader.slice('Bearer '.length).trim();
-  if (!presented || !constantTimeEquals(presented, ORACLE_API_TOKEN)) {
-    return c.json({ error: 'Unauthorized: invalid token' }, 401);
-  }
-
-  return next();
-};

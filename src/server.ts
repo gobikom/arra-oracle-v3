@@ -19,7 +19,7 @@ import {
 } from './process-manager/index.ts';
 
 import { PORT, ORACLE_BIND_HOST, ORACLE_DATA_DIR, MCP_AUTH_TOKEN, MCP_OAUTH_PIN, MCP_EXTERNAL_URL, ORACLE_API_TOKEN } from './config.ts';
-import { apiAuthMiddleware } from './middleware/api-auth.ts';
+import { createApiAuthMiddleware } from './middleware/api-auth.ts';
 import { db, closeDb, indexingStatus } from './db/index.ts';
 
 // Route modules
@@ -97,8 +97,10 @@ app.use('*', async (c, next) => {
 });
 
 // /api/* Bearer token auth (issue #12 Stage 2). Optional-enforce until
-// ORACLE_API_TOKEN env is set; /api/health is always exempted.
-app.use('*', apiAuthMiddleware);
+// ORACLE_API_TOKEN env is set. Mounted on the /api/* route group so Hono's
+// router decides matching (no string-prefix bypass). /api/health and OPTIONS
+// preflight are always exempted inside the middleware itself.
+app.use('/api/*', createApiAuthMiddleware(ORACLE_API_TOKEN));
 
 // Register all route modules (order matters: auth middleware first)
 registerAuthRoutes(app);
@@ -211,6 +213,7 @@ console.log(`
 `);
 console.log(MCP_AUTH_TOKEN ? '   🔑 MCP auth: Bearer token configured' : '   ⚠️  MCP auth: Bearer token NOT configured');
 console.log(ORACLE_API_TOKEN ? '   🔑 /api/* auth: Bearer token enforced (ORACLE_API_TOKEN set)' : '   ⚠️  /api/* auth: open (ORACLE_API_TOKEN not set — issue #12 Stage 2 deployment window)');
+console.log('   ℹ️  /api/health: always exempt (liveness probes unaffected); OPTIONS preflight always exempt');
 if (MCP_OAUTH_PIN) {
   console.log(`   🔐 OAuth 2.1: enabled (${MCP_EXTERNAL_URL})`);
   console.log('      Endpoints: /.well-known/oauth-authorization-server, /authorize, /token, /register');
