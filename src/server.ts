@@ -6,7 +6,7 @@
  */
 
 import { Hono } from 'hono';
-import { timingSafeEqual, createHmac, randomBytes } from 'crypto';
+import { timingSafeEqual, createHmac, randomBytes } from 'node:crypto';
 import { cors } from 'hono/cors';
 import { eq } from 'drizzle-orm';
 
@@ -41,8 +41,15 @@ import { getOAuthProvider } from './oauth/provider.ts';
 
 // Per-process HMAC key for /mcp Bearer-only comparison.
 // Fixes issue #23: was Buffer.alloc(32) (zero key) — must be randomBytes(32)
-// so that offline precomputation of HMAC(known-key, guess) is not possible.
-const MCP_BEARER_HMAC_KEY = randomBytes(32);
+// so that the HMAC key is server-secret; a known key lets an attacker compute
+// valid digests for arbitrary token candidates without knowing MCP_AUTH_TOKEN.
+let MCP_BEARER_HMAC_KEY: Buffer;
+try {
+  MCP_BEARER_HMAC_KEY = randomBytes(32);
+} catch (err) {
+  console.error('🔥 FATAL: randomBytes(32) failed for MCP_BEARER_HMAC_KEY — entropy unavailable:', err);
+  process.exit(1);
+}
 
 // Reset stale indexing status on startup using Drizzle
 try {
@@ -52,7 +59,8 @@ try {
     .run();
   console.log('🔮 Reset indexing status on startup');
 } catch (e) {
-  // Table might not exist yet - that's fine
+  // Table might not exist yet on first startup — warn for other failures
+  console.warn('⚠️  Could not reset indexing status on startup (first run or migration pending):', e);
 }
 
 // Configure process lifecycle management
@@ -167,9 +175,8 @@ app.all('/mcp', async (c) => {
   } else {
     // Bearer-only mode: constant-time HMAC comparison
     if (MCP_AUTH_TOKEN) {
-      const _hmacKey = MCP_BEARER_HMAC_KEY;
-      const expectedHash = createHmac('sha256', _hmacKey).update(MCP_AUTH_TOKEN).digest();
-      const providedHash = createHmac('sha256', _hmacKey).update(token).digest();
+      const expectedHash = createHmac('sha256', MCP_BEARER_HMAC_KEY).update(MCP_AUTH_TOKEN).digest();
+      const providedHash = createHmac('sha256', MCP_BEARER_HMAC_KEY).update(token).digest();
       authorized = timingSafeEqual(expectedHash, providedHash);
     }
   }
