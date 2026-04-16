@@ -104,12 +104,29 @@ export class QdrantAdapter implements VectorStoreAdapter {
       })),
     } : undefined;
 
-    const results = await this.client.search(this.collectionName, {
+    const searchParams = {
       vector: queryEmbedding,
       limit,
       with_payload: true,
       ...(filter && { filter }),
-    });
+    };
+
+    // Retry once on transient errors (network blips, Qdrant Cloud 400/5xx)
+    let results: any[];
+    try {
+      results = await this.client.search(this.collectionName, searchParams);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Qdrant] Search failed (attempt 1/2): ${msg} — retrying in 500ms`);
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        results = await this.client.search(this.collectionName, searchParams);
+        console.log('[Qdrant] Search retry succeeded');
+      } catch (retryErr: any) {
+        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        throw new Error(`Qdrant search failed after retry: ${retryMsg}`);
+      }
+    }
 
     return {
       ids: results.map((r: any) => r.payload._id || String(r.id)),
