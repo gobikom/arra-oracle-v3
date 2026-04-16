@@ -92,6 +92,30 @@ export class QdrantAdapter implements VectorStoreAdapter {
     console.log(`[Qdrant] Added ${docs.length} documents`);
   }
 
+  private static readonly RETRY_DELAY_MS = 500;
+
+  /**
+   * Search with a single retry on transient errors (network blips, Qdrant Cloud 400/5xx).
+   * Used by both query() and queryById() to ensure consistent resilience.
+   */
+  private async searchWithRetry(params: Record<string, any>): Promise<any[]> {
+    try {
+      return await this.client.search(this.collectionName, params);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Qdrant] Search failed (attempt 1/2): ${msg} — retrying in ${QdrantAdapter.RETRY_DELAY_MS}ms`);
+      await new Promise(r => setTimeout(r, QdrantAdapter.RETRY_DELAY_MS));
+      try {
+        const results = await this.client.search(this.collectionName, params);
+        console.log('[Qdrant] Search retry succeeded');
+        return results;
+      } catch (retryErr: unknown) {
+        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        throw new Error(`Qdrant search failed after retry: ${retryMsg}`, { cause: retryErr });
+      }
+    }
+  }
+
   async query(text: string, limit: number = 10, where?: Record<string, any>): Promise<VectorQueryResult> {
     if (!this.client) throw new Error('Qdrant not connected');
 
@@ -104,29 +128,12 @@ export class QdrantAdapter implements VectorStoreAdapter {
       })),
     } : undefined;
 
-    const searchParams = {
+    const results = await this.searchWithRetry({
       vector: queryEmbedding,
       limit,
       with_payload: true,
       ...(filter && { filter }),
-    };
-
-    // Retry once on transient errors (network blips, Qdrant Cloud 400/5xx)
-    let results: any[];
-    try {
-      results = await this.client.search(this.collectionName, searchParams);
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Qdrant] Search failed (attempt 1/2): ${msg} — retrying in 500ms`);
-      await new Promise(r => setTimeout(r, 500));
-      try {
-        results = await this.client.search(this.collectionName, searchParams);
-        console.log('[Qdrant] Search retry succeeded');
-      } catch (retryErr: any) {
-        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-        throw new Error(`Qdrant search failed after retry: ${retryMsg}`);
-      }
-    }
+    });
 
     return {
       ids: results.map((r: any) => r.payload._id || String(r.id)),
@@ -155,7 +162,7 @@ export class QdrantAdapter implements VectorStoreAdapter {
     }
 
     const vector = points[0].vector;
-    const results = await this.client.search(this.collectionName, {
+    const results = await this.searchWithRetry({
       vector,
       limit: nResults + 1,
       with_payload: true,
