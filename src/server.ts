@@ -6,7 +6,7 @@
  */
 
 import { Hono } from 'hono';
-import { timingSafeEqual, createHmac } from 'crypto';
+import { timingSafeEqual, createHmac, randomBytes } from 'crypto';
 import { cors } from 'hono/cors';
 import { eq } from 'drizzle-orm';
 
@@ -38,6 +38,11 @@ import { registerFileRoutes } from './routes/files.ts';
 import { createMcpHandler } from './mcp-transport.ts';
 import { registerOAuthRoutes } from './oauth/routes.ts';
 import { getOAuthProvider } from './oauth/provider.ts';
+
+// Per-process HMAC key for /mcp Bearer-only comparison.
+// Fixes issue #23: was Buffer.alloc(32) (zero key) — must be randomBytes(32)
+// so that offline precomputation of HMAC(known-key, guess) is not possible.
+const MCP_BEARER_HMAC_KEY = randomBytes(32);
 
 // Reset stale indexing status on startup using Drizzle
 try {
@@ -162,7 +167,7 @@ app.all('/mcp', async (c) => {
   } else {
     // Bearer-only mode: constant-time HMAC comparison
     if (MCP_AUTH_TOKEN) {
-      const _hmacKey = Buffer.alloc(32);
+      const _hmacKey = MCP_BEARER_HMAC_KEY;
       const expectedHash = createHmac('sha256', _hmacKey).update(MCP_AUTH_TOKEN).digest();
       const providedHash = createHmac('sha256', _hmacKey).update(token).digest();
       authorized = timingSafeEqual(expectedHash, providedHash);
