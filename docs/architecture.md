@@ -273,7 +273,7 @@ FTS5 special characters are stripped to prevent SQL injection via FTS5 syntax er
 
 The `/mcp` endpoint requires a valid Bearer token on every request. Two auth modes:
 
-- **Bearer-only** (`MCP_AUTH_TOKEN` set, `MCP_OAUTH_PIN` not set): Static token, HMAC timing-safe comparison.
+- **Bearer-only** (`MCP_AUTH_TOKEN` set, `MCP_OAUTH_PIN` not set): Static token, HMAC timing-safe comparison with per-process random key.
 - **Dual auth** (`MCP_OAUTH_PIN` set): OAuth-issued tokens are checked first; static Bearer token accepted as fallback for existing configs.
 
 ### OAuth 2.1 + PKCE
