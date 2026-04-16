@@ -183,8 +183,10 @@ export async function handleSearch(
       if (result.status === 'fulfilled') {
         vectorResults.push(...result.value);
       } else {
-        const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
-        console.error('[Vector Search Error]', msg);
+        const err = result.reason;
+        const msg = err instanceof Error ? err.message : String(err);
+        const stack = err instanceof Error && err.stack ? `\n  ${err.stack.split('\n').slice(1, 3).join('\n  ')}` : '';
+        console.error(`[Vector Search Error] ${msg}${stack}`);
         if (!warning) warning = `Vector search error: ${msg}`;
       }
     }
