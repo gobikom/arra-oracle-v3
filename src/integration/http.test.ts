@@ -6,7 +6,41 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import type { Subprocess } from "bun";
 
 const BASE_URL = "http://localhost:47778";
+
+// Use the real token if already provisioned in the environment; fall back to a
+// fixed test value when the test suite spawns its own fresh server (CI / local
+// dev without oracle-v3 running).  Either way, the spawned server receives the
+// same value via the `env` block in beforeAll, so token and server always agree.
+const TEST_TOKEN = process.env.ORACLE_API_TOKEN ?? "integration-test-token";
+// NOTE: process.env.ORACLE_API_TOKEN mutation removed — the env: block in
+// beforeAll is the authoritative mechanism for passing the token to the spawned
+// server process.  Mutating process.env at module scope is a no-op when the
+// suite reuses an existing server and causes silent 401s when that server's
+// token differs from TEST_TOKEN.
+
 let serverProcess: Subprocess | null = null;
+
+/**
+ * All /api/* endpoints except /api/health require Bearer auth (issue #12 Stage 2C).
+ * This helper is a single seam for adding the header — easier to grep and maintain
+ * than sprinkling headers at every call site.
+ */
+async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: {
+        // Normalise to plain object so spread works for all init.headers shapes
+        // (Headers instance, [string, string][], or plain object).
+        ...Object.fromEntries(new Headers(init?.headers ?? {})),
+        Authorization: `Bearer ${TEST_TOKEN}`,
+      },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`authFetch failed for ${url}: ${message}`);
+  }
+}
 
 async function waitForServer(maxAttempts = 30): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
@@ -44,7 +78,7 @@ describe("HTTP API Integration", () => {
       cwd: import.meta.dir.replace("/src/integration", ""),
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, ORACLE_CHROMA_TIMEOUT: "3000" },
+      env: { ...process.env, ORACLE_CHROMA_TIMEOUT: "3000", ORACLE_API_TOKEN: TEST_TOKEN },
     });
 
     const ready = await waitForServer();
@@ -56,9 +90,9 @@ describe("HTTP API Integration", () => {
         try {
           const { value } = await reader.read();
           if (value) stderr = new TextDecoder().decode(value);
-        } catch { /* ignore */ }
+        } catch (readErr) { stderr = `(could not read stderr: ${readErr})`; }
       }
-      throw new Error(`Server failed to start within 15 seconds.\nServer stderr: ${stderr}`);
+      throw new Error(`Server failed to start within ${30 * 500 / 1000} seconds.\nServer stderr: ${stderr}`);
     }
     console.log("Server ready");
   }, 30_000);
@@ -81,9 +115,23 @@ describe("HTTP API Integration", () => {
       expect(data.status).toBe("ok");
     });
 
-    test("GET /api/stats returns statistics", async () => {
-      const res = await fetch(`${BASE_URL}/api/stats`);
+    test("GET /api/health is exempt from auth (wrong token still returns ok)", async () => {
+      const res = await fetch(`${BASE_URL}/api/health`, {
+        headers: { Authorization: "Bearer wrong-token-intentionally-invalid" },
+      });
       expect(res.ok).toBe(true);
+      const data = await res.json();
+      expect(data.status).toBe("ok");
+    });
+
+    test("GET /api/stats without auth returns 401", async () => {
+      const res = await fetch(`${BASE_URL}/api/stats`);
+      expect(res.status).toBe(401);
+    });
+
+    test("GET /api/stats returns statistics", async () => {
+      const res = await authFetch(`${BASE_URL}/api/stats`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(typeof data.total).toBe("number");
     }, 15_000);
@@ -95,28 +143,28 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("Search", () => {
     test("GET /api/search with query returns results", async () => {
-      const res = await fetch(`${BASE_URL}/api/search?q=oracle`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/search?q=oracle`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.results)).toBe(true);
     }, 30_000);
 
     test("GET /api/search with type filter", async () => {
-      const res = await fetch(`${BASE_URL}/api/search?q=test&type=learning`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/search?q=test&type=learning`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.results)).toBe(true);
     }, 30_000);
 
     test("GET /api/search with limit and offset", async () => {
-      const res = await fetch(`${BASE_URL}/api/search?q=test&limit=5&offset=0`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/search?q=test&limit=5&offset=0`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(data.results.length).toBeLessThanOrEqual(5);
     }, 30_000);
 
     test("GET /api/search handles empty query", async () => {
-      const res = await fetch(`${BASE_URL}/api/search?q=`);
+      const res = await authFetch(`${BASE_URL}/api/search?q=`);
       // Should return empty or error gracefully
       expect(res.status).toBeLessThan(500);
     }, 30_000);
@@ -127,22 +175,22 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("List & Browse", () => {
     test("GET /api/list returns documents", async () => {
-      const res = await fetch(`${BASE_URL}/api/list`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/list`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.results)).toBe(true);
     });
 
     test("GET /api/list with type filter", async () => {
-      const res = await fetch(`${BASE_URL}/api/list?type=principle`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/list?type=principle`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.results)).toBe(true);
     });
 
     test("GET /api/list with pagination", async () => {
-      const res = await fetch(`${BASE_URL}/api/list?limit=10&offset=0`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/list?limit=10&offset=0`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(data.results.length).toBeLessThanOrEqual(10);
     });
@@ -153,8 +201,8 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("Reflect", () => {
     test("GET /api/reflect returns response", async () => {
-      const res = await fetch(`${BASE_URL}/api/reflect`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/reflect`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       // Empty DB returns { error: "No documents found" }, populated returns { content: ... }
       expect(data).toHaveProperty(data.content ? "content" : "error");
@@ -166,22 +214,23 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("Dashboard", () => {
     test("GET /api/dashboard returns summary", async () => {
-      const res = await fetch(`${BASE_URL}/api/dashboard`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/dashboard`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
-      expect(typeof data).toBe("object");
+      expect(data).toHaveProperty("documents");
+      expect(typeof data.documents?.total).toBe("number");
     });
 
     test("GET /api/dashboard/activity returns history", async () => {
-      const res = await fetch(`${BASE_URL}/api/dashboard/activity?days=7`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/dashboard/activity?days=7`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.activity) || typeof data === "object").toBe(true);
     });
 
     test("GET /api/session/stats returns usage", async () => {
-      const res = await fetch(`${BASE_URL}/api/session/stats`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/session/stats`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(typeof data).toBe("object");
     });
@@ -192,15 +241,15 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("Threads", () => {
     test("GET /api/threads returns thread list", async () => {
-      const res = await fetch(`${BASE_URL}/api/threads`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/threads`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.threads)).toBe(true);
     });
 
     test("GET /api/threads with status filter", async () => {
-      const res = await fetch(`${BASE_URL}/api/threads?status=active`);
-      expect(res.ok).toBe(true);
+      const res = await authFetch(`${BASE_URL}/api/threads?status=active`);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(Array.isArray(data.threads)).toBe(true);
     });
@@ -212,7 +261,7 @@ describe("HTTP API Integration", () => {
   describe("Knowledge Ingestion", () => {
     test("POST /api/learn persists a pattern and returns an id", async () => {
       const pattern = `integration-test-pattern-${Date.now()}`;
-      const res = await fetch(`${BASE_URL}/api/learn`, {
+      const res = await authFetch(`${BASE_URL}/api/learn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -222,16 +271,16 @@ describe("HTTP API Integration", () => {
           project: "test-suite",
         }),
       });
-      expect(res.ok).toBe(true);
+      expect(res.status, `Expected 2xx but got ${res.status}`).toBeLessThan(300);
       const data = await res.json();
       expect(typeof data.id).toBe("string");
       expect(data.id.length).toBeGreaterThan(0);
 
       // Verify persistence: search for the pattern we just stored
-      const searchRes = await fetch(
+      const searchRes = await authFetch(
         `${BASE_URL}/api/search?q=${encodeURIComponent(pattern)}&type=learning`
       );
-      expect(searchRes.ok).toBe(true);
+      expect(searchRes.status, `Expected 2xx but got ${searchRes.status}`).toBeLessThan(300);
       const searchData = await searchRes.json();
       expect(Array.isArray(searchData.results)).toBe(true);
       // The newly stored document should appear in results
@@ -240,7 +289,7 @@ describe("HTTP API Integration", () => {
     }, 30_000);
 
     test("POST /api/learn rejects missing pattern field", async () => {
-      const res = await fetch(`${BASE_URL}/api/learn`, {
+      const res = await authFetch(`${BASE_URL}/api/learn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: "test" }),
@@ -256,13 +305,13 @@ describe("HTTP API Integration", () => {
   // ===================
   describe("Error Handling", () => {
     test("Invalid endpoint returns 404", async () => {
-      const res = await fetch(`${BASE_URL}/api/nonexistent`);
+      const res = await authFetch(`${BASE_URL}/api/nonexistent`);
       // Should be 404 or serve SPA
       expect(res.status).toBeLessThan(500);
     });
 
     test("GET /api/file without path returns error", async () => {
-      const res = await fetch(`${BASE_URL}/api/file`);
+      const res = await authFetch(`${BASE_URL}/api/file`);
       expect(res.status).toBeGreaterThanOrEqual(400);
     });
   });
