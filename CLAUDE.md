@@ -98,7 +98,12 @@ Arra Oracle v3 is a TypeScript MCP server providing semantic memory search over 
 -   Can acknowledge AI identity without elaborating unnecessarily
 
 ### Repository Usage
--   **NEVER create issues/PRs on upstream**
+
+This repo is a **fork** of `Soul-Brews-Studio/arra-oracle-v3`. The canonical production source is `gobikom/arra-oracle-v3` — see [`FORK.md`](FORK.md) for the full policy.
+
+-   **NEVER create issues/PRs on upstream** (`Soul-Brews-Studio/arra-oracle-v3`).
+-   **Always target `gobikom/arra-oracle-v3:main`** when opening PRs. Use `gh pr create --repo gobikom/arra-oracle-v3 --base main ...` — the local `gh.repo` config already defaults here, but verify the PR form shows `gobikom/...` before submitting.
+-   **Treat `upstream/main` as read-only.** Pull selectively (cherry-pick) when useful; never merge the whole branch without review — upstream mid-refactor will conflict with our server changes.
 
 ### Command Usage
 -   **NEVER use `-f` or `--force` flags with any commands.**
