@@ -44,6 +44,7 @@
 | Task Type | Read These First |
 |-----------|-----------------|
 | API/endpoints | `src/routes/` |
+| Middleware | `src/middleware/` |
 | Database | `src/db/` |
 | Tests | `tests/` |
 | Documentation | `docs/` |
@@ -57,14 +58,18 @@
 ### API Endpoints
 
 ```
-src/oauth/routes.ts:32:  app.get('/.well-known/oauth-authorization-server', (c) => {
-src/oauth/routes.ts:47:  app.get('/.well-known/oauth-protected-resource', (c) => {
-src/oauth/routes.ts:59:  app.post('/register', async (c) => {
-src/oauth/routes.ts:97:  app.get('/authorize', (c) => {
-src/oauth/routes.ts:131:  app.post('/token', async (c) => {
-src/oauth/routes.ts:178:  app.post('/revoke', async (c) => {
-src/oauth/routes.ts:205:  app.get('/oauth/login', (c) => {
-src/oauth/routes.ts:212:  app.post('/oauth/callback', async (c) => {
+src/oauth/routes.ts:25:  app.get('/.well-known/oauth-authorization-server', (c) => {
+src/oauth/routes.ts:40:  app.get('/.well-known/oauth-protected-resource', (c) => {
+src/oauth/routes.ts:52:  app.post('/register', async (c) => {
+src/oauth/routes.ts:107:  app.get('/authorize', (c) => {
+src/oauth/routes.ts:141:  app.post('/token', async (c) => {
+src/oauth/routes.ts:188:  app.post('/revoke', async (c) => {
+src/oauth/routes.ts:270:  app.get('/oauth/login', (c) => {
+src/oauth/routes.ts:277:  app.post('/oauth/callback', async (c) => {
+src/middleware/api-auth.test.ts:21:  app.get('/api/search', (c) => c.json({ ok: true, route: 'search' }));
+src/middleware/api-auth.test.ts:23:  app.get('/api/health', (c) => c.json({ ok: true, route: 'health' }));
+src/middleware/api-auth.test.ts:24:  app.get('/mcp', (c) => c.json({ ok: true, route: 'mcp' }));
+src/middleware/api-auth.test.ts:25:  app.get('/', (c) => c.json({ ok: true, route: 'root' }));
 src/routes/settings.ts:10:  app.get('/api/settings', (c) => {
 src/routes/settings.ts:25:  app.post('/api/settings', async (c) => {
 src/routes/forum.ts:16:  app.get('/api/threads', (c) => {
@@ -73,10 +78,6 @@ src/routes/forum.ts:63:  app.get('/api/thread/:id', (c) => {
 src/routes/forum.ts:95:  app.patch('/api/thread/:id/status', async (c) => {
 src/routes/traces.ts:16:  app.get('/api/traces', (c) => {
 src/routes/traces.ts:34:  app.get('/api/traces/:id', (c) => {
-src/routes/traces.ts:45:  app.get('/api/traces/:id/chain', (c) => {
-src/routes/traces.ts:54:  app.post('/api/traces/:prevId/link', async (c) => {
-src/routes/traces.ts:77:  app.delete('/api/traces/:id/link', async (c) => {
-src/routes/traces.ts:100:  app.get('/api/traces/:id/linked-chain', async (c) => {
 ```
 
 ### npm Scripts
@@ -90,7 +91,7 @@ src/routes/traces.ts:100:  app.get('/api/traces/:id/linked-chain', async (c) => 
 - `npm run build` → tsc --noEmit
 - `npm run start` → bun dist/index.js
 - `npm run test` → bun run test:unit && bun run test:integration
-- `npm run test:unit` → bun test src/tools/__tests__/ src/server/__tests__/ src/vault/__tests__/ src/drizzle-migration.test.ts src/indexer-preservation.test.ts
+- `npm run test:unit` → bun test src/tools/__tests__/ src/server/__tests__/ src/vault/__tests__/ src/drizzle-migration.test.ts src/indexer-preservation.test.ts && bun test src/oauth/__tests__/
 <!-- AUTO-GEN:END -->
 
 ## Key Decisions

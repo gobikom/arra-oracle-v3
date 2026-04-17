@@ -1,0 +1,1188 @@
+diff --git a/src/oauth/__tests__/provider-silent-failures.test.ts b/src/oauth/__tests__/provider-silent-failures.test.ts
+index e2ce36b5..a83a5c07 100644
+--- a/src/oauth/__tests__/provider-silent-failures.test.ts
++++ b/src/oauth/__tests__/provider-silent-failures.test.ts
+@@ -12,10 +12,18 @@
+  */
+ 
+ import { describe, expect, test, beforeEach, afterAll, mock } from 'bun:test';
++import { createHash } from 'crypto';
+ import fs from 'fs';
+ import os from 'os';
+ import path from 'path';
+ 
++// Helper: matches OAuthProvider.hashToken — storage is keyed by sha256hex
++// since finding #17.7 (PR-B2). Tests that seed tokens directly on the
++// internal state map must use the same hashing so revokeToken can find them.
++function hashToken(token: string): string {
++  return createHash('sha256').update(token).digest('hex');
++}
++
+ // Single data dir for all tests in this file. Module-level mock can only
+ // capture ORACLE_DATA_DIR once, so we create one dir up front and clean
+ // its contents between tests rather than creating fresh dirs.
+@@ -158,7 +166,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
+       state: { tokens: Record<string, unknown> };
+       saveState: () => void;
+     };
+-    providerAny.state.tokens['tkn-rollback'] = {
++    providerAny.state.tokens[hashToken('tkn-rollback')] = {
+       client_id: 'test',
+       scopes: ['read'],
+       expires_at: Date.now() + 60_000,
+@@ -197,7 +205,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
+       scopes: ['read', 'write'],
+       expires_at: Date.now() + 60_000,
+     };
+-    providerAny.state.tokens['tkn-snap'] = original;
++    providerAny.state.tokens[hashToken('tkn-snap')] = original;
+ 
+     const originalSave = providerAny.saveState.bind(provider);
+     providerAny.saveState = () => {
+@@ -215,7 +223,7 @@ describe('revokeToken rollback on saveState failure (fix #17.2)', () => {
+       expect(() => provider.revokeToken('tkn-snap')).toThrow();
+       // The restored record must have the ORIGINAL scopes and expires_at,
+       // not the mutated ones — because we snapshotted via spread before delete.
+-      const restored = providerAny.state.tokens['tkn-snap'];
++      const restored = providerAny.state.tokens[hashToken('tkn-snap')];
+       expect(restored).toBeDefined();
+       expect(restored.scopes).toEqual(['read', 'write']);
+       expect(restored.expires_at).toBeGreaterThan(1);
+diff --git a/src/oauth/__tests__/routes-revoke.test.ts b/src/oauth/__tests__/routes-revoke.test.ts
+index 31ef6b86..9de288a9 100644
+--- a/src/oauth/__tests__/routes-revoke.test.ts
++++ b/src/oauth/__tests__/routes-revoke.test.ts
+@@ -13,11 +13,20 @@
+  */
+ 
+ import { describe, expect, test, beforeEach, afterAll, mock } from 'bun:test';
++import { createHash } from 'crypto';
+ import fs from 'fs';
+ import os from 'os';
+ import path from 'path';
+ import { Hono } from 'hono';
+ 
++function hashToken(token: string): string {
++  return createHash('sha256').update(token).digest('hex');
++}
++
++function basicAuth(clientId: string, clientSecret: string): string {
++  return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
++}
++
+ const TEST_PIN = '1234';
+ const TEST_AUTH_TOKEN = 'test-mcp-bearer-token-abcdef123456';
+ const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'oauth-routes-test-'));
+@@ -51,38 +60,68 @@ afterAll(() => {
+   fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+ });
+ 
+-describe('POST /revoke (fix #17.2 — route layer)', () => {
+-  test('returns 200 for a nonexistent token (RFC 7009 no-op)', async () => {
++/**
++ * Helper: register a client and return its credentials. Used by every
++ * /revoke test in PR-B2 because the endpoint now requires RFC 7009
++ * client authentication (finding #17.5).
++ */
++function registerTestClient(): { clientId: string; clientSecret: string } {
++  const provider = getOAuthProvider();
++  const client = provider.registerClient({
++    redirect_uris: ['https://test.example/cb'],
++    client_name: 'test-client',
++  });
++  return { clientId: client.client_id, clientSecret: client.client_secret! };
++}
++
++describe('POST /revoke (fix #17.2 — route layer, updated for PR-B2 client auth)', () => {
++  test('returns 200 for a nonexistent token (RFC 7009 no-op) when authenticated', async () => {
+     const app = makeApp();
++    const { clientId, clientSecret } = registerTestClient();
+     const res = await app.request('/revoke', {
+       method: 'POST',
+-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth(clientId, clientSecret),
++      },
+       body: new URLSearchParams({ token: 'nonexistent' }).toString(),
+     });
+     expect(res.status).toBe(200);
+   });
+ 
+-  test('returns 200 for missing token parameter (RFC 7009 no-op)', async () => {
++  test('returns 401 when unauthenticated (finding #17.5)', async () => {
++    const app = makeApp();
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      body: new URLSearchParams({ token: 'nonexistent' }).toString(),
++    });
++    expect(res.status).toBe(401);
++    expect(res.headers.get('WWW-Authenticate')).toBe('Basic realm="oauth"');
++  });
++
++  test('returns 401 for missing token parameter without auth', async () => {
+     const app = makeApp();
+     const res = await app.request('/revoke', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+       body: '',
+     });
+-    expect(res.status).toBe(200);
++    // No auth → 401 before even looking at the token.
++    expect(res.status).toBe(401);
+   });
+ 
+   test('returns 500 with server_error body when saveState throws during revocation', async () => {
+     const app = makeApp();
++    const { clientId, clientSecret } = registerTestClient();
+     const provider = getOAuthProvider();
+ 
+-    // Seed a real token directly into internal state.
+     const providerAny = provider as unknown as {
+       state: { tokens: Record<string, unknown> };
+       saveState: () => void;
+     };
+-    providerAny.state.tokens['tkn-route-500'] = {
+-      client_id: 'test',
++    providerAny.state.tokens[hashToken('tkn-route-500')] = {
++      client_id: clientId,
+       scopes: ['read'],
+       expires_at: Date.now() + 60_000,
+     };
+@@ -93,7 +132,10 @@ describe('POST /revoke (fix #17.2 — route layer)', () => {
+     try {
+       const res = await app.request('/revoke', {
+         method: 'POST',
+-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++        headers: {
++          'Content-Type': 'application/x-www-form-urlencoded',
++          'Authorization': basicAuth(clientId, clientSecret),
++        },
+         body: new URLSearchParams({ token: 'tkn-route-500' }).toString(),
+       });
+       expect(res.status).toBe(500);
+@@ -110,13 +152,14 @@ describe('POST /revoke (fix #17.2 — route layer)', () => {
+ 
+   test('returns 200 on successful revocation of an existing token', async () => {
+     const app = makeApp();
++    const { clientId, clientSecret } = registerTestClient();
+     const provider = getOAuthProvider();
+ 
+     const providerAny = provider as unknown as {
+       state: { tokens: Record<string, unknown> };
+     };
+-    providerAny.state.tokens['tkn-ok'] = {
+-      client_id: 'test',
++    providerAny.state.tokens[hashToken('tkn-ok')] = {
++      client_id: clientId,
+       scopes: ['read'],
+       expires_at: Date.now() + 60_000,
+     };
+@@ -124,10 +167,352 @@ describe('POST /revoke (fix #17.2 — route layer)', () => {
+ 
+     const res = await app.request('/revoke', {
+       method: 'POST',
+-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth(clientId, clientSecret),
++      },
+       body: new URLSearchParams({ token: 'tkn-ok' }).toString(),
+     });
+     expect(res.status).toBe(200);
+     expect(provider.getTokenCount()).toBe(0);
+   });
+ });
++
++describe('POST /revoke — PR-B2 RFC 7009 client authentication (#17.5)', () => {
++  test('401 with invalid Basic credentials', async () => {
++    const app = makeApp();
++    registerTestClient(); // ensure at least one client exists
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth('oracle-nosuch', 'bogus-secret'),
++      },
++      body: new URLSearchParams({ token: 'any' }).toString(),
++    });
++    expect(res.status).toBe(401);
++    expect(res.headers.get('WWW-Authenticate')).toBe('Basic realm="oauth"');
++  });
++
++  test('401 with correct client_id but wrong client_secret', async () => {
++    const app = makeApp();
++    const { clientId } = registerTestClient();
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth(clientId, 'wrong-secret'),
++      },
++      body: new URLSearchParams({ token: 'any' }).toString(),
++    });
++    expect(res.status).toBe(401);
++  });
++
++  test('400 when both Basic AND form-body credentials are present (RFC 6749 §2.3.1)', async () => {
++    const app = makeApp();
++    const { clientId, clientSecret } = registerTestClient();
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth(clientId, clientSecret),
++      },
++      body: new URLSearchParams({
++        token: 'any',
++        client_id: clientId,
++        client_secret: clientSecret,
++      }).toString(),
++    });
++    expect(res.status).toBe(400);
++    const body = (await res.json()) as { error: string };
++    expect(body.error).toBe('invalid_request');
++  });
++
++  test('200 with form-body credentials (fallback method)', async () => {
++    const app = makeApp();
++    const { clientId, clientSecret } = registerTestClient();
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      body: new URLSearchParams({
++        token: 'nonexistent',
++        client_id: clientId,
++        client_secret: clientSecret,
++      }).toString(),
++    });
++    expect(res.status).toBe(200);
++  });
++
++  test('200 but token NOT revoked when client A tries to revoke client B\'s token', async () => {
++    const app = makeApp();
++    const clientA = registerTestClient();
++    const clientB = registerTestClient();
++    const provider = getOAuthProvider();
++
++    const providerAny = provider as unknown as {
++      state: { tokens: Record<string, unknown> };
++    };
++    // Seed a token belonging to client B.
++    providerAny.state.tokens[hashToken('tkn-belongs-to-B')] = {
++      client_id: clientB.clientId,
++      scopes: ['read'],
++      expires_at: Date.now() + 60_000,
++    };
++    const beforeCount = provider.getTokenCount();
++
++    // Client A authenticates and tries to revoke B's token.
++    const res = await app.request('/revoke', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/x-www-form-urlencoded',
++        'Authorization': basicAuth(clientA.clientId, clientA.clientSecret),
++      },
++      body: new URLSearchParams({ token: 'tkn-belongs-to-B' }).toString(),
++    });
++    // Per RFC 7009 §2.1: return 200, but do NOT actually revoke (no existence leak).
++    expect(res.status).toBe(200);
++    expect(provider.getTokenCount()).toBe(beforeCount);
++  });
++});
++
++describe('registerClient redirect_uri validation (#17.4)', () => {
++  test('POST /register rejects javascript: redirect_uri with 400', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['javascript:alert(1)'] }),
++    });
++    expect(res.status).toBe(400);
++    const body = (await res.json()) as { error: string };
++    expect(body.error).toBe('invalid_redirect_uri');
++  });
++
++  test('POST /register rejects data: redirect_uri with 400', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['data:text/html,<script>x</script>'] }),
++    });
++    expect(res.status).toBe(400);
++  });
++
++  test('POST /register rejects non-loopback http:// with 400', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['http://evil.example/cb'] }),
++    });
++    expect(res.status).toBe(400);
++  });
++
++  test('POST /register accepts https://', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['https://valid.example/cb'] }),
++    });
++    expect(res.status).toBe(201);
++  });
++
++  test('POST /register accepts http://localhost', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['http://localhost:9999/cb'] }),
++    });
++    expect(res.status).toBe(201);
++  });
++
++  test('POST /register accepts http://127.0.0.1', async () => {
++    const app = makeApp();
++    const res = await app.request('/register', {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
++      },
++      body: JSON.stringify({ redirect_uris: ['http://127.0.0.1/oauth/callback'] }),
++    });
++    expect(res.status).toBe(201);
++  });
++});
++
++describe('hash-before-lookup token storage (#17.7)', () => {
++  test('exchangeAuthorizationCode stores tokens under sha256(token), not raw', () => {
++    const app = makeApp(); // initialise provider/routes (side-effect)
++    void app;
++    const provider = getOAuthProvider();
++
++    // Drive full PKCE flow via the provider directly.
++    const client = provider.registerClient({
++      redirect_uris: ['http://127.0.0.1:9999/cb'],
++      client_name: 'hash-test',
++    });
++
++    // Use an S256 challenge derived from a known verifier.
++    const verifier = 'test-verifier-string-long-enough-abcdefghij1234567890';
++    const challenge = createHash('sha256').update(verifier).digest('base64url');
++
++    const authResult = provider.authorize({
++      client_id: client.client_id,
++      redirect_uri: 'http://127.0.0.1:9999/cb',
++      code_challenge: challenge,
++      code_challenge_method: 'S256',
++    });
++    const stateKey = new URL((authResult as { loginUrl: string }).loginUrl)
++      .searchParams.get('state')!;
++
++    const pinResult = provider.handleLoginCallback(stateKey, TEST_PIN);
++    const code = new URL((pinResult as { redirectUri: string }).redirectUri)
++      .searchParams.get('code')!;
++
++    const tokenResult = provider.exchangeAuthorizationCode({
++      client_id: client.client_id,
++      code,
++      code_verifier: verifier,
++      redirect_uri: 'http://127.0.0.1:9999/cb',
++    }) as { access_token: string };
++
++    const raw = tokenResult.access_token;
++    const providerAny = provider as unknown as {
++      state: { tokens: Record<string, unknown>; tokenKeyVersion?: string };
++    };
++
++    // Storage must NOT contain the raw token as a key.
++    expect(providerAny.state.tokens[raw]).toBeUndefined();
++    // Storage MUST contain sha256(raw) as a key.
++    expect(providerAny.state.tokens[hashToken(raw)]).toBeDefined();
++    // Marker must be set.
++    expect(providerAny.state.tokenKeyVersion).toBe('sha256');
++
++    // And verifyAccessToken must still find the record via the raw token.
++    const authInfo = provider.verifyAccessToken(raw);
++    expect(authInfo).not.toBeNull();
++    expect(authInfo!.client_id).toBe(client.client_id);
++  });
++
++  test('loadState migrates legacy raw-key state to sha256-key in place', () => {
++    // Seed a state file with the LEGACY shape (raw token as key, no tokenKeyVersion).
++    const stateFile = path.join(TEST_DATA_DIR, '.oauth-state.json');
++    const rawToken = 'legacy-raw-token-abc123';
++    const legacyState = {
++      clients: {},
++      tokens: {
++        [rawToken]: {
++          client_id: 'legacy-client',
++          scopes: ['read'],
++          expires_at: Date.now() + 60_000,
++        },
++      },
++    };
++    fs.writeFileSync(stateFile, JSON.stringify(legacyState), 'utf-8');
++
++    // Spin up a fresh provider — loadState should migrate.
++    resetOAuthProvider();
++    const provider = getOAuthProvider();
++
++    const providerAny = provider as unknown as {
++      state: { tokens: Record<string, unknown>; tokenKeyVersion?: string };
++    };
++    expect(providerAny.state.tokenKeyVersion).toBe('sha256');
++    expect(providerAny.state.tokens[rawToken]).toBeUndefined();
++    expect(providerAny.state.tokens[hashToken(rawToken)]).toBeDefined();
++
++    // The raw token must still verify (hash-before-lookup is transparent).
++    const authInfo = provider.verifyAccessToken(rawToken);
++    expect(authInfo).not.toBeNull();
++    expect(authInfo!.client_id).toBe('legacy-client');
++
++    // Persistence must have been saved with the new shape.
++    const persisted = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
++    expect(persisted.tokenKeyVersion).toBe('sha256');
++    expect(persisted.tokens[rawToken]).toBeUndefined();
++    expect(persisted.tokens[hashToken(rawToken)]).toBeDefined();
++  });
++
++  test('migration is idempotent — second load is a no-op', () => {
++    const stateFile = path.join(TEST_DATA_DIR, '.oauth-state.json');
++    // Pre-migrated state (tokenKeyVersion already set).
++    const alreadyHashed = {
++      clients: {},
++      tokens: {
++        [hashToken('t')]: {
++          client_id: 'c',
++          scopes: ['read'],
++          expires_at: Date.now() + 60_000,
++        },
++      },
++      tokenKeyVersion: 'sha256',
++    };
++    fs.writeFileSync(stateFile, JSON.stringify(alreadyHashed), 'utf-8');
++
++    resetOAuthProvider();
++    const provider = getOAuthProvider();
++    expect(provider.getTokenCount()).toBe(1);
++    // Verify still works via raw token.
++    expect(provider.verifyAccessToken('t')).not.toBeNull();
++  });
++
++  test('tampered token (one char off) returns null via same code path', () => {
++    const app = makeApp();
++    void app;
++    const provider = getOAuthProvider();
++
++    const providerAny = provider as unknown as {
++      state: { tokens: Record<string, unknown> };
++    };
++    providerAny.state.tokens[hashToken('good-token')] = {
++      client_id: 'c',
++      scopes: ['read'],
++      expires_at: Date.now() + 60_000,
++    };
++    expect(provider.verifyAccessToken('good-token')).not.toBeNull();
++    expect(provider.verifyAccessToken('good-tokeX')).toBeNull();
++    expect(provider.verifyAccessToken('')).toBeNull();
++  });
++});
++
++describe('validateRedirectUri unit (#17.4)', () => {
++  test('module export rejects javascript: and data:', async () => {
++    const { validateRedirectUri, RedirectUriValidationError } = await import('../provider.ts');
++    expect(() => validateRedirectUri('javascript:alert(1)')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('data:text/html,x')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('ftp://files.example/cb')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('file:///tmp/cb')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('custom-app://callback')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('http://evil.example/cb')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('')).toThrow(RedirectUriValidationError);
++    expect(() => validateRedirectUri('not a url')).toThrow(RedirectUriValidationError);
++  });
++
++  test('module export accepts https:// and loopback http://', async () => {
++    const { validateRedirectUri } = await import('../provider.ts');
++    expect(() => validateRedirectUri('https://ex.com/cb')).not.toThrow();
++    expect(() => validateRedirectUri('https://ex.com:8443/cb?x=1')).not.toThrow();
++    expect(() => validateRedirectUri('http://localhost/cb')).not.toThrow();
++    expect(() => validateRedirectUri('http://localhost:9999/cb')).not.toThrow();
++    expect(() => validateRedirectUri('http://127.0.0.1/cb')).not.toThrow();
++    expect(() => validateRedirectUri('http://127.0.0.1:9999/cb')).not.toThrow();
++    expect(() => validateRedirectUri('http://[::1]/cb')).not.toThrow();
++  });
++});
+diff --git a/src/oauth/provider.ts b/src/oauth/provider.ts
+index 04fb8b7e..462b3668 100644
+--- a/src/oauth/provider.ts
++++ b/src/oauth/provider.ts
+@@ -19,7 +19,7 @@ import { join, dirname } from 'path';
+ import { tmpdir } from 'os';
+ 
+ import { MCP_OAUTH_PIN, MCP_EXTERNAL_URL, ORACLE_DATA_DIR, MCP_AUTH_TOKEN } from '../config.ts';
+-import type { OAuthState, OAuthClientInfo, PendingAuthorization } from './types.ts';
++import type { OAuthState, OAuthClientInfo, OAuthTokenData, PendingAuthorization } from './types.ts';
+ 
+ export const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+ export const AUTH_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+@@ -50,6 +50,63 @@ interface RateLimitRecord {
+   resetAt: number;
+ }
+ 
++/**
++ * Thrown when a redirect_uri fails the allowlist check.
++ * Caught by /register and mapped to HTTP 400 invalid_redirect_uri per RFC 6749.
++ */
++export class RedirectUriValidationError extends Error {
++  constructor(message: string) {
++    super(message);
++    this.name = 'RedirectUriValidationError';
++  }
++}
++
++/**
++ * RFC 8252-compliant redirect_uri allowlist. Rejects:
++ *   - Non-HTTPS HTTP (except loopback: localhost, 127.0.0.1, ::1)
++ *   - Non-HTTP(S) schemes (javascript:, data:, ftp:, file:, custom-scheme:, ...)
++ *   - Malformed URIs (anything the URL constructor rejects)
++ *
++ * Allows:
++ *   - https:// (any host)
++ *   - http://localhost[:port][/path]
++ *   - http://127.0.0.1[:port][/path]
++ *   - http://[::1][:port][/path]
++ *
++ * Called at TWO enforcement points (defense in depth):
++ *   1. OAuthProvider.registerClient — before persisting the client
++ *   2. OAuthProvider.authorize — before redirecting (catches tampered/grandfathered state)
++ */
++export function validateRedirectUri(uri: string): void {
++  if (typeof uri !== 'string' || uri.length === 0) {
++    throw new RedirectUriValidationError('redirect_uri must be a non-empty string');
++  }
++  let parsed: URL;
++  try {
++    parsed = new URL(uri);
++  } catch {
++    throw new RedirectUriValidationError(`redirect_uri is not a valid URL: ${uri}`);
++  }
++  if (parsed.protocol === 'https:') return;
++  if (parsed.protocol === 'http:') {
++    // WHATWG URL returns IPv6 hostnames WITH brackets (e.g. "[::1]"). Node
++    // strips them in some versions, Bun preserves them — accept both shapes.
++    const host = parsed.hostname;
++    if (
++      host === 'localhost'
++      || host === '127.0.0.1'
++      || host === '::1'
++      || host === '[::1]'
++    ) return;
++    throw new RedirectUriValidationError(
++      `redirect_uri scheme http:// only allowed for loopback (got host=${host})`,
++    );
++  }
++  throw new RedirectUriValidationError(
++    `redirect_uri scheme not allowed: ${parsed.protocol}`,
++  );
++}
++
+ /** Escape user-supplied strings for safe HTML interpolation */
+ function escapeHtml(str: string): string {
+   return str
+@@ -84,6 +141,12 @@ export class OAuthProvider {
+   // as transient noise. Reset to 0 on any successful sweep.
+   private sweepFailureCount = 0;
+ 
++  // Set by loadState() when token-key migration runs. The constructor checks
++  // this AFTER loadState returns and calls saveState() once to persist the
++  // migrated shape. We cannot saveState() from inside loadState() because
++  // this.state is not yet assigned — doing so would serialize `undefined`.
++  private needsPostLoadSave = false;
++
+   private static readonly MAX_PIN_ATTEMPTS = 10;
+   private static readonly PIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+   private static readonly MAX_PENDING_AUTHORIZATIONS = 100;
+@@ -91,6 +154,15 @@ export class OAuthProvider {
+   constructor() {
+     this.stateFile = join(ORACLE_DATA_DIR, '.oauth-state.json');
+     this.state = this.loadState();
++    // Persist migrated state immediately so a crash between now and the next
++    // organic write does not re-trigger migration on restart. saveState()
++    // throws on failure → eager-init pattern in server.ts catches it and
++    // exits non-zero, giving the operator a loud signal instead of silent
++    // "half-migrated" state (PR-B1 lesson).
++    if (this.needsPostLoadSave) {
++      this.saveState();
++      this.needsPostLoadSave = false;
++    }
+     this.cleanExpiredTokens();
+ 
+     // Periodic expiry sweep — the eviction logic in cleanExpiredTokens()
+@@ -128,11 +200,50 @@ export class OAuthProvider {
+ 
+   private loadState(): OAuthState {
+     if (!existsSync(this.stateFile)) {
+-      return { clients: {}, tokens: {} };
++      return { clients: {}, tokens: {}, tokenKeyVersion: 'sha256' };
+     }
+     try {
+       const raw = readFileSync(this.stateFile, 'utf-8');
+-      return JSON.parse(raw) as OAuthState;
++      const parsed = JSON.parse(raw) as OAuthState;
++
++      // Defensive normalisation — an older state file or hand-edited file may
++      // omit fields. We never THROW on missing shape here (operator may be
++      // recovering from a backup); we just fill in defaults.
++      if (!parsed.clients || typeof parsed.clients !== 'object') parsed.clients = {};
++      if (!parsed.tokens || typeof parsed.tokens !== 'object') parsed.tokens = {};
++
++      // Finding #17.4: warn on grandfathered invalid redirect_uris. Do NOT
++      // delete or auto-migrate — operator must re-register. ("Nothing
++      // deleted, only superseded.") Warnings are logged once at startup so
++      // they surface in the usual log-scanning workflow.
++      for (const [clientId, client] of Object.entries(parsed.clients)) {
++        const uris = Array.isArray(client.redirect_uris) ? client.redirect_uris : [];
++        for (const uri of uris) {
++          try {
++            validateRedirectUri(uri);
++          } catch (vErr) {
++            console.warn(
++              `[OAuth] Grandfathered invalid redirect_uri for client=${clientId}: ${uri} — ${
++                vErr instanceof Error ? vErr.message : String(vErr)
++              } — operator must re-register`,
++            );
++          }
++        }
++      }
++
++      // Finding #17.7: migrate token key scheme from raw-token to
++      // sha256(token). Idempotent — if already 'sha256' this is a no-op.
++      // If migration throws (e.g., OOM on a huge token map), the exception
++      // propagates out of loadState and eager-init catches it at startup.
++      const migratedCount = this.migrateTokenKeys(parsed);
++      if (migratedCount > 0) {
++        console.log(
++          `[OAuth] Migrated ${migratedCount} token(s) from raw-key to sha256-key storage`,
++        );
++        this.needsPostLoadSave = true;
++      }
++
++      return parsed;
+     } catch (err) {
+       // FAIL SAFE: preserve the corrupt file for forensics, then throw.
+       // The previous behaviour — swallowing the parse error and returning
+@@ -230,6 +341,48 @@ export class OAuthProvider {
+     }
+   }
+ 
++  // ─── Token key hashing (finding #17.7) ──────────────────────────────────
++
++  /**
++   * SHA-256 hex digest of a raw access token. Used as the key into
++   * state.tokens so that JS object property lookups no longer leak timing
++   * information tied to the raw token value. The digest is deterministic
++   * and constant-time to compute; subsequent object lookup leaks only on
++   * the digest value, which is indistinguishable from random for an
++   * attacker who does not already know the token.
++   */
++  private hashToken(token: string): string {
++    return createHash('sha256').update(token).digest('hex');
++  }
++
++  /**
++   * Re-key state.tokens from raw-token-as-key to sha256(rawToken)-as-key.
++   * Idempotent: if state.tokenKeyVersion === 'sha256' this returns 0 without
++   * touching the map. Otherwise every entry is re-hashed and the version
++   * marker is set. Returns the number of entries migrated (0 = already
++   * migrated or empty map).
++   *
++   * NOTE: This mutates the passed state object in place. The caller
++   * (loadState) is responsible for triggering a subsequent saveState() so
++   * the migration is durable — see constructor's `needsPostLoadSave` flag.
++   */
++  private migrateTokenKeys(state: OAuthState): number {
++    if (state.tokenKeyVersion === 'sha256') return 0;
++    const entries = Object.entries(state.tokens ?? {});
++    if (entries.length === 0) {
++      state.tokenKeyVersion = 'sha256';
++      return 0;
++    }
++    const migrated: Record<string, OAuthTokenData> = {};
++    for (const [rawToken, value] of entries) {
++      const hashed = createHash('sha256').update(rawToken).digest('hex');
++      migrated[hashed] = value;
++    }
++    state.tokens = migrated;
++    state.tokenKeyVersion = 'sha256';
++    return entries.length;
++  }
++
+   // ─── Rate limiting ───────────────────────────────────────────────────────
+ 
+   private checkRateLimit(): { allowed: boolean; attemptsLeft: number } {
+@@ -304,13 +457,24 @@ export class OAuthProvider {
+   // ─── Client registration (RFC 7591) ─────────────────────────────────────
+ 
+   registerClient(metadata: Partial<OAuthClientInfo>): OAuthClientInfo {
++    // Finding #17.4: validate every redirect_uri against the allowlist
++    // BEFORE persisting. Throws RedirectUriValidationError on any invalid
++    // entry; caller in routes.ts maps that to HTTP 400.
++    const redirect_uris = metadata.redirect_uris || [];
++    if (redirect_uris.length === 0) {
++      throw new RedirectUriValidationError('at least one redirect_uri is required');
++    }
++    for (const uri of redirect_uris) {
++      validateRedirectUri(uri);
++    }
++
+     const client_id = `oracle-${randomBytes(12).toString('hex')}`;
+     const client_secret = randomBytes(24).toString('hex');
+ 
+     const client: OAuthClientInfo = {
+       client_id,
+       client_secret,
+-      redirect_uris: metadata.redirect_uris || [],
++      redirect_uris,
+       client_name: metadata.client_name,
+       grant_types: metadata.grant_types || ['authorization_code'],
+       response_types: metadata.response_types || ['code'],
+@@ -359,6 +523,19 @@ export class OAuthProvider {
+       return { error: 'redirect_uri not registered for client' };
+     }
+ 
++    // Finding #17.4: second enforcement point (defense in depth). The
++    // inclusion check above guards against unregistered URIs, but the
++    // URI itself could still be invalid if it was persisted before this
++    // fix (grandfathered) or if state.clients was tampered with directly
++    // on disk. Re-validate the scheme here so /authorize never issues a
++    // 302 redirect to a javascript:, data:, or custom-scheme URI.
++    try {
++      validateRedirectUri(params.redirect_uri);
++    } catch (vErr) {
++      const msg = vErr instanceof Error ? vErr.message : 'invalid redirect_uri';
++      return { error: `invalid redirect_uri: ${msg}` };
++    }
++
+     if (params.code_challenge_method !== 'S256') {
+       return { error: 'Only S256 code_challenge_method is supported' };
+     }
+@@ -560,8 +737,12 @@ export class OAuthProvider {
+ 
+     const access_token = randomBytes(32).toString('hex');
+     const expires_at = Date.now() + TOKEN_TTL_MS;
++    // Finding #17.7: store under sha256(token), not raw token, so the
++    // JS dict-key timing side-channel is closed at issue time too (otherwise
++    // migration would only help legacy tokens).
++    const tokenKey = this.hashToken(access_token);
+ 
+-    this.state.tokens[access_token] = {
++    this.state.tokens[tokenKey] = {
+       client_id: codeData.client_id,
+       scopes: codeData.scopes,
+       expires_at,
+@@ -570,7 +751,7 @@ export class OAuthProvider {
+     try {
+       this.saveState();
+     } catch (error) {
+-      delete this.state.tokens[access_token];
++      delete this.state.tokens[tokenKey];
+       console.error('[OAuth] Access token issuance aborted: failed to persist state', error);
+       return { error: 'temporarily_unavailable: failed to persist token state', status: 503 };
+     }
+@@ -593,11 +774,16 @@ export class OAuthProvider {
+   verifyAccessToken(token: string): AuthInfo | null {
+     if (!token) return null;
+ 
+-    // 1. OAuth-issued tokens
+-    const data = this.state.tokens[token];
++    // 1. OAuth-issued tokens — hash-before-lookup (finding #17.7).
++    // The SHA-256 computation is the constant-time component; the object
++    // property access that follows leaks only on the digest value, which
++    // is indistinguishable from random for an attacker who does not
++    // already know the token.
++    const tokenKey = this.hashToken(token);
++    const data = this.state.tokens[tokenKey];
+     if (data) {
+       if (data.expires_at < Date.now()) {
+-        delete this.state.tokens[token];
++        delete this.state.tokens[tokenKey];
+         try {
+           this.saveState();
+         } catch (error) {
+@@ -635,10 +821,41 @@ export class OAuthProvider {
+ 
+   // ─── Token revocation ────────────────────────────────────────────────────
+ 
+-  revokeToken(token: string): void {
+-    const current = this.state.tokens[token];
++  /**
++   * Revoke an access token.
++   *
++   * @param token                  raw access token to revoke
++   * @param authenticatedClientId  if supplied, enforces RFC 7009 §2.1
++   *                               token-client binding: the token MUST have
++   *                               been issued to this client or the call is
++   *                               silently ignored (return 200 to caller,
++   *                               token remains active) — this is the
++   *                               spec-compliant way to not leak token
++   *                               existence across clients.
++   *
++   * Hash-before-lookup (finding #17.7): the map is keyed by sha256(token),
++   * so the dict-access timing side-channel is closed here as it is in
++   * verifyAccessToken and exchangeAuthorizationCode.
++   */
++  revokeToken(token: string, authenticatedClientId?: string): void {
++    const tokenKey = this.hashToken(token);
++    const current = this.state.tokens[tokenKey];
+     if (!current) return;
+ 
++    // Finding #17.5: token-client binding. If the caller authenticated as
++    // client X but the token belongs to client Y, we MUST NOT reveal that
++    // the token exists (RFC 7009 §2.1 — "the authorization server responds
++    // with HTTP status code 200 if the token has been revoked successfully
++    // or if the client submitted an invalid token"). Returning silently
++    // here means the HTTP handler will return 200, and the attacker sees
++    // the same response whether or not the token existed.
++    if (authenticatedClientId !== undefined && current.client_id !== authenticatedClientId) {
++      console.warn(
++        `[OAuth] /revoke: client ${authenticatedClientId} attempted to revoke token belonging to ${current.client_id} — ignored (not leaked)`,
++      );
++      return;
++    }
++
+     // Snapshot rather than capturing the reference — if any future code path
+     // mutates the token record in-flight (e.g., sliding-window expiry update,
+     // scope narrowing), the rollback must restore the ORIGINAL value, not
+@@ -649,10 +866,10 @@ export class OAuthProvider {
+     // at the rollback boundary where it matters.
+     const snapshot = { ...current, scopes: [...current.scopes] };
+ 
+-    delete this.state.tokens[token];
++    delete this.state.tokens[tokenKey];
+     try {
+       this.saveState();
+-      console.log('[OAuth] Token revoked');
++      console.log(`[OAuth] Token revoked (client=${current.client_id})`);
+     } catch (error) {
+       // Roll back in-memory deletion so memory + disk stay consistent.
+       // The previous behaviour logged "Token revoked" even on persistence
+@@ -661,12 +878,145 @@ export class OAuthProvider {
+       // an attacker whose token was "revoked" but not persisted could
+       // keep using it for the current process lifetime with no audit
+       // trail. Re-throw so /revoke returns 500 and the client knows.
+-      this.state.tokens[token] = snapshot;
++      this.state.tokens[tokenKey] = snapshot;
+       console.error('[OAuth] Token revocation failed to persist — state restored', error);
+       throw new Error('Failed to persist token revocation', { cause: error });
+     }
+   }
+ 
++  // ─── /revoke client authentication (finding #17.5) ──────────────────────
++
++  /**
++   * Authenticate a /revoke request per RFC 7009 §2.1.
++   *
++   * Accepts client credentials via either:
++   *   - HTTP Basic: `Authorization: Basic base64(client_id:client_secret)` (preferred)
++   *   - Form body:  `client_id=X&client_secret=Y` (fallback)
++   *
++   * Rejects with HTTP 400 if BOTH are present (RFC 6749 §2.3.1:
++   * "the client MUST NOT use more than one authentication method in each
++   * request").
++   *
++   * client_secret is compared via HMAC-normalised timingSafeEqual using
++   * this.hmacKey — the same pattern as checkRegistrationAuth (see that
++   * method's comment for the full rationale on why the HMAC key does not
++   * need to be secret; its only job is to give timingSafeEqual two equal-
++   * length digests so the compare runs without leaking length via
++   * short-circuit behaviour).
++   *
++   * On unknown client_id we still run a dummy constant-time compare so that
++   * attackers cannot distinguish "client does not exist" from "wrong
++   * secret" by timing the response.
++   */
++  authenticateRevokeRequest(
++    authHeader: string,
++    formBody: { client_id?: string; client_secret?: string },
++  ):
++    | { ok: true; clientId: string }
++    | { ok: false; status: 400 | 401; error: string; errorDescription: string } {
++    const hasBasic = authHeader.toLowerCase().startsWith('basic ');
++    const hasForm = !!(formBody.client_id || formBody.client_secret);
++
++    if (hasBasic && hasForm) {
++      return {
++        ok: false,
++        status: 400,
++        error: 'invalid_request',
++        errorDescription:
++          'use only one client authentication method (RFC 6749 §2.3.1)',
++      };
++    }
++
++    let clientId: string;
++    let clientSecret: string;
++
++    if (hasBasic) {
++      const encoded = authHeader.slice(6).trim(); // slice off "Basic " (6 chars) — case already normalised via toLowerCase check
++      let decoded: string;
++      try {
++        decoded = Buffer.from(encoded, 'base64').toString('utf-8');
++      } catch {
++        return {
++          ok: false,
++          status: 401,
++          error: 'invalid_client',
++          errorDescription: 'malformed Basic auth',
++        };
++      }
++      const colonIdx = decoded.indexOf(':');
++      if (colonIdx < 0) {
++        return {
++          ok: false,
++          status: 401,
++          error: 'invalid_client',
++          errorDescription: 'malformed Basic auth (missing colon)',
++        };
++      }
++      clientId = decoded.slice(0, colonIdx);
++      clientSecret = decoded.slice(colonIdx + 1);
++    } else if (hasForm) {
++      clientId = formBody.client_id ?? '';
++      clientSecret = formBody.client_secret ?? '';
++    } else {
++      return {
++        ok: false,
++        status: 401,
++        error: 'invalid_client',
++        errorDescription: 'client authentication required',
++      };
++    }
++
++    if (!clientId || !clientSecret) {
++      return {
++        ok: false,
++        status: 401,
++        error: 'invalid_client',
++        errorDescription: 'client_id and client_secret required',
++      };
++    }
++
++    const client = this.state.clients[clientId];
++    if (!client || !client.client_secret) {
++      // Dummy compare to equalise timing between "client missing" and
++      // "client exists but secret wrong". Without this, an attacker can
++      // enumerate valid client_ids by measuring response time.
++      const dummy = createHmac('sha256', this.hmacKey)
++        .update('dummy-secret-for-timing-parity')
++        .digest();
++      const providedDigest = createHmac('sha256', this.hmacKey)
++        .update(clientSecret)
++        .digest();
++      // Throwaway — we deliberately discard the result so the compiler
++      // cannot optimise it out. timingSafeEqual requires equal-length
++      // buffers; both are 32-byte SHA-256 digests, so this is safe.
++      timingSafeEqual(dummy, providedDigest);
++      return {
++        ok: false,
++        status: 401,
++        error: 'invalid_client',
++        errorDescription: 'invalid credentials',
++      };
++    }
++
++    const expectedDigest = createHmac('sha256', this.hmacKey)
++      .update(client.client_secret)
++      .digest();
++    const providedDigest = createHmac('sha256', this.hmacKey)
++      .update(clientSecret)
++      .digest();
++
++    if (!timingSafeEqual(expectedDigest, providedDigest)) {
++      return {
++        ok: false,
++        status: 401,
++        error: 'invalid_client',
++        errorDescription: 'invalid credentials',
++      };
++    }
++
++    return { ok: true, clientId };
++  }
++
+   // ─── Accessors for testing ───────────────────────────────────────────────
+ 
+   getTokenCount(): number {
+diff --git a/src/oauth/routes.ts b/src/oauth/routes.ts
+index baa4cc14..a027ea44 100644
+--- a/src/oauth/routes.ts
++++ b/src/oauth/routes.ts
+@@ -17,7 +17,7 @@
+ 
+ import type { Hono } from 'hono';
+ import { MCP_EXTERNAL_URL } from '../config.ts';
+-import { getOAuthProvider } from './provider.ts';
++import { getOAuthProvider, RedirectUriValidationError } from './provider.ts';
+ 
+ export function registerOAuthRoutes(app: Hono): void {
+   // ─── Discovery metadata ────────────────────────────────────────────────
+@@ -83,8 +83,20 @@ export function registerOAuthRoutes(app: Hono): void {
+         scope: body.scope as string | undefined,
+         token_endpoint_auth_method: body.token_endpoint_auth_method as string | undefined,
+       });
+-    } catch {
+-      return c.json({ error: 'temporarily_unavailable: failed to persist client registration' }, 503);
++    } catch (err) {
++      // Finding #17.4: map redirect_uri validation errors to 400
++      // invalid_redirect_uri (RFC 6749 §4.1.2.1) instead of the generic
++      // 503. Any other error (e.g., saveState failure) stays 503.
++      if (err instanceof RedirectUriValidationError) {
++        return c.json(
++          { error: 'invalid_redirect_uri', error_description: err.message },
++          400,
++        );
++      }
++      return c.json(
++        { error: 'temporarily_unavailable: failed to persist client registration' },
++        503,
++      );
+     }
+ 
+     return c.json(client, 201);
+@@ -174,37 +186,82 @@ export function registerOAuthRoutes(app: Hono): void {
+   // ─── Token revocation ─────────────────────────────────────────────────
+ 
+   app.post('/revoke', async (c) => {
+-    let token: string | undefined;
++    // Finding #17.5: RFC 7009 §2.1 requires the revocation endpoint to
++    // authenticate the client. We accept HTTP Basic (preferred) or
++    // client_id/client_secret in the form body (fallback). Both together
++    // is a 400 per RFC 6749 §2.3.1. Unauthenticated calls are 401 with
++    // WWW-Authenticate per RFC 7009.
++    const authHeader = c.req.header('Authorization') ?? '';
++
++    let formBody: {
++      client_id?: string;
++      client_secret?: string;
++      token?: string;
++    } = {};
+ 
+     const contentType = c.req.header('Content-Type') || '';
+     if (contentType.includes('application/x-www-form-urlencoded')) {
+       const text = await c.req.text();
+       const params = new URLSearchParams(text);
+-      token = params.get('token') ?? undefined;
++      formBody = {
++        client_id: params.get('client_id') ?? undefined,
++        client_secret: params.get('client_secret') ?? undefined,
++        token: params.get('token') ?? undefined,
++      };
+     } else {
+       try {
+-        const body = await c.req.json() as Record<string, string>;
+-        token = body.token;
++        const body = (await c.req.json()) as Record<string, string>;
++        formBody = {
++          client_id: body.client_id,
++          client_secret: body.client_secret,
++          token: body.token,
++        };
+       } catch {
+-        // ignore
++        // No parseable body — still go through auth check below (will
++        // fail without credentials in either Basic or form body).
+       }
+     }
+ 
++    const provider = getOAuthProvider();
++    const authResult = provider.authenticateRevokeRequest(authHeader, {
++      client_id: formBody.client_id,
++      client_secret: formBody.client_secret,
++    });
++
++    if (!authResult.ok) {
++      if (authResult.status === 401) {
++        // RFC 7009: 401 responses include WWW-Authenticate so clients can
++        // retry with Basic credentials.
++        c.header('WWW-Authenticate', 'Basic realm="oauth"');
++      }
++      return c.json(
++        { error: authResult.error, error_description: authResult.errorDescription },
++        authResult.status,
++      );
++    }
++
++    const token = formBody.token;
+     if (token) {
+       try {
+-        getOAuthProvider().revokeToken(token);
++        // Pass the authenticated clientId so revokeToken can enforce
++        // token-client binding per RFC 7009 §2.1 (no cross-client leak).
++        provider.revokeToken(token, authResult.clientId);
+       } catch (err) {
+-        // revokeToken now throws on saveState persistence failure. Surface
+-        // a 500 so the caller knows the revocation did not stick — the
++        // revokeToken throws on saveState persistence failure. Surface a
++        // 500 so the caller knows the revocation did not stick — the
+         // previous silent-swallow behaviour would have returned 200 while
+         // the token remained valid on disk (next restart would restore it).
+         console.error('[OAuth] /revoke: persistence failed', err);
+-        return c.json({ error: 'server_error', error_description: 'Revocation failed to persist' }, 500);
++        return c.json(
++          { error: 'server_error', error_description: 'Revocation failed to persist' },
++          500,
++        );
+       }
+     }
+ 
+-    // RFC 7009: return 200 for unknown/missing tokens (no token existence oracle).
+-    // Successful revocation also returns 200.
++    // RFC 7009: return 200 for unknown/missing tokens (no token existence
++    // oracle), successful revocation, and silently-ignored cross-client
++    // revoke attempts. The response body is intentionally empty.
+     return c.json({}, 200);
+   });
+ 
+diff --git a/src/oauth/types.ts b/src/oauth/types.ts
+index d28ceb5d..a4537e28 100644
+--- a/src/oauth/types.ts
++++ b/src/oauth/types.ts
+@@ -14,7 +14,17 @@ export interface OAuthTokenData {
+ 
+ export interface OAuthState {
+   clients: Record<string, OAuthClientInfo>;
++  /**
++   * Keyed by sha256hex(rawAccessToken) when `tokenKeyVersion === 'sha256'`.
++   * Legacy state files (tokenKeyVersion absent) are keyed by the raw token
++   * and migrated in-place on load — see OAuthProvider.migrateTokenKeys.
++   */
+   tokens: Record<string, OAuthTokenData>;
++  /**
++   * Token storage scheme version. Absent = legacy raw-key (migrated on load).
++   * 'sha256' = keys are SHA-256(token) hex (hash-before-lookup side-channel fix).
++   */
++  tokenKeyVersion?: 'sha256';
+ }
+ 
+ export interface OAuthClientInfo {

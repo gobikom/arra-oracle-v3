@@ -461,7 +461,7 @@ See `.claude/knowledge/oracle-philosophy.md` for full details.
 **Last Updated**: 2025-12-24
 **Version**: 1.0.0
 
-<!-- PRP-FRAMEWORK:BEGIN v2.3.0 (managed by prp-framework — do not edit manually) -->
+<!-- PRP-FRAMEWORK:BEGIN v2.6.0 (managed by prp-framework — do not edit manually) -->
 ## PRP Workflow
 
 | Action | Command | Description |
