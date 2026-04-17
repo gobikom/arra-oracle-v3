@@ -1,0 +1,1 @@
+/home/openclaw/repos/agents/prp-framework/scripts/gen-ai-context.sh
