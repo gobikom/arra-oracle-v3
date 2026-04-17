@@ -60,11 +60,15 @@ Do **not** run `git merge upstream/main` without careful review — it will drag
 The fork does not auto-pull upstream. To avoid silently missing upstream security fixes for code shared between trees:
 
 ```bash
-# subscribe-free check (run periodically, e.g. weekly)
+# check published advisories (run periodically, e.g. weekly).
+# returns an empty array when none are published — this does NOT surface
+# draft or privately-reported advisories the upstream maintainer hasn't published yet.
 gh api repos/Soul-Brews-Studio/arra-oracle-v3/security-advisories
 
-# or grep upstream commit messages after each fetch
-git log upstream/main --grep='^fix(security\|CVE\|vuln' --since='1 month ago'
+# or grep upstream commit messages after each fetch.
+# no '^' anchor — conventional-commit messages like "fix(auth): CVE-..." or
+# "chore: bump dep for vuln" don't start the line with those keywords.
+git log upstream/main --grep='security\|CVE\|vuln' --since='1 month ago'
 ```
 
 Evaluate applicability against our diverged auth/transport layer before cherry-picking — some upstream security fixes won't be load-bearing on our tree, and some will be.
