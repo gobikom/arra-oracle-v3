@@ -7,17 +7,17 @@ This repo is a **hard fork** of [`Soul-Brews-Studio/arra-oracle-v3`](https://git
 
 Decided 2026-04-18 (issue #15).
 
-| Aspect | Policy |
-|---|---|
-| **Canonical branch** | `gobikom/main` |
-| **Push to upstream** | **No** — do not open PRs against `Soul-Brews-Studio/arra-oracle-v3` |
-| **Pull from upstream** | **Selectively** — cherry-pick or merge specific commits when genuinely useful for our use case |
-| **Default PR base** | Always `gobikom/arra-oracle-v3:main` |
+| Aspect                    | Policy                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| **Canonical branch**      | `gobikom/main`                                                                                |
+| **Push to upstream**      | **No** — do not open PRs against `Soul-Brews-Studio/arra-oracle-v3`                           |
+| **Pull from upstream**    | **Selectively** — cherry-pick specific commits when genuinely useful for our use case         |
+| **Default PR base**       | Always `gobikom/arra-oracle-v3:main`                                                          |
 
 ### Why hybrid, not full sync (Option A) or full divorce (Option B)
 
-1. **Upstream is mid-refactor on files we own.** `server.ts` (1388 lines) was split into 12 route modules upstream; `indexer.ts` (895 lines) into 10 modules. Our Bearer auth middleware, `/mcp` Streamable HTTP transport, and startup token enforcement live in places that no longer exist upstream. A sync-back would be a massive rebase for low strategic value.
-2. **Direction divergence.** Upstream is building an application layer (OracleNet social bar, wasm plugins, Events page, web UI). Our fork is hardening a production MCP server (security, reliability, transport). The two roadmaps don't rhyme — a patch valuable to us is usually out of scope there, and vice versa.
+1. **Upstream's `server.ts` refactor makes sync-back costly.** Upstream split the old 1388-line `server.ts` into 13 route modules under `src/routes/`. Our fork's Bearer auth middleware, `/mcp` Streamable HTTP transport, and startup token enforcement all live in a single `server.ts` that no longer exists upstream — these would need to be re-homed into upstream's new module layout. (The `src/indexer/` split into 10 modules already landed before our fork, so both trees have it — that refactor is NOT a blocker; only the `server.ts` split is.)
+2. **Direction divergence.** Upstream is building an application layer (OracleNet social bar, wasm plugin endpoints (`/api/plugins`), Events page, web UI). Our fork is hardening a production MCP server (security, reliability, transport). The two roadmaps don't rhyme — a patch valuable to us is usually out of scope there, and vice versa.
 3. **Full divorce wastes the option.** Upstream still produces useful structural work (path centralization, test fixes). Keeping the `upstream` remote lets us read and opportunistically adopt without the PR-review overhead of pushing back.
 
 ## Agent rules
@@ -33,6 +33,10 @@ When working on this repo, AI coding agents MUST:
 ## Syncing from upstream (when you want to)
 
 ```bash
+# prerequisite: ensure the upstream remote exists (a clone from gobikom won't have it)
+git remote get-url upstream >/dev/null 2>&1 \
+  || git remote add upstream https://github.com/Soul-Brews-Studio/arra-oracle-v3.git
+
 # fetch upstream latest
 git fetch upstream
 
@@ -44,20 +48,41 @@ git log --oneline upstream/main..main
 
 # cherry-pick a specific commit if useful
 git cherry-pick <sha>
+
+# verify what actually landed before pushing (catches typo'd SHA / wrong-branch mistakes)
+git show HEAD --stat
 ```
 
 Do **not** run `git merge upstream/main` without careful review — it will drag in refactors that conflict heavily with our server changes.
 
-## Operational setup
+### Monitoring upstream for security advisories
 
-One-time setup (already applied on openclaw ops server):
+The fork does not auto-pull upstream. To avoid silently missing upstream security fixes for code shared between trees:
 
 ```bash
-cd /home/openclaw/repos/memory/arra-oracle-v3
-git config gh.repo gobikom/arra-oracle-v3
+# subscribe-free check (run periodically, e.g. weekly)
+gh api repos/Soul-Brews-Studio/arra-oracle-v3/security-advisories
+
+# or grep upstream commit messages after each fetch
+git log upstream/main --grep='^fix(security\|CVE\|vuln' --since='1 month ago'
 ```
 
-`.github/PULL_REQUEST_TEMPLATE.md` reminds every PR author to verify the base.
+Evaluate applicability against our diverged auth/transport layer before cherry-picking — some upstream security fixes won't be load-bearing on our tree, and some will be.
+
+## Operational setup
+
+One-time per clone (run from the repo root):
+
+```bash
+git config gh.repo gobikom/arra-oracle-v3
+
+# verify the config took effect (expect: gobikom/arra-oracle-v3)
+gh repo view --json nameWithOwner -q .nameWithOwner
+```
+
+Note: `git config` writes to `.git/config` of the current clone. New clones, new machines, and new `git worktree` checkouts need this applied separately — do NOT assume the default `gh pr create` will target gobikom without running the verify command above.
+
+`.github/PULL_REQUEST_TEMPLATE.md` reminds every PR author to verify the base via a visible fork-notice callout.
 
 ## What lives in this fork but not upstream
 
@@ -75,9 +100,14 @@ Reopen this decision if any of the following change:
 - Upstream stabilizes its refactor and plateaus for >3 months
 - We decide to publish this as a distinct product (rename, relicense, split identity)
 - Upstream adopts MCP transport or production-grade auth, making convergence attractive
+- **License or attribution drift** — currently both repos share the same upstream license; revisit if upstream changes its license, or if we ship the fork as a distinct product (in which case add a `NOTICE` / "forked from" attribution)
 
 ## Refs
 
-- Decision: issue #15
-- Fork moment: PR #14 (`fix: bind HTTP to 127.0.0.1 by default (#12, Stage 1)`) surfaced the base-repo pitfall
-- Closed wrong-target PR: `Soul-Brews-Studio/arra-oracle-v3#739`
+| Ref                | Pointer                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| Decision           | Issue #15                                                                                           |
+| Fork moment        | PR #14 (`fix: bind HTTP to 127.0.0.1 by default (#12, Stage 1)`) — surfaced the base-repo pitfall   |
+| Wrong-target PR    | `Soul-Brews-Studio/arra-oracle-v3#739` (closed — the mistake this doc now prevents)                 |
+| PR template        | `.github/PULL_REQUEST_TEMPLATE.md`                                                                  |
+| In-repo rules      | `CLAUDE.md` → Critical Safety Rules → Repository Usage                                              |

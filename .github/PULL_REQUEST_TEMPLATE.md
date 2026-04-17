@@ -1,15 +1,11 @@
-<!--
-⚠️  THIS IS A FORK — verify your PR base before submitting.
-
-    Canonical base: gobikom/arra-oracle-v3:main
-    DO NOT target:  Soul-Brews-Studio/arra-oracle-v3:main  (upstream)
-
-See FORK.md for the full policy. If you see "base repository: Soul-Brews-Studio/..."
-in the PR form, switch it to gobikom/... before continuing.
-
-Correct invocation:
-    gh pr create --repo gobikom/arra-oracle-v3 --base main ...
--->
+> **Fork notice — verify your PR base before submitting.**
+>
+> - Canonical base: `gobikom/arra-oracle-v3:main`
+> - DO NOT target: `Soul-Brews-Studio/arra-oracle-v3:main` (upstream)
+>
+> If the PR form shows "base repository: Soul-Brews-Studio/..." at the top, stop and switch it to `gobikom/...` before continuing. See [FORK.md](../FORK.md) for the full policy.
+>
+> Correct CLI: `gh pr create --repo gobikom/arra-oracle-v3 --base main ...`
 
 ## Summary
 
@@ -23,7 +19,7 @@ Correct invocation:
 
 <!-- how you verified this works -->
 
-- [ ] `pnpm test` passes
+- [ ] `bun test` passes
 - [ ] Manual verification (describe):
 
 ## Fork checklist
