@@ -6,11 +6,12 @@ import type { Hono } from 'hono';
 import fs from 'fs';
 import path from 'path';
 import { REPO_ROOT } from '../config.ts';
-import { createLearning } from '../tools/learn.ts';
+import { createLearning, coerceConcepts, syncLearnToVector } from '../tools/learn.ts';
 import { db, sqlite } from '../db/index.ts';
+import { ensureVectorStoreConnected } from '../vector/factory.ts';
 
 export function registerKnowledgeRoutes(app: Hono) {
-  // Learn — uses shared createLearning() from tools/learn.ts
+  // Learn — uses shared createLearning() from tools/learn.ts + vector sync
   app.post('/api/learn', async (c) => {
     try {
       const data = await c.req.json();
@@ -28,7 +29,31 @@ export function registerKnowledgeRoutes(app: Hono) {
           origin: data.origin,
         },
       );
-      return c.json(result);
+
+      let vectorStore = null;
+      try {
+        vectorStore = await ensureVectorStoreConnected();
+      } catch { /* vector unavailable — proceed without */ }
+
+      const concepts = coerceConcepts(data.concepts);
+      const filePath = path.isAbsolute(result.file)
+        ? result.file
+        : path.join(REPO_ROOT, result.file);
+      const content = fs.readFileSync(filePath, 'utf-8').replace(/^---[\s\S]*?---\n*/, '');
+
+      const vectorResult = await syncLearnToVector(
+        vectorStore,
+        vectorStore ? 'connected' : 'unavailable',
+        result,
+        content,
+        concepts,
+      );
+
+      return c.json({
+        ...result,
+        vector_synced: vectorResult.synced,
+        ...(vectorResult.error ? { vector_error: vectorResult.error } : {}),
+      });
     } catch (error) {
       return c.json({
         error: error instanceof Error ? error.message : 'Unknown error'

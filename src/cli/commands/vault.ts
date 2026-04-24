@@ -104,6 +104,26 @@ export function registerVault(program: Command): void {
       console.log(JSON.stringify(result, null, 2));
     });
 
+  vault
+    .command('reindex-vector')
+    .description('Backfill missing vector store entries from sqlite (fixes drift)')
+    .option('--dry-run', 'Preview what would be backfilled')
+    .option('--batch-size <n>', 'Documents per batch', '50')
+    .option('--model <name>', 'Embedding model (bge-m3, nomic, qwen3)', 'bge-m3')
+    .action(async (opts) => {
+      const scriptArgs = [
+        ...(opts.dryRun ? ['--dry-run'] : []),
+        `--batch-size=${opts.batchSize}`,
+        `--model=${opts.model}`,
+      ];
+      const proc = Bun.spawn(
+        ['bun', path.join(import.meta.dirname || __dirname, '..', '..', '..', 'scripts', 'backfill-vector.ts'), ...scriptArgs],
+        { stdout: 'inherit', stderr: 'inherit', env: process.env },
+      );
+      const code = await proc.exited;
+      process.exit(code);
+    });
+
   // Default action: status
   vault.action(async (opts) => {
     const result = vaultStatus(repoRoot);
