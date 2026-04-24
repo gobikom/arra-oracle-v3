@@ -112,24 +112,45 @@ export function fetchLiveRows(sqlite: Database): BackfillRow[] {
   return rows;
 }
 
+export interface Logger {
+  info: (m: string) => void;
+  error: (m: string) => void;
+  warn: (m: string) => void;
+}
+
 /**
  * Convert a sqlite row into the VectorDocument shape expected by
  * VectorStoreAdapter.addDocuments. Metadata values MUST be primitives (no
  * arrays) — matches the contract set by storage.ts.
  *
- * `concepts` is stored as JSON text in sqlite; if parsing fails or yields
- * a non-array, we fall back to an empty string for the joined form.
+ * `concepts` is stored as JSON text in sqlite. Degradation path (log + fall
+ * back to empty string) fires when the JSON is malformed OR the parsed
+ * value is not an array. Per the c7b252fc philosophy silent failures MUST
+ * be detected AND surfaced — the logger makes each degraded row visible
+ * so operators can spot data-corruption drift in the report.
  */
-export function rowToVectorDoc(row: BackfillRow): VectorDocument {
+export function rowToVectorDoc(row: BackfillRow, logger?: Logger): VectorDocument {
   let conceptsList: string[] = [];
   try {
     const parsed = JSON.parse(row.concepts);
     if (Array.isArray(parsed)) {
       conceptsList = parsed.map((c) => String(c));
+    } else if (logger) {
+      logger.warn(
+        `[backfill] doc ${row.id}: concepts JSON is not an array (type=${typeof parsed}) — ` +
+          `degrading to empty concepts metadata`,
+      );
     }
-  } catch {
-    // Malformed JSON in the concepts column — treat as empty; do not abort
-    // the whole batch for a single bad row.
+  } catch (err) {
+    // Malformed JSON — surface via warn so operator can trace data corruption.
+    // Do NOT abort the batch for one bad row; continue with empty concepts.
+    if (logger) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        `[backfill] doc ${row.id}: malformed concepts JSON (${msg}) — ` +
+          `degrading to empty concepts metadata`,
+      );
+    }
   }
   return {
     id: row.id,
@@ -154,11 +175,21 @@ export interface BatchFailure {
 
 export interface BackfillResult {
   totalRows: number;
-  upserted: number;
-  failed: number;
+  upserted: number;   // count of rows in successful batches (all-or-nothing per batch — see note)
+  failed: number;     // count of rows in failed batches
   batchesTotal: number;
   failures: BatchFailure[];
   durationMs: number;
+  // Invariant: upserted + failed === totalRows (every row is accounted for
+  // in exactly one bucket). Asserted at the top of the CLI's result-handling
+  // so a future refactor that introduces a skip path can't silently mask it.
+  //
+  // Note on per-batch semantics: `upserted` counts as if `addDocuments`
+  // succeeds or fails atomically for the whole batch. The Qdrant adapter
+  // (production) is atomic per batch. Some adapters (Cloudflare Vectorize)
+  // sub-batch internally in groups of 1000; if outer `batchSize > 1000` AND
+  // an inner sub-batch throws, `upserted` under-reports actual persisted
+  // docs and `failed` over-reports. Default batchSize=50 avoids this.
 }
 
 /**
@@ -172,9 +203,10 @@ export async function runBackfill(
   rows: BackfillRow[],
   vectorStore: VectorStoreAdapter,
   opts: BackfillOptions,
-  logger: { info: (m: string) => void; error: (m: string) => void } = {
+  logger: Logger = {
     info: (m) => console.log(m),
     error: (m) => console.error(m),
+    warn: (m) => console.warn(m),
   },
 ): Promise<BackfillResult> {
   const started = Date.now();
@@ -188,7 +220,9 @@ export async function runBackfill(
     const startOffset = i;
     const batchIndex = Math.floor(i / opts.batchSize) + 1;
     const slice = rows.slice(i, i + opts.batchSize);
-    const docs = slice.map(rowToVectorDoc);
+    // rowToVectorDoc now takes the same logger so malformed-concepts warnings
+    // flow through to the operator rather than being silently swallowed.
+    const docs = slice.map((r) => rowToVectorDoc(r, logger));
     try {
       await vectorStore.addDocuments(docs);
       upserted += slice.length;
@@ -198,9 +232,16 @@ export async function runBackfill(
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      // Preserve stack for postmortem — err.message alone loses critical
+      // context (HTTP status, response body, cause chain). Structured
+      // BatchFailure still only carries `error: string` since callers serialize
+      // it; the stack goes only to the logger.
+      const stackLine = err instanceof Error && err.stack ? `\n${err.stack}` : '';
       failed += slice.length;
       failures.push({ batchIndex, startOffset, size: slice.length, error: msg });
-      logger.error(`[backfill] Batch ${batchIndex}/${batchesTotal} FAILED: ${msg}`);
+      logger.error(
+        `[backfill] Batch ${batchIndex}/${batchesTotal} FAILED: ${msg}${stackLine}`,
+      );
     }
   }
 

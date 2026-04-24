@@ -115,9 +115,42 @@ describe('rowToVectorDoc', () => {
     expect(doc.metadata.concepts).toBe('');
   });
 
+  test('malformed concepts JSON emits warn when logger supplied', () => {
+    const warnings: string[] = [];
+    const logger = {
+      info: (_: string) => {},
+      error: (_: string) => {},
+      warn: (m: string) => warnings.push(m),
+    };
+    rowToVectorDoc({ ...baseRow, concepts: '{not-valid-json' }, logger);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!).toContain(baseRow.id);
+    expect(warnings[0]!).toContain('malformed concepts JSON');
+  });
+
+  test('malformed concepts JSON stays silent when no logger', () => {
+    // Pure-fn call site (no logger) must not throw / print.
+    expect(() =>
+      rowToVectorDoc({ ...baseRow, concepts: '{not-valid-json' }),
+    ).not.toThrow();
+  });
+
   test('non-array concepts JSON degrades to empty', () => {
     const doc = rowToVectorDoc({ ...baseRow, concepts: '"just a string"' });
     expect(doc.metadata.concepts).toBe('');
+  });
+
+  test('non-array concepts JSON emits warn when logger supplied', () => {
+    const warnings: string[] = [];
+    const logger = {
+      info: (_: string) => {},
+      error: (_: string) => {},
+      warn: (m: string) => warnings.push(m),
+    };
+    rowToVectorDoc({ ...baseRow, concepts: '"just a string"' }, logger);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!).toContain(baseRow.id);
+    expect(warnings[0]!).toContain('not an array');
   });
 
   test('concepts with non-string entries coerces via String()', () => {
@@ -274,7 +307,19 @@ class FakeVectorStore implements VectorStoreAdapter {
 }
 
 function silentLogger() {
-  return { info: (_m: string) => {}, error: (_m: string) => {} };
+  return { info: (_m: string) => {}, error: (_m: string) => {}, warn: (_m: string) => {} };
+}
+
+function spyLogger() {
+  const calls = { info: [] as string[], error: [] as string[], warn: [] as string[] };
+  return {
+    logger: {
+      info: (m: string) => calls.info.push(m),
+      error: (m: string) => calls.error.push(m),
+      warn: (m: string) => calls.warn.push(m),
+    },
+    calls,
+  };
 }
 
 const OPTS: BackfillOptions = { dryRun: false, batchSize: 2, model: 'bge-m3' };
@@ -331,6 +376,40 @@ describe('runBackfill', () => {
     const store = new FakeVectorStore();
     const result = await runBackfill(rows, store, OPTS, silentLogger());
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  test('failed batch logs error via logger (observability contract)', async () => {
+    const rows: BackfillRow[] = [makeRow('1'), makeRow('2')];
+    const store = new FakeVectorStore([1]);
+    const { logger, calls } = spyLogger();
+    await runBackfill(rows, store, OPTS, logger);
+    expect(calls.error).toHaveLength(1);
+    expect(calls.error[0]!).toContain('Batch 1');
+    expect(calls.error[0]!).toContain('simulated-batch-1-failure');
+  });
+
+  test('successful batch logs info progress (observability contract)', async () => {
+    const rows: BackfillRow[] = [makeRow('1'), makeRow('2')];
+    const store = new FakeVectorStore();
+    const { logger, calls } = spyLogger();
+    await runBackfill(rows, store, OPTS, logger);
+    expect(calls.info.some((m) => m.includes('Batch 1') && m.includes('upserted'))).toBe(true);
+  });
+
+  test('malformed-concepts row flows warning through runBackfill logger', async () => {
+    const bad = makeRow('1');
+    bad.concepts = '{garbage';
+    const store = new FakeVectorStore();
+    const { logger, calls } = spyLogger();
+    await runBackfill([bad], store, OPTS, logger);
+    expect(calls.warn.some((m) => m.includes(bad.id) && m.includes('malformed'))).toBe(true);
+  });
+
+  test('result invariant: upserted + failed === totalRows', async () => {
+    const rows: BackfillRow[] = [1, 2, 3, 4, 5].map((i) => makeRow(String(i)));
+    const store = new FakeVectorStore([1]);
+    const result = await runBackfill(rows, store, OPTS, silentLogger());
+    expect(result.upserted + result.failed).toBe(result.totalRows);
   });
 });
 

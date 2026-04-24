@@ -63,7 +63,33 @@ try {
   process.exit(1);
 }
 
+// Orphan-doc count: rows visible to oracle_documents but missing from the
+// oracle_fts INNER JOIN. Silent exclusion would hide partial sync failures
+// upstream — surface the gap so the operator can investigate (per c7b252fc).
+let orphanCount = 0;
+try {
+  const totalLive = (
+    sqlite.prepare(
+      `SELECT COUNT(*) AS n FROM oracle_documents WHERE superseded_by IS NULL`,
+    ).get() as { n: number }
+  ).n;
+  orphanCount = totalLive - rows.length;
+} catch (err) {
+  console.warn(
+    `[backfill] orphan-count query failed (non-fatal): ${
+      err instanceof Error ? err.message : String(err)
+    }`,
+  );
+}
+
 console.log(`[backfill] Found ${rows.length} live document(s) in sqlite`);
+if (orphanCount > 0) {
+  console.warn(
+    `[backfill] WARNING: ${orphanCount} live doc(s) excluded from backfill — ` +
+      `oracle_documents has entries without matching oracle_fts content rows. ` +
+      `These cannot be re-embedded without content; investigate upstream sync.`,
+  );
+}
 
 if (rows.length === 0) {
   console.log('[backfill] Nothing to upsert.');
@@ -75,7 +101,11 @@ if (opts.dryRun) {
   for (const { type, count } of summarizeByType(rows)) {
     console.log(`  ${type.padEnd(20)} ${count}`);
   }
-  console.log('[backfill] Dry-run complete — no vector store writes.');
+  console.log(
+    '[backfill] Dry-run complete — no vector store writes. ' +
+      'NOTE: vector store connectivity is NOT verified under --dry-run; ' +
+      'a misconfigured QDRANT_URL / API_KEY / model only surfaces at real-run time.',
+  );
   process.exit(0);
 }
 
@@ -94,6 +124,18 @@ try {
 
 // Run backfill
 const result = await runBackfill(rows, vectorStore, opts);
+
+// Invariant assertion: every row accounted for. If a future refactor
+// introduces a "skip" path, this surfaces immediately rather than silently
+// reporting upserted=0 + failed=0 as a successful no-op.
+if (result.upserted + result.failed !== result.totalRows) {
+  console.error(
+    `[backfill] INVARIANT VIOLATION: upserted(${result.upserted}) + ` +
+      `failed(${result.failed}) != totalRows(${result.totalRows}). ` +
+      'Some rows were silently skipped — investigate runBackfill logic.',
+  );
+  process.exit(1);
+}
 
 console.log(
   `[backfill] Done — ${result.upserted} upserted, ${result.failed} failed ` +
