@@ -116,12 +116,18 @@ export function registerVault(program: Command): void {
         `--batch-size=${opts.batchSize}`,
         `--model=${opts.model}`,
       ];
-      const proc = Bun.spawn(
-        ['bun', path.join(import.meta.dirname || __dirname, '..', '..', '..', 'scripts', 'backfill-vector.ts'), ...scriptArgs],
-        { stdout: 'inherit', stderr: 'inherit', env: process.env },
-      );
+      let proc: ReturnType<typeof Bun.spawn>;
+      try {
+        proc = Bun.spawn(
+          ['bun', path.join(import.meta.dirname || __dirname, '..', '..', '..', 'scripts', 'backfill-vector.ts'), ...scriptArgs],
+          { stdout: 'inherit', stderr: 'inherit', env: process.env },
+        );
+      } catch (err) {
+        console.error(`[vault] Failed to spawn backfill script: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
       const code = await proc.exited;
-      process.exit(code);
+      process.exit(code ?? 1);
     });
 
   // Default action: status

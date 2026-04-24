@@ -264,7 +264,7 @@ export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult 
       project: project || null,
     }).run();
   } catch (e) {
-    console.error('Failed to log learning:', e);
+    console.error(`[learn] Failed to write learnLog for ${id}:`, e instanceof Error ? e.message : String(e));
   }
 
   return {
@@ -289,8 +289,8 @@ export async function syncLearnToVector(
   content: string,
   concepts: string[],
 ): Promise<{ synced: boolean; error?: string }> {
-  if (!vectorStore || vectorStatus === 'unavailable') {
-    return { synced: false, error: 'vector store unavailable' };
+  if (!vectorStore || vectorStatus !== 'connected') {
+    return { synced: false, error: `vector store not ready (status: ${vectorStatus ?? 'null'})` };
   }
 
   const doc = {
@@ -303,23 +303,22 @@ export async function syncLearnToVector(
     },
   };
 
-  for (let attempt = 0; attempt <= VECTOR_RETRY_DELAYS.length; attempt++) {
+  let lastError = '';
+  for (let attempt = 0; attempt < VECTOR_RETRY_DELAYS.length + 1; attempt++) {
     try {
       await vectorStore.addDocuments([doc]);
       console.log(`[learn] Vector sync OK: ${result.id}`);
       return { synced: true };
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      lastError = error instanceof Error ? error.message : String(error);
       if (attempt < VECTOR_RETRY_DELAYS.length) {
-        console.warn(`[learn] Vector write attempt ${attempt + 1} failed: ${msg} — retrying in ${VECTOR_RETRY_DELAYS[attempt]}ms`);
+        console.warn(`[learn] Vector write attempt ${attempt + 1} failed: ${lastError} — retrying in ${VECTOR_RETRY_DELAYS[attempt]}ms`);
         await new Promise(r => setTimeout(r, VECTOR_RETRY_DELAYS[attempt]));
-      } else {
-        console.error(`[learn] Vector write failed after ${attempt + 1} attempts: ${msg}`);
-        return { synced: false, error: msg };
       }
     }
   }
-  return { synced: false, error: 'exhausted retries' };
+  console.error(`[learn] Vector write failed after ${VECTOR_RETRY_DELAYS.length + 1} attempts: ${lastError}`);
+  return { synced: false, error: lastError };
 }
 
 // ============================================================================
@@ -332,14 +331,26 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     input,
   );
 
-  const concepts = coerceConcepts(input.concepts);
-  const content = fs.readFileSync(
-    path.isAbsolute(result.file)
-      ? result.file
-      : path.join(ctx.repoRoot, result.file),
-    'utf-8',
-  ).replace(/^---[\s\S]*?---\n*/, '');
+  let content: string;
+  try {
+    content = fs.readFileSync(
+      path.isAbsolute(result.file)
+        ? result.file
+        : path.join(ctx.repoRoot, result.file),
+      'utf-8',
+    ).replace(/^---[\s\S]*?---\n*/, '');
+  } catch (readErr) {
+    const msg = readErr instanceof Error ? readErr.message : String(readErr);
+    console.error(`[learn] sqlite write OK (id=${result.id}) but content read failed: ${msg}`);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ ...result, vector_synced: false, vector_error: `content_read_failed: ${msg}` }, null, 2)
+      }]
+    };
+  }
 
+  const concepts = coerceConcepts(input.concepts);
   const vectorResult = await syncLearnToVector(
     ctx.vectorStore,
     ctx.vectorStatus,
