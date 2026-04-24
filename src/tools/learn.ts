@@ -11,6 +11,7 @@ import { oracleDocuments, learnLog } from '../db/schema.ts';
 import { detectProject } from '../server/project-detect.ts';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import type { ToolContext, ToolResponse, OracleLearnInput } from './types.ts';
+import type { VectorStoreAdapter } from '../vector/types.ts';
 
 // ============================================================================
 // TTL Helpers (Issue #4)
@@ -276,7 +277,53 @@ export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult 
 }
 
 // ============================================================================
-// MCP Handler — wraps createLearning in ToolResponse
+// Vector Store Sync — write learning to vector store with retry
+// ============================================================================
+
+const VECTOR_RETRY_DELAYS = [1000, 4000, 16000];
+
+export async function syncLearnToVector(
+  vectorStore: VectorStoreAdapter | null,
+  vectorStatus: string,
+  result: LearnResult,
+  content: string,
+  concepts: string[],
+): Promise<{ synced: boolean; error?: string }> {
+  if (!vectorStore || vectorStatus === 'unavailable') {
+    return { synced: false, error: 'vector store unavailable' };
+  }
+
+  const doc = {
+    id: result.id,
+    document: content,
+    metadata: {
+      type: 'learning' as const,
+      source_file: result.file,
+      concepts: concepts.join(','),
+    },
+  };
+
+  for (let attempt = 0; attempt <= VECTOR_RETRY_DELAYS.length; attempt++) {
+    try {
+      await vectorStore.addDocuments([doc]);
+      console.log(`[learn] Vector sync OK: ${result.id}`);
+      return { synced: true };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (attempt < VECTOR_RETRY_DELAYS.length) {
+        console.warn(`[learn] Vector write attempt ${attempt + 1} failed: ${msg} — retrying in ${VECTOR_RETRY_DELAYS[attempt]}ms`);
+        await new Promise(r => setTimeout(r, VECTOR_RETRY_DELAYS[attempt]));
+      } else {
+        console.error(`[learn] Vector write failed after ${attempt + 1} attempts: ${msg}`);
+        return { synced: false, error: msg };
+      }
+    }
+  }
+  return { synced: false, error: 'exhausted retries' };
+}
+
+// ============================================================================
+// MCP Handler — wraps createLearning in ToolResponse + vector sync
 // ============================================================================
 
 export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Promise<ToolResponse> {
@@ -285,10 +332,32 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     input,
   );
 
+  const concepts = coerceConcepts(input.concepts);
+  const content = fs.readFileSync(
+    path.isAbsolute(result.file)
+      ? result.file
+      : path.join(ctx.repoRoot, result.file),
+    'utf-8',
+  ).replace(/^---[\s\S]*?---\n*/, '');
+
+  const vectorResult = await syncLearnToVector(
+    ctx.vectorStore,
+    ctx.vectorStatus,
+    result,
+    content,
+    concepts,
+  );
+
+  const output = {
+    ...result,
+    vector_synced: vectorResult.synced,
+    ...(vectorResult.error ? { vector_error: vectorResult.error } : {}),
+  };
+
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify(result, null, 2)
+      text: JSON.stringify(output, null, 2)
     }]
   };
 }
