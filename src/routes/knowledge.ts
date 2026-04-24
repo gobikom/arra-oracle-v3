@@ -33,27 +33,35 @@ export function registerKnowledgeRoutes(app: Hono) {
       let vectorStore = null;
       try {
         vectorStore = await ensureVectorStoreConnected();
-      } catch { /* vector unavailable — proceed without */ }
+      } catch (err) {
+        console.error('[knowledge] Vector store connection failed:', err instanceof Error ? err.message : String(err));
+      }
 
-      const concepts = coerceConcepts(data.concepts);
-      const filePath = path.isAbsolute(result.file)
-        ? result.file
-        : path.join(REPO_ROOT, result.file);
-      const content = fs.readFileSync(filePath, 'utf-8').replace(/^---[\s\S]*?---\n*/, '');
+      let content: string;
+      try {
+        const concepts = coerceConcepts(data.concepts);
+        const filePath = path.isAbsolute(result.file)
+          ? result.file
+          : path.join(REPO_ROOT, result.file);
+        content = fs.readFileSync(filePath, 'utf-8').replace(/^---[\s\S]*?---\n*/, '');
 
-      const vectorResult = await syncLearnToVector(
-        vectorStore,
-        vectorStore ? 'connected' : 'unavailable',
-        result,
-        content,
-        concepts,
-      );
+        const vectorResult = await syncLearnToVector(
+          vectorStore,
+          vectorStore ? 'connected' : 'unavailable',
+          result,
+          content,
+          concepts,
+        );
 
-      return c.json({
-        ...result,
-        vector_synced: vectorResult.synced,
-        ...(vectorResult.error ? { vector_error: vectorResult.error } : {}),
-      });
+        return c.json({
+          ...result,
+          vector_synced: vectorResult.synced,
+          ...(vectorResult.error ? { vector_error: 'vector sync failed' } : {}),
+        });
+      } catch (readErr) {
+        console.error(`[knowledge] Content read failed for ${result.id}:`, readErr instanceof Error ? readErr.message : String(readErr));
+        return c.json({ ...result, vector_synced: false, vector_error: 'content read failed' });
+      }
     } catch (error) {
       return c.json({
         error: error instanceof Error ? error.message : 'Unknown error'
