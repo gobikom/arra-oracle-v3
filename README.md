@@ -198,6 +198,10 @@ arra-oracle-v3/
 │   │   ├── schema.ts     # Drizzle schema
 │   │   └── index.ts      # DB client
 │   └── server/           # HTTP server modules
+├── wiki/                 # Structured knowledge pages (LLM Wiki Tier 2)
+│   ├── index.md          # Catalog of all wiki pages
+│   ├── log.md            # Append-only change log
+│   └── projects/         # Per-project pages (4 pilot: soul-orchestra, clienta-ai, auto-ops, oracle-v3)
 ├── scripts/              # Setup & utility scripts
 ├── docs/                 # Documentation
 └── drizzle.config.ts     # Drizzle configuration
