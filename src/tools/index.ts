@@ -73,6 +73,10 @@ export {
   handleThreadUpdate,
 } from './forum.ts';
 
+// Verify
+export { verifyToolDef, handleVerify } from './verify.ts';
+export type { OracleVerifyInput } from './types.ts';
+
 // Trace
 export {
   traceToolDefs,
