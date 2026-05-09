@@ -49,6 +49,7 @@ import {
   handoffToolDef, handleHandoff,
   inboxToolDef, handleInbox,
   readToolDef, handleRead,
+  verifyToolDef, handleVerify,
   forumToolDefs,
   handleThread, handleThreads, handleThreadRead, handleThreadUpdate,
   traceToolDefs,
@@ -69,6 +70,7 @@ import type {
   OracleThreadsInput,
   OracleThreadReadInput,
   OracleThreadUpdateInput,
+  OracleVerifyInput,
 } from './tools/index.ts';
 
 import type {
@@ -202,6 +204,7 @@ class OracleMCPServer {
         supersedeToolDef,
         handoffToolDef,
         inboxToolDef,
+        verifyToolDef,
       ];
 
       let tools = allTools.filter(t => !this.disabledTools.has(t.name));
@@ -282,6 +285,8 @@ class OracleMCPServer {
             return await handleTraceUnlink(request.params.arguments as unknown as { traceId: string; direction: 'prev' | 'next' });
           case 'arra_trace_chain':
             return await handleTraceChain(request.params.arguments as unknown as { traceId: string });
+          case 'arra_verify':
+            return await handleVerify(this.toolCtx, request.params.arguments as unknown as OracleVerifyInput);
 
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
