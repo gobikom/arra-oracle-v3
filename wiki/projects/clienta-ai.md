@@ -34,7 +34,7 @@ clienta.ai (pnpm monorepo)
 ```
 User message → queryRewrite (OpenAI, 2 calls)
   → embed (text-embedding-3-small, 1536d, Redis-cached 1hr)
-  → hybrid search (pgvector cosine + FTS5 RRF k=60)
+  → hybrid search (pgvector cosine + Postgres FTS tsvector, RRF k=60)
   → multi-query fan-out (parallel variant searches, deduplicate)
   → rerank (Cohere rerank-multilingual-v3.0, 2s timeout)
   → model selection (dual threshold: 0.9 cosine / 0.7 rerank)
@@ -60,7 +60,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 |----------|--------|----------|-----|
 | Embedding model | OpenAI text-embedding-3-small (1536d) | Local models | Thai language quality, managed infra |
 | Reranker | Cohere rerank-multilingual-v3.0 | Cross-encoder local | Thai support, 2s timeout fail-open |
-| Search strategy | Hybrid (pgvector + FTS5 via RRF) | Vector-only | Better Thai keyword matching |
+| Search strategy | Hybrid (pgvector + Postgres FTS tsvector via RRF) | Vector-only | Better Thai keyword matching |
 | Database | Supabase PostgreSQL + pgvector | Pinecone / Weaviate | Cost, Thai locale, integrated with auth |
 | Monorepo | pnpm workspaces | Multi-repo | Shared types via packages/contracts |
 

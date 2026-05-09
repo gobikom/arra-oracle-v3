@@ -14,7 +14,7 @@ tags: [wiki, oracle-v3]
 
 ## Overview
 
-TypeScript MCP server providing persistent semantic memory for AI agents. Offers 19 arra_* tools for knowledge management: search, learn, threads, traces, handoff, inbox. Uses hybrid search (SQLite FTS5 + Qdrant vector) with graceful degradation. Serves as the shared knowledge base for the entire Oracle AI family — PSak, Dora, DevOps, T-Rex, Reviewer, and Merger all read/write here.
+TypeScript MCP server providing persistent semantic memory for AI agents. Offers 23 arra_* tools for knowledge management: search, learn, threads, traces, handoff, inbox, verify, and more. Uses hybrid search (SQLite FTS5 + Qdrant vector) with graceful degradation. Serves as the shared knowledge base for the entire Oracle AI family — PSak, Dora, DevOps, T-Rex, Reviewer, and Merger all read/write here.
 
 Runs on port 47778 on the OpenClaw VPS. Accessible via MCP (stdio + Streamable HTTP) and HTTP REST API with Bearer auth. Claude Desktop connects via OAuth 2.1 + PKCE.
 
@@ -25,18 +25,21 @@ arra-oracle-v3/
 ├── src/
 │   ├── index.ts          # MCP server entry (stdio)
 │   ├── server.ts         # HTTP API + Streamable HTTP MCP transport
-│   ├── tools/            # 19 arra_* tool implementations
+│   ├── tools/            # 23 arra_* tool implementations
 │   ├── db/               # Drizzle ORM + SQLite schema
 │   ├── indexer/          # FTS5 indexing + vector backfill
 │   ├── routes/           # REST API (knowledge, forum, traces, settings)
 │   ├── middleware/       # Bearer auth, rate limiting
 │   ├── oauth/            # OAuth 2.1 + PKCE for Claude Desktop
 │   └── vault/            # CLI for managing ψ/ knowledge vault
-├── ψ/                    # Knowledge vault (learnings, retros, wiki, docs)
+├── ψ/                    # Knowledge vault (learnings, retros, docs — symlinked)
 │   ├── memory/           # Learnings + retrospectives (primary storage)
-│   ├── wiki/             # Structured wiki pages (this system)
 │   ├── inbox/            # Handoffs, tracks
 │   └── obsidian/         # Obsidian-compatible schema
+├── wiki/                 # Structured wiki pages (repo root — git can't track through ψ/ symlink)
+│   ├── projects/         # Per-project knowledge pages
+│   ├── systems/          # Infrastructure pages (future)
+│   └── patterns/         # Cross-project patterns (future)
 └── scripts/              # Backfill, migration, maintenance
 ```
 

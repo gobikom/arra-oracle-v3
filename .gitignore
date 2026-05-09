@@ -66,7 +66,8 @@ AGENTS.md
 
 !AGENTS.md
 
-# PRP artifacts — runtime state ignored, everything else trackable for GitHub links
+# PRP artifacts — runtime state ignored, plans/reports/reviews trackable for GitHub links
+# NOTE: plans/, reports/, reviews/*.md are intentionally unignored — stage selectively, not via git add .
 .prp-output/state/
 .prp-output/debug/
 .prp-output/ralph-archives/
