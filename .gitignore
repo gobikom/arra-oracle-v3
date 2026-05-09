@@ -60,12 +60,15 @@ vault-data.json
 .agents/
 AGENTS.md
 
-# PRP Framework - artifacts (directory visible to AI tools, content not tracked)
-# .prp-output/** is intentionally not ignored to allow AI tools to read/write artifacts, but we ignore all files within it to prevent tracking
-!.prp-output/
-!.prp-output/**/
 
 # PRP Framework - local clone (not a submodule)
 .prp/
 
 !AGENTS.md
+
+# PRP artifacts — runtime state ignored, plans/reports/reviews trackable for GitHub links
+# NOTE: plans/, reports/, reviews/*.md are intentionally unignored — stage selectively, not via git add .
+.prp-output/state/
+.prp-output/debug/
+.prp-output/ralph-archives/
+.prp-output/reviews/review-metrics.jsonl
