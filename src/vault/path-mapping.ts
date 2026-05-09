@@ -18,6 +18,7 @@ export const UNIVERSAL_CATEGORIES = [
   'ψ/inbox/schedule.md',
   'ψ/inbox/focus-agent-main.md',
   'ψ/active/',
+  'wiki/',
 ];
 
 export function isProjectCategory(relativePath: string): boolean {
