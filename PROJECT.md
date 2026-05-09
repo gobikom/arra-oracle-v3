@@ -52,6 +52,7 @@
 | Deploy/CI | `.github/workflows/` |
 | e2e | `e2e/` |
 | frontend | `frontend/` |
+| Wiki pages | `wiki/` |
 
 ## Exports
 
