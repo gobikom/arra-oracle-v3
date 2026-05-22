@@ -1,9 +1,33 @@
 /**
- * Arra Oracle MCP Server
+ * Arra Oracle MCP Server — STDIO entry point
  *
  * Slim entry point: server lifecycle, tool registration, and routing.
  * Handler implementations live in src/tools/.
+ *
+ * NOTE: The HTTP transport (server.ts + mcp-transport.ts) is the preferred
+ * production entry point. This stdio entry is kept for backwards compat.
  */
+
+// Guard: if Oracle HTTP server is running, this stdio instance is redundant.
+// Claude Code settings.json should use mcp-remote → HTTP instead of spawning
+// this directly. Exit early to avoid wasting ~80-100 MB RAM per session.
+const ORACLE_HTTP_PORT = process.env.ORACLE_HTTP_PORT || '47778';
+try {
+  await fetch(`http://localhost:${ORACLE_HTTP_PORT}/mcp`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(2000),
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  // Any response (even 4xx) means the HTTP server is running
+  console.error(
+    `[oracle-stdio] HTTP server already listening on port ${ORACLE_HTTP_PORT}. ` +
+    `This stdio instance is redundant — configure mcp-remote in settings.json instead. Exiting.`
+  );
+  process.exit(0);
+} catch {
+  // HTTP server not reachable (connection refused / timeout) — proceed with stdio
+}
 
 // Load .env from the oracle directory — Claude Code may launch from a different cwd
 import { readFileSync } from 'fs';
