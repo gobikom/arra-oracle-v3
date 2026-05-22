@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-05-09
-oracle_entries: 12
+updated: 2026-05-22
+oracle_entries: 14
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -16,7 +16,7 @@ tags: [wiki, oracle-v3]
 
 TypeScript MCP server providing persistent semantic memory for AI agents. Offers 23 arra_* tools for knowledge management: search, learn, threads, traces, handoff, inbox, verify, and more. Uses hybrid search (SQLite FTS5 + Qdrant vector) with graceful degradation. Serves as the shared knowledge base for the entire Oracle AI family — PSak, Dora, DevOps, T-Rex, Reviewer, and Merger all read/write here.
 
-Runs on port 47778 on the OpenClaw VPS. Accessible via MCP (stdio + Streamable HTTP) and HTTP REST API with Bearer auth. Claude Desktop connects via OAuth 2.1 + PKCE.
+Runs on port 47778 on the OpenClaw VPS. Accessible via MCP (Streamable HTTP preferred, stdio kept for backwards compat with guard) and HTTP REST API with Bearer auth. Claude Desktop connects via OAuth 2.1 + PKCE.
 
 ## Architecture
 
@@ -84,12 +84,15 @@ Embedding models:
 - Knowledge-lint score (Sunday 20:00) detects contradictions, stale entries, orphans, and cross-store duplicates
 - Oracle DB had 1,339 orphan entries flagged during 2026-05-09 reindex; auto-archive >90d in knowledge-lint
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
+- [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
 
 ## Patterns
 
 - **Supersede chain**: When resolving an issue, create `[RESOLVED]` learning then `arra_supersede(old, new)`. One active learning per topic.
 - **MCP-FAIL-SAFE**: All consumers (scores, agents) should handle Oracle unavailability gracefully — fail-open for reads, retry-once for writes.
 - **3-tier vault**: Real ψ/ in home repos, symlinks in project repos. All learnings funnel through Oracle server's ψ/.
+- **Stdio guard**: `src/index.ts` checks if HTTP server (port 47778) is reachable via fetch on startup. If yes → exits immediately (redundant instance). Saves ~80-100MB RAM per session. Guard is a defense-in-depth layer — primary fix is correct MCP config.
+- **MCP config locations** (all must point to HTTP, not stdio): `~/.claude/settings.json`, `~/.claude-account-b/settings.json`, `~/.codex/config.toml`, `multi-agents/config/mcp/oracle-*.json`
 
 ## See Also
 
