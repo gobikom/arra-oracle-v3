@@ -208,8 +208,25 @@ app.all('/mcp', async (c) => {
   c.header('Access-Control-Expose-Headers', 'mcp-session-id, mcp-protocol-version');
   c.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, mcp-session-id, mcp-protocol-version, Last-Event-ID');
 
+  // Ensure Accept header includes both content types required by MCP SDK v1.29+.
+  // Some clients (Claude Code native streamable-http) omit the Accept header,
+  // causing the SDK to reject with -32000. Inject it if missing.
+  const accept = c.req.header('Accept') || '';
+  let reqForHandler = c.req.raw;
+  if (!accept.includes('text/event-stream') || !accept.includes('application/json')) {
+    const headers = new Headers(c.req.raw.headers);
+    headers.set('Accept', 'application/json, text/event-stream');
+    reqForHandler = new Request(c.req.raw.url, {
+      method: c.req.raw.method,
+      headers,
+      body: c.req.raw.body,
+      // @ts-ignore — duplex required for streaming request bodies in Node/Bun
+      duplex: 'half',
+    });
+  }
+
   try {
-    const response = await createMcpHandler(c.req.raw);
+    const response = await createMcpHandler(reqForHandler);
     return response;
   } catch (err) {
     console.error('[MCP] Handler error:', err);
