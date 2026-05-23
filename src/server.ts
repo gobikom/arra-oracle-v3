@@ -155,6 +155,21 @@ app.use('/mcp', cors({
   exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
 }));
 
+// GET /mcp probe interceptor — mcp-remote OAuth discovery sends GET without
+// MCP headers; the SDK's handler would open a never-closing SSE stream causing
+// a 10s hang. Return quick JSON instead. Pass through with next() when MCP
+// headers are present (legitimate SSE client). See gobikom/arra-oracle-v3#40.
+app.get('/mcp', async (c, next) => {
+  const hasLastEventId = c.req.header('Last-Event-ID');
+  const hasSessionId = c.req.header('mcp-session-id');
+
+  if (!hasLastEventId && !hasSessionId) {
+    return c.json({ status: 'ok', transport: 'streamable-http' }, 200);
+  }
+
+  return next();
+});
+
 // MCP Streamable HTTP endpoint — Bearer token auth (OAuth or static), stateless per-request
 app.all('/mcp', async (c) => {
   // Require at least one auth method to be configured
