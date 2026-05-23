@@ -155,6 +155,18 @@ app.use('/mcp', cors({
   exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
 }));
 
+// GET /mcp — return quick JSON for all authenticated GETs.
+// In stateless mode (no session tracking), GET for SSE is unused.
+// This prevents mcp-remote's OAuth probe from hanging on a never-closing SSE stream
+// AND prevents the SSE channel from triggering browser-based OAuth flow.
+app.get('/mcp', async (c) => {
+  const authHeader = c.req.header('Authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  return c.json({ status: 'ok', transport: 'streamable-http' }, 200);
+});
+
 // MCP Streamable HTTP endpoint — Bearer token auth (OAuth or static), stateless per-request
 app.all('/mcp', async (c) => {
   // Require at least one auth method to be configured
