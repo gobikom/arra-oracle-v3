@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-05-09
-oracle_entries: 46
+updated: 2026-05-24
+oracle_entries: 54
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -50,6 +50,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 | API | Railway (Dockerfile) | Auto on push to main (packages/api/**) |
 | Web | Vercel | Auto on push to main |
 | Landing | Vercel | Manual workflow_dispatch |
+| UAT | Railway (ghcr.io/gobikom/clienta-base) | Manual workflow_dispatch only (2026-05-16) |
 | Database | Supabase PostgreSQL + pgvector | Direct URL for migrations (port 5432) |
 | Redis | Railway private network | Embedding cache + BullMQ |
 | Files | Cloudflare R2 | Knowledge base documents |
@@ -70,12 +71,18 @@ User message → queryRewrite (OpenAI, 2 calls)
 - When adding new workspace packages that API depends on, MUST update Dockerfile to COPY both package.json (stage 1) and source files (stage 2)
 - Railway API write access requires elevated permissions beyond what CLI login provides on non-interactive servers
 - meeting-memory scope pivoted from clienta.ai batch worker to standalone tool (2026-04-07 decision)
+- UAT auto-deploy removed (2026-05-16) — build-uat-images.yml is workflow_dispatch only. Runner queue congestion caused the change. Must trigger manually after merge for UAT verification.
+- Stripe Checkout UI changed (2026-05-23) — iframe removed, card inputs now in direct DOM. Test selectors: getByPlaceholder for card number/expiry, getByLabel for CVC.
+- Channel routing URL mismatch (2026-05-19) — /channels/web and /channels/line redirect to ?tab=web/?tab=line. Pages render correctly but URL routing is inconsistent.
 
 ## Patterns
 
 - **Multi-stage Dockerfile**: 3 stages (deps → build → runtime). Critical to copy both package.json AND source for workspace packages.
+- **Docker base image caching**: Pre-built base image `ghcr.io/gobikom/clienta-base` (node:20-alpine + pnpm@10 + all workspace node_modules, 1694 packages). Speeds up CI builds by caching dependency layer.
 - **Fail-open RAG**: Every pipeline stage has a feature flag and graceful degradation path. No single upstream failure blocks chat.
 - **Score mixing**: RAGContext tracks `rerankUsed: boolean` to apply correct threshold (0.7 rerank vs 0.9 cosine) for model routing.
+- **Autonomous batch orchestration** (2026-05-23): delegate batch → verify diff → QA → next batch. 4 PRs in one session. Always verify issue claims against current code before closing.
+- **WCAG 2.1 AA accessibility**: aria-live assertive for errors, aria-live polite for loading states, heading hierarchy h1/h2, aria-busy on action buttons, prose/link split pattern for secondary CTAs.
 
 ## See Also
 
