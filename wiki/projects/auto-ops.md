@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-05-09
-oracle_entries: 18
+updated: 2026-05-24
+oracle_entries: 19
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -14,7 +14,7 @@ tags: [wiki, auto-ops]
 
 ## Overview
 
-Autonomous server watchdog daemon for the OpenClaw VPS (103.245.164.27). Runs health checks every 60 seconds via cron, auto-restarts failed services via systemd, and sends Telegram alerts on failure/recovery. Includes Claude AI-powered auto-diagnosis for complex incidents. Monitors 24 services across systemd, Docker, HTTP, process, and cron-heartbeat check types.
+Autonomous server watchdog daemon for the OpenClaw VPS (103.245.164.27). Runs health checks every 60 seconds via cron, auto-restarts failed services via systemd, and sends Telegram alerts on failure/recovery. Includes Claude AI-powered auto-diagnosis for complex incidents. Monitors 24 services across systemd, Docker, HTTP, process, and cron-heartbeat check types. Includes memory (RAM + swap) monitoring via /proc/meminfo.
 
 All 7 implementation phases complete: from basic systemd hardening through SaaS monitoring and incident memory integration.
 
@@ -75,6 +75,7 @@ auto-ops/
 - **CHECKERS pattern**: New service types plug into `services.yml` with a `type:` field — watchdog dispatches to the matching checker implementation. Used for docker-container and http types.
 - **Cross-repo pattern consistency**: Telegram process detection regex shared between ops/ shell scripts and auto-ops/ Python — any change must update both.
 - **Actuator loop**: Detection → diagnosis → action → verify. Disk auto-cleanup is the first actuator (PR #14).
+- **Memory monitoring via /proc/meminfo**: `check_memory()` reads MemTotal, MemAvailable, SwapTotal, SwapFree from /proc/meminfo. Alerts on RAM usage above threshold and swap usage above threshold. Added via PR #39 (2026-05-21).
 
 ## See Also
 
