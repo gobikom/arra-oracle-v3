@@ -2,8 +2,8 @@
 title: Wiki Index
 type: wiki
 status: active
-updated: 2026-05-09
-total_pages: 4
+updated: 2026-05-26
+total_pages: 5
 ---
 
 # Oracle Wiki
@@ -21,7 +21,9 @@ Structured knowledge pages synthesized from Oracle entries. Each page compiles a
 
 ## Systems
 
-_(Future: infrastructure pages — safe-merge, systemd services, nginx, etc.)_
+| Page | Updated | Summary |
+|------|---------|---------|
+| [services](systems/services.md) | 2026-05-26 | OpenClaw VPS services — ports, paths, status, access methods |
 
 ## Patterns
 
