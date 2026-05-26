@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-05-22
-oracle_entries: 56
+updated: 2026-05-27
+oracle_entries: 57
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -24,6 +24,9 @@ Production since Phase 8. Runs on a single OpenClaw VPS (103.245.164.27) with cr
 soul-orchestra/
 ├── agents/          # Agent identity YAML (psak, dora, devops, trex, reviewer, merger)
 ├── conductor/       # 7-phase reasoning protocol (OBSERVE → HANDOFF)
+│   ├── protocol.md          # Full conductor protocol (compact-rendered into CLAUDE.md)
+│   ├── score-protocols/     # Reusable instruction blocks (lazy-loaded in CLAUDE.md)
+│   └── wiki/                # Shared reference pages (lazy-loaded via wiki_ref)
 ├── scores/          # Workflow definitions (YAML with steps, depends_on, triggers)
 ├── generator/       # Config pipeline: prompt.md + config.yaml + DAG generation
 ├── scripts/         # Runner scripts (run-*.sh) + runner-lib + inject_context.py
@@ -68,6 +71,7 @@ soul-orchestra/
 - **deploy-after-merge**: Score YAML changes need `generator/deploy.py` + commit to multi-agents config before they're live
 - **safe-merge gate**: All PRs merged via `~/ops/bin/safe-merge` (CI-green + review-artifact gates)
 - **Respawn PID guard**: Each respawn script writes `$$` to `$RESPAWN_DIR/{agent}.pid` on start. On each loop iteration, checks if PID file still matches — exits if superseded. Agent-runner reads PID file on start, SIGKILL old respawn (verified via `/proc/PID/cmdline`), clears file. Belt-and-suspenders: both sides guard against orphans.
+- **wiki_ref lazy-loading**: Agent YAML `tools_knowledge`, `philosophy`, and `autonomous_mode` support `wiki_ref` field pointing to `conductor/wiki/*.md` pages. Generator emits compact "REQUIRED: Read" pointers instead of inline content. Score prompts (`generate-prompt.py`) unaffected — always inline. Path-validated via `_validate_wiki_ref` (injection guard + containment + existence). Added 2026-05-26 (PRs #848-#850).
 
 ## See Also
 
