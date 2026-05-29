@@ -95,26 +95,46 @@ export async function storeDocuments(
   }
 
   const BATCH_SIZE = 100;
+  const MAX_RETRIES = 3;
+  const RETRY_BASE_MS = 500;
   let vectorSuccess = true;
+  const failedBatches: { batchIndex: number; docIds: string[]; error: string }[] = [];
 
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const batchIndex = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(ids.length / BATCH_SIZE);
     const batchIds = ids.slice(i, i + BATCH_SIZE);
     const batchContents = contents.slice(i, i + BATCH_SIZE);
     const batchMetadatas = metadatas.slice(i, i + BATCH_SIZE);
 
-    try {
-      const vectorDocs = batchIds.map((id, idx) => ({
-        id,
-        document: batchContents[idx],
-        metadata: batchMetadatas[idx]
-      }));
-      await vectorClient.addDocuments(vectorDocs);
-      console.log(`Vector batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(ids.length / BATCH_SIZE)} stored`);
-    } catch (error) {
-      console.error(`Vector batch failed:`, error);
-      vectorSuccess = false;
+    const vectorDocs = batchIds.map((id, idx) => ({
+      id,
+      document: batchContents[idx],
+      metadata: batchMetadatas[idx]
+    }));
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await vectorClient.addDocuments(vectorDocs);
+        console.log(`Vector batch ${batchIndex}/${totalBatches} stored`);
+        break;
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (attempt < MAX_RETRIES) {
+          const delayMs = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+          console.warn(`Vector batch ${batchIndex}/${totalBatches} failed (attempt ${attempt}/${MAX_RETRIES}): ${errMsg} — retrying in ${delayMs}ms`);
+          await new Promise(r => setTimeout(r, delayMs));
+        } else {
+          console.error(`Vector batch ${batchIndex}/${totalBatches} FAILED after ${MAX_RETRIES} attempts: ${errMsg} [${batchIds.length} docs: ${batchIds[0]}..${batchIds[batchIds.length - 1]}]`);
+          failedBatches.push({ batchIndex, docIds: batchIds, error: errMsg });
+          vectorSuccess = false;
+        }
+      }
     }
   }
 
-  console.log(`Stored in SQLite${vectorSuccess ? ` + ${vectorClient.name}` : ` (${vectorClient.name} failed)`}`);
+  if (failedBatches.length > 0) {
+    console.error(`Vector drift: ${failedBatches.reduce((n, b) => n + b.docIds.length, 0)} docs in SQLite but NOT in ${vectorClient.name}. Weekly backfill cron will catch up, or run: bun scripts/backfill-vector.ts`);
+  }
+  console.log(`Stored in SQLite${vectorSuccess ? ` + ${vectorClient.name}` : ` (${vectorClient.name} failed — ${failedBatches.length} batch(es))`}`);
 }
