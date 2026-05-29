@@ -113,12 +113,10 @@ export async function storeDocuments(
       metadata: batchMetadatas[idx]
     }));
 
-    let succeeded = false;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         await vectorClient.addDocuments(vectorDocs);
         console.log(`Vector batch ${batchIndex}/${totalBatches} stored`);
-        succeeded = true;
         break;
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
