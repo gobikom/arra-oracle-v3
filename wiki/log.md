@@ -16,3 +16,5 @@ Append-only record of wiki page updates.
 | 2026-05-26 | created | systems/services.md | OpenClaw VPS service inventory — ports, paths, status |
 | 2026-05-27 | updated | projects/soul-orchestra.md | +wiki_ref lazy-loading pattern, conductor/wiki/ in architecture tree |
 | 2026-05-27 | note | — | PRP token optimization tools merged (prp-framework#96). 4 tools: prp-explore, prp-validate, prp-diff, prp-state. Tracking via agent-devops#340 |
+| 2026-06-01 | updated | projects/soul-orchestra.md | +2 resolved issues (#298/#288 DAG deadlock, #322 timeout); +1 pattern (CODE-SIDE vs infra triage); oracle_entries: 57→62 |
+| 2026-06-01 | updated | wiki/index.md | soul-orchestra entry count updated (54→62), index refreshed |
