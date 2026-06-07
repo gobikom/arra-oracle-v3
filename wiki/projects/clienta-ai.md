@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-05-24
-oracle_entries: 54
+updated: 2026-06-07
+oracle_entries: 62
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -74,6 +74,9 @@ User message → queryRewrite (OpenAI, 2 calls)
 - UAT auto-deploy removed (2026-05-16) — build-uat-images.yml is workflow_dispatch only. Runner queue congestion caused the change. Must trigger manually after merge for UAT verification.
 - Stripe Checkout UI changed (2026-05-23) — iframe removed, card inputs now in direct DOM. Test selectors: getByPlaceholder for card number/expiry, getByLabel for CVC.
 - Channel routing URL mismatch (2026-05-19) — /channels/web and /channels/line redirect to ?tab=web/?tab=line. Pages render correctly but URL routing is inconsistent.
+- v1.3.5 Billing Cleanup shipped (2026-06-07) — currency persist, Omise removal, plan cancellation. 15 PRs, UAT 100%, staging 99.3%, prod 100%.
+- v1.3.6 Pricing Consistency shipped (2026-06-07) — all pricing surfaces aligned with billing.ts. 7 plans, 17% discount, correct overage rates across landing, docs, billing tab, partner portal.
+- v1.3.7 Stability and Partner Fixes in progress — invoice multi-plan support (DB migration), partner dashboard stats, wholesalePlan fallback, 4 flaky E2E test fixes.
 
 ## Patterns
 
@@ -83,6 +86,8 @@ User message → queryRewrite (OpenAI, 2 calls)
 - **Score mixing**: RAGContext tracks `rerankUsed: boolean` to apply correct threshold (0.7 rerank vs 0.9 cosine) for model routing.
 - **Autonomous batch orchestration** (2026-05-23): delegate batch → verify diff → QA → next batch. 4 PRs in one session. Always verify issue claims against current code before closing.
 - **WCAG 2.1 AA accessibility**: aria-live assertive for errors, aria-live polite for loading states, heading hierarchy h1/h2, aria-busy on action buttons, prose/link split pattern for secondary CTAs.
+- **Reseller multi-plan wholesale pricing** (v1.3.6-v1.3.7): RESELLER_PLANS defines 5 tiers (growth/plus/pro/scale/enterprise). WHOLESALE_PRICING per plan. Dynamic volume discount via getVolumeDiscount(). Invoice service calculates per-plan amounts.
+- **Gate-keeper orchestration** (v1.3.4+): PSak single-touch verify at phase boundaries, DevLead-Claude orchestrates full cycle. Validated 3 times (v1.3.4/v1.3.5/v1.3.6). Saves ~60% PSak cost vs full orchestration.
 
 ## See Also
 
