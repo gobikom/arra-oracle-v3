@@ -19,3 +19,4 @@ Append-only record of wiki page updates.
 | 2026-06-01 | updated | projects/soul-orchestra.md | +2 resolved issues (#298/#288 DAG deadlock, #322 timeout); +1 pattern (CODE-SIDE vs infra triage); oracle_entries: 57→62 |
 | 2026-06-01 | updated | wiki/index.md | soul-orchestra entry count updated (54→62), index refreshed |
 | 2026-06-07 | updated | projects/clienta-ai.md | v1.3.5/v1.3.6 shipped, v1.3.7 in progress, gate-keeper + reseller patterns |
+- 2026-06-08: clienta-ai.md — v1.3.7 shipped milestone (was 'in progress')

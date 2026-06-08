@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-06-07
-oracle_entries: 62
+updated: 2026-06-08
+oracle_entries: 64
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -76,7 +76,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - Channel routing URL mismatch (2026-05-19) — /channels/web and /channels/line redirect to ?tab=web/?tab=line. Pages render correctly but URL routing is inconsistent.
 - v1.3.5 Billing Cleanup shipped (2026-06-07) — currency persist, Omise removal, plan cancellation. 15 PRs, UAT 100%, staging 99.3%, prod 100%.
 - v1.3.6 Pricing Consistency shipped (2026-06-07) — all pricing surfaces aligned with billing.ts. 7 plans, 17% discount, correct overage rates across landing, docs, billing tab, partner portal.
-- v1.3.7 Stability and Partner Fixes in progress — invoice multi-plan support (DB migration), partner dashboard stats, wholesalePlan fallback, 4 flaky E2E test fixes.
+- v1.3.7 Stability & Partner Fixes shipped (2026-06-08) — invoice multi-plan (DB migration + 5-plan pipeline), dashboard stat cards, wholesalePlan fallback, Sonner toast fix, channels delete fix, flaky tests umbrella. 7 sub-PRs + 6 gate fix PRs. UAT 99.7%, staging 99.3%, prod 100%.
 
 ## Patterns
 
