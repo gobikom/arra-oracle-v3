@@ -71,6 +71,7 @@ if (dryRun) {
 }
 
 const now = Date.now();
+const dateStamp = new Date().toISOString().split('T')[0];
 const flagStmt = sqlite.prepare(`
   UPDATE oracle_documents
   SET superseded_by = '_verified_orphan',
@@ -81,7 +82,7 @@ const flagStmt = sqlite.prepare(`
 
 const transaction = sqlite.transaction(() => {
   for (const o of orphans) {
-    flagStmt.run(now, `File not found on disk (verify-db-integrity ${new Date().toISOString().split('T')[0]})`, o.id);
+    flagStmt.run(now, `File not found on disk (verify-db-integrity ${dateStamp})`, o.id);
   }
 });
 

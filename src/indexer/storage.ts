@@ -4,7 +4,7 @@
 
 import { Database } from 'bun:sqlite';
 import { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import * as schema from '../db/schema.ts';
 import { oracleDocuments } from '../db/schema.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
@@ -39,7 +39,10 @@ export async function storeDocuments(
   const arralLearnFiles = new Set(
     db.select({ sourceFile: oracleDocuments.sourceFile })
       .from(oracleDocuments)
-      .where(eq(oracleDocuments.createdBy, 'arra_learn'))
+      .where(and(
+        eq(oracleDocuments.createdBy, 'arra_learn'),
+        isNull(oracleDocuments.supersededBy),
+      ))
       .all()
       .map(r => r.sourceFile)
   );
