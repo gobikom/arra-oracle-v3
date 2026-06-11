@@ -57,25 +57,50 @@ export class OracleIndexer {
     setIndexingStatus(this.sqlite, this.config, true, 0, 100);
     backupDatabase(this.sqlite, this.config);
 
-    // Smart deletion: remove indexer-created docs whose source file no longer exists
-    const allIndexerDocs = this.db.select({ id: oracleDocuments.id, sourceFile: oracleDocuments.sourceFile })
+    // Smart deletion: remove ALL docs whose source file no longer exists on disk.
+    // Previously only cleaned createdBy='indexer' entries — arra_learn orphans
+    // accumulated indefinitely (agent-devops#539).
+    const allDocs = this.db.select({
+      id: oracleDocuments.id,
+      sourceFile: oracleDocuments.sourceFile,
+      createdBy: oracleDocuments.createdBy,
+    })
       .from(oracleDocuments)
-      .where(or(eq(oracleDocuments.createdBy, 'indexer'), isNull(oracleDocuments.createdBy)))
       .all();
 
-    const idsToDelete = allIndexerDocs
-      .filter(d => !fs.existsSync(path.join(this.config.repoRoot, d.sourceFile)))
-      .map(d => d.id);
-    console.log(`Smart delete: ${idsToDelete.length} stale docs (preserving arra_learn)`);
+    const orphanedDocs = allDocs
+      .filter(d => !fs.existsSync(path.join(this.config.repoRoot, d.sourceFile)));
+    const indexerOrphans = orphanedDocs.filter(d => d.createdBy !== 'arra_learn');
+    const learnOrphans = orphanedDocs.filter(d => d.createdBy === 'arra_learn');
+    console.log(`Smart delete: ${orphanedDocs.length} orphaned docs (indexer=${indexerOrphans.length}, arra_learn=${learnOrphans.length})`);
 
-    if (idsToDelete.length > 0) {
-      this.db.delete(oracleDocuments).where(inArray(oracleDocuments.id, idsToDelete)).run();
-      const BATCH_SIZE = 500;
-      for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
-        const batch = idsToDelete.slice(i, i + BATCH_SIZE);
-        const placeholders = batch.map(() => '?').join(',');
-        this.sqlite.prepare(`DELETE FROM oracle_fts WHERE id IN (${placeholders})`).run(...batch);
-      }
+    if (indexerOrphans.length > 0) {
+      const indexerIds = indexerOrphans.map(d => d.id);
+      const deleteOrphans = this.sqlite.transaction(() => {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < indexerIds.length; i += BATCH_SIZE) {
+          const batch = indexerIds.slice(i, i + BATCH_SIZE);
+          const placeholders = batch.map(() => '?').join(',');
+          this.sqlite.prepare(`DELETE FROM oracle_documents WHERE id IN (${placeholders})`).run(...batch);
+          this.sqlite.prepare(`DELETE FROM oracle_fts WHERE id IN (${placeholders})`).run(...batch);
+        }
+      });
+      deleteOrphans();
+    }
+
+    if (learnOrphans.length > 0) {
+      const now = Date.now();
+      const supersedeOrphans = this.sqlite.transaction(() => {
+        const stmt = this.sqlite.prepare(`
+          UPDATE oracle_documents
+          SET superseded_by = '_verified_orphan', superseded_at = ?, superseded_reason = ?
+          WHERE id = ?
+        `);
+        for (const doc of learnOrphans) {
+          stmt.run(now, 'File not found on disk (indexer smart-delete)', doc.id);
+        }
+      });
+      supersedeOrphans();
     }
 
     // Initialize vector store
