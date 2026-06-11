@@ -57,16 +57,27 @@ export class OracleIndexer {
     setIndexingStatus(this.sqlite, this.config, true, 0, 100);
     backupDatabase(this.sqlite, this.config);
 
-    // Smart deletion: remove indexer-created docs whose source file no longer exists
-    const allIndexerDocs = this.db.select({ id: oracleDocuments.id, sourceFile: oracleDocuments.sourceFile })
+    // Smart deletion: remove ALL docs whose source file no longer exists on disk.
+    // Previously only cleaned createdBy='indexer' entries — arra_learn orphans
+    // accumulated indefinitely (agent-devops#539).
+    const allDocs = this.db.select({
+      id: oracleDocuments.id,
+      sourceFile: oracleDocuments.sourceFile,
+      createdBy: oracleDocuments.createdBy,
+    })
       .from(oracleDocuments)
-      .where(or(eq(oracleDocuments.createdBy, 'indexer'), isNull(oracleDocuments.createdBy)))
       .all();
 
-    const idsToDelete = allIndexerDocs
+    const idsToDelete = allDocs
       .filter(d => !fs.existsSync(path.join(this.config.repoRoot, d.sourceFile)))
       .map(d => d.id);
-    console.log(`Smart delete: ${idsToDelete.length} stale docs (preserving arra_learn)`);
+    const byCreator = idsToDelete.reduce((acc, id) => {
+      const doc = allDocs.find(d => d.id === id);
+      const key = doc?.createdBy || 'null';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log(`Smart delete: ${idsToDelete.length} orphaned docs (${Object.entries(byCreator).map(([k, v]) => `${k}=${v}`).join(', ')})`);
 
     if (idsToDelete.length > 0) {
       this.db.delete(oracleDocuments).where(inArray(oracleDocuments.id, idsToDelete)).run();
