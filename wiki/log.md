@@ -20,3 +20,11 @@ Append-only record of wiki page updates.
 | 2026-06-01 | updated | wiki/index.md | soul-orchestra entry count updated (54→62), index refreshed |
 | 2026-06-07 | updated | projects/clienta-ai.md | v1.3.5/v1.3.6 shipped, v1.3.7 in progress, gate-keeper + reseller patterns |
 - 2026-06-08: clienta-ai.md — v1.3.7 shipped milestone (was 'in progress')
+| 2026-06-12 | created | projects/my-ai-soul-mcp.md | Initial synthesis — 18 MCP tools, dual storage, hybrid search, soul evolution |
+| 2026-06-12 | created | projects/multi-agents.md | Initial synthesis — DAG executor, pool executor, platform adapters, workspace comms |
+| 2026-06-12 | created | projects/prp-framework.md | Initial synthesis — 32 commands, 6 adapters, review-fix loop, token optimization |
+| 2026-06-12 | created | projects/soul-skills.md | Initial synthesis — soul CLI, 18 platforms, profiles, skill discovery |
+| 2026-06-12 | created | projects/sniper-s50.md | Initial synthesis — S50 backtesting, options trading, walk-forward validation |
+| 2026-06-12 | created | projects/btc-trend-hunter.md | Initial synthesis — BTC scalping bot, archived status, lifecycle docs |
+| 2026-06-12 | created | projects/agent-psak.md | Initial synthesis — home repo pattern, conductor protocol, memory dual-system |
+| 2026-06-12 | updated | wiki/index.md | +7 project pages (4→11), total_pages: 5→12 |
