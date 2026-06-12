@@ -55,10 +55,10 @@ agent-psak/
 2. RECALL — search Oracle + Soul for relevant knowledge
 3. THINK — synthesize, identify gaps, plan approach
 4. DECIDE — philosophy/capability/escalation/budget/confidence checks
-5. MONITOR (4.5) — check segment state thresholds before acting
-6. ACT — execute (PRP, delegation, code, API calls)
-7. LEARN — save discoveries to Oracle/Soul
-8. HANDOFF — save context for next session/agent
+   - 4.5 MONITOR — check segment state thresholds before acting
+5. ACT — execute (PRP, delegation, code, API calls)
+6. LEARN — save discoveries to Oracle/Soul
+7. HANDOFF — save context for next session/agent
 
 ## Key Decisions
 
