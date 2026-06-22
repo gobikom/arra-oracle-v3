@@ -89,10 +89,19 @@ export function parseLearningFile(filename: string, content: string, sourceFileO
   });
 
   if (documents.length === 0) {
+    // Skip empty/whitespace-only files — they produce docs with empty content
+    // that the OpenAI embedding API rejects ("input cannot be an empty string"),
+    // aborting the whole vector batch and causing sqlite<->vector drift.
+    // (agent-devops task at-90a5c857bff4 / RC for indexer reindex investigation)
+    const trimmed = content.trim();
+    if (!trimmed) {
+      console.warn(`[indexer] Skipping empty learning file (no content): ${sourceFile}`);
+      return documents;
+    }
     const extracted = extractConcepts(title, content);
     documents.push({
       id: `learning_${filename.replace('.md', '')}`, type: 'learning', source_file: sourceFile,
-      content, concepts: mergeConceptsWithTags(extracted, fileTags),
+      content: trimmed, concepts: mergeConceptsWithTags(extracted, fileTags),
       created_at: now, updated_at: now, project: fileProject || undefined
     });
   }
