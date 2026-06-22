@@ -96,14 +96,25 @@ export async function storeDocuments(
         doc.concepts.join(' ')
       );
 
-      // Vector store metadata (must be primitives, not arrays)
-      ids.push(doc.id);
-      contents.push(doc.content);
-      metadatas.push({
-        type: doc.type,
-        source_file: doc.source_file,
-        concepts: doc.concepts.join(',')
-      });
+      // Vector store metadata (must be primitives, not arrays).
+      // Skip empty/whitespace content from the vector batch — OpenAI's
+      // embedding API rejects empty strings ("input cannot be an empty
+      // string") and aborts the whole 100-doc batch, causing permanent
+      // sqlite<->vector drift. The doc still lands in SQLite/FTS (above),
+      // so it remains searchable by keyword; it just has no vector.
+      // (agent-devops task at-90a5c857bff4)
+      const vectorContent = doc.content && doc.content.trim();
+      if (vectorContent) {
+        ids.push(doc.id);
+        contents.push(doc.content);
+        metadatas.push({
+          type: doc.type,
+          source_file: doc.source_file,
+          concepts: doc.concepts.join(',')
+        });
+      } else {
+        console.warn(`[indexer] Skipping vector embedding (empty content): ${doc.source_file}`);
+      }
     }
     sqlite.exec('COMMIT');
   } catch (e) {
