@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-06-01
-oracle_entries: 62
+updated: 2026-06-27
+oracle_entries: 63
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -75,6 +75,7 @@ soul-orchestra/
 - **Respawn PID guard**: Each respawn script writes `$$` to `$RESPAWN_DIR/{agent}.pid` on start. On each loop iteration, checks if PID file still matches — exits if superseded. Agent-runner reads PID file on start, SIGKILL old respawn (verified via `/proc/PID/cmdline`), clears file. Belt-and-suspenders: both sides guard against orphans.
 - **wiki_ref lazy-loading**: Agent YAML `tools_knowledge`, `philosophy`, and `autonomous_mode` support `wiki_ref` field pointing to `conductor/wiki/*.md` pages. Generator emits compact "REQUIRED: Read" pointers instead of inline content. Score prompts (`generate-prompt.py`) unaffected — always inline. Path-validated via `_validate_wiki_ref` (injection guard + containment + existence). Added 2026-05-26 (PRs #848-#850).
 - **CODE-SIDE vs Infrastructure triage** (2026-05-25): When infra-health-check detects soul-orchestra score failures (exit code 4, long runtime), triage them as CODE-SIDE (agent pool timeout, DAG deadlock) not infrastructure. Infrastructure is healthy if disk/memory/services PASS. Escalate code-side failures to soul-orchestra team; auto-ops/infra-health-check focuses on infrastructure-only fixes.
+- **AC extraction pipeline** (2026-06-27, agent-devops#696): `/extract-acs` skill mechanically extracts ACs from issue bodies into per-epic frozen inventory. Three strategies (explicit checkboxes → expected behavior inference → problem-inferred). Gate integration: pre-implement WARN if missing + count validation, production loads as canonical source, Warden checks completeness. Review protocol: devlead-codex + devlead-glm review [inferred] ACs (PSak never self-approves). Plan may add ACs beyond inventory but not drop without rationale. Guide: `conductor/wiki/ac-extraction-guide.md`.
 
 ## See Also
 
