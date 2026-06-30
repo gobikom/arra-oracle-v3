@@ -2,7 +2,7 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 8
 sources:
   - https://github.com/gobikom/soul-skills
@@ -10,7 +10,39 @@ project: github.com/gobikom/soul-skills
 tags: [wiki, soul-skills, cli, distribution]
 ---
 
+
+
 # Soul Skills
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- src/skills: 108 functions, 14 interfaces, 7 types
+- src/cli: 73 functions, 9 interfaces, 3 types
+- __tests__: 22 functions, 5 interfaces, 2 types
+- scripts: 15 functions, 1 interface
+- src: 2 functions
+- src/hooks: 1 function
+
+## Entry Points (auto — CK)
+
+- installSkills `async function installSkills( targetAgents: string[], options: InstallOptions ): Promise<void` — src/cli/installer.ts (20 connections)
+- discoverSkills `async function discoverSkills(): Promise<Skill[]` — src/cli/skill-source.ts (9 connections)
+- initAntigravity `function initAntigravity(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (8 connections)
+- initWindsurf `function initWindsurf(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (8 connections)
+- initAmazonQ `function initAmazonQ( serverUrl: string, token: string, projectDir: string, globalConfig = false, ): string[]` — src/cli/platforms.ts (8 connections)
+- isCompiled `function isCompiled(): boolean` — src/cli/skill-source.ts (7 connections)
+- detectInstalledAgents `function detectInstalledAgents(): string[]` — src/cli/agents.ts (7 connections)
+- initOpencode `function initOpencode(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (7 connections)
+- registerInstall `function registerInstall(program: Command, version: string)` — src/cli/commands/install.ts (6 connections)
+- getSymlinks `async function getSymlinks(baseDir: string): Promise<LinkInfo[]` — src/skills/project/scripts/utils.ts (5 connections)
+
+## Hotspots (auto — CK)
+
+- `dependencies` — 41 connections, change_freq=0
+- `dependencies` — 40 connections, change_freq=0
+- `dependencies` — 26 connections, change_freq=0
+- `src/skills/project/scripts/utils.ts` — 24 connections, change_freq=0
+- `src/cli/installer.ts` — 24 connections, change_freq=0
 
 ## Overview
 

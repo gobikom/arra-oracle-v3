@@ -2,7 +2,7 @@
 title: BTC Trend Hunter
 type: wiki
 status: archived
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 4
 sources:
   - https://github.com/gobikom/btc-trend-hunter
@@ -10,7 +10,37 @@ project: github.com/gobikom/btc-trend-hunter
 tags: [wiki, btc-trend-hunter, trading, crypto]
 ---
 
+
+
 # BTC Trend Hunter
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- tests: 46 classes, 259 functions
+- .: 9 classes, 73 functions
+- dashboard: 1 class, 12 functions
+- strategies: 2 classes, 9 functions
+
+## Entry Points (auto — CK)
+
+- RiskManager `class RiskManager` — risk_manager.py (44 connections)
+- main `def main()` — main.py (35 connections)
+- ScalpingStrategy `class ScalpingStrategy(BaseStrategy)` — strategies/scalping.py (22 connections)
+- HTFTrendFilter `class HTFTrendFilter` — strategy.py (22 connections)
+- BacktestEngine `class BacktestEngine` — backtest.py (21 connections)
+- setup_logging `def setup_logging()` — logger.py (13 connections)
+- should_activate_trailing `def should_activate_trailing(side, current_price, entry_price, atr_at_entry, activation_rr)` — strategy.py (12 connections)
+- calculate_dynamic_leverage `def calculate_dynamic_leverage(bb_width)` — strategy.py (12 connections)
+- BacktestResult `class BacktestResult` — backtest.py (11 connections)
+- main `def main()` — backtest.py (11 connections)
+
+## Hotspots (auto — CK)
+
+- `tests/test_backtest.py` — 91 connections, change_freq=2
+- `tests/test_risk_manager.py` — 52 connections, change_freq=3
+- `tests/test_mtf_filter.py` — 47 connections, change_freq=3
+- `tests/test_logger.py` — 46 connections, change_freq=5
+- `backtest.py` — 47 connections, change_freq=2
 
 ## Overview
 

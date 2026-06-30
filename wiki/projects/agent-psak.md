@@ -2,7 +2,7 @@
 title: Agent PSak
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 10
 sources:
   - https://github.com/gobikom/agent-psak
@@ -10,7 +10,17 @@ project: github.com/gobikom/agent-psak
 tags: [wiki, agent-psak, identity, oracle-family]
 ---
 
+
+
 # Agent PSak
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- (no indexed symbols)
+
+## Entry Points (auto — CK)
+
+- (no exported functions/classes detected)
 
 ## Overview
 

@@ -2,7 +2,7 @@
 title: Sniper S50
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 6
 sources:
   - https://github.com/gobikom/sniper-s50
@@ -10,7 +10,48 @@ project: github.com/gobikom/sniper-s50
 tags: [wiki, sniper-s50, trading, tfex]
 ---
 
+
+
 # Sniper S50
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- tests/strategy: 115 classes, 417 functions
+- tests/options: 50 classes, 361 functions
+- sniper/options: 39 classes, 154 functions
+- sniper/strategy: 16 classes, 130 functions
+- scripts: 137 functions
+- tests/ai: 23 classes, 109 functions
+- tests/broker: 27 classes, 82 functions
+- tests/risk: 11 classes, 61 functions
+- tests/features: 8 classes, 47 functions
+- sniper/ai: 15 classes, 35 functions
+- sniper/broker: 13 classes, 31 functions
+- sniper/features: 4 classes, 20 functions
+- tests/data: 2 classes, 19 functions
+- tests/db: 4 classes, 12 functions
+- sniper/risk: 2 classes, 12 functions
+
+## Entry Points (auto — CK)
+
+- ContextExtractor `class ContextExtractor` — sniper/features/context.py (35 connections)
+- load_s50 `def load_s50( filepath: str | Path | None = None, clean_dir: str | Path | None = None, start_date: str | None = None, end_date: str | None = None, ) -> pd.DataFrame` — sniper/data/loader.py (30 connections)
+- LiquidityAnalyzer `class LiquidityAnalyzer` — sniper/options/liquidity.py (21 connections)
+- run_backtest `def run_backtest( df: pd.DataFrame, strategy_class: type[Strategy] | None = None, config: dict | None = None, risk_managed: bool = False, ) -> pd.Series` — sniper/strategy/backtest.py (20 connections)
+- trigger_trading_agent `def trigger_trading_agent( context_path: str | Path = _DEFAULT_CONTEXT_PATH, confidence: int = 0, reason: str = "", agent_dir: str | Path = _DEFAULT_AGENT_DIR, timeout: int = _TIMEOUT_SECS, ) -> bool` — sniper/ai/trigger.py (19 connections)
+- OptionsOrderManager `class OptionsOrderManager` — sniper/options/strategy/order_manager.py (18 connections)
+- main `def main(argv: list[str] | None = None) -> None` — sniper/options/__main__.py (17 connections)
+- notify `def notify(message: str) -> bool` — sniper/notify.py (17 connections)
+- StrikeSelector `class StrikeSelector` — sniper/options/strategy/strike_selector.py (16 connections)
+- get_active_s50_symbol `def get_active_s50_symbol(ref_date: date | datetime | None = None) -> str` — sniper/broker/symbols.py (16 connections)
+
+## Hotspots (auto — CK)
+
+- `tests/strategy/test_backtest.py` — 91 connections, change_freq=0
+- `tests/strategy/test_ema3_rsi.py` — 78 connections, change_freq=0
+- `tests/strategy/test_new_strategies.py` — 75 connections, change_freq=0
+- `tests/risk/test_manager.py` — 75 connections, change_freq=0
+- `tests/options/strategy/test_live.py` — 68 connections, change_freq=12
 
 ## Overview
 

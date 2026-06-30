@@ -2,15 +2,43 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-05-24
-oracle_entries: 19
+updated: 2026-06-30
+oracle_entries: 20
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
 tags: [wiki, auto-ops]
 ---
 
+
+
 # Auto-Ops
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- tests: 32 classes, 156 functions
+- .: 57 functions
+
+## Entry Points (auto — CK)
+
+- main `def main()` — watchdog.py (24 connections)
+- load_state `def load_state(path: Path = STATE_FILE) -> dict` — watchdog.py (14 connections)
+- save_state `def save_state( results: list[dict], path: Path = STATE_FILE, previous_state: dict | None = None ) -> dict` — watchdog.py (14 connections)
+- save_incident `def save_incident(text: str, category: str = "code", project: str = "auto-ops") -> bool` — incident_memory.py (14 connections)
+- detect_transitions `def detect_transitions( previous: dict, results: list[dict] ) -> list[dict]` — watchdog.py (13 connections)
+- run_pre_restart_cmd `def run_pre_restart_cmd(svc_name: str, pre_restart_cmd: str, timeout: int = 10) -> str` — watchdog.py (11 connections)
+- check_cron_heartbeat `def check_cron_heartbeat(svc: dict) -> dict` — watchdog.py (11 connections)
+- check_service `def check_service(svc: dict, dry_run: bool = False) -> dict` — watchdog.py (11 connections)
+- query_incidents `def query_incidents( query: str, limit: int = 5, category: str | None = None, project: str = "auto-ops", ) -> list[dict]` — incident_memory.py (11 connections)
+- check_memory `def check_memory(svc: dict) -> dict` — watchdog.py (10 connections)
+
+## Hotspots (auto — CK)
+
+- `tests/test_watchdog.py` — 112 connections, change_freq=7
+- `watchdog.py` — 55 connections, change_freq=21
+- `tests/test_market_hours.py` — 44 connections, change_freq=1
+- `tests/test_incident_memory.py` — 31 connections, change_freq=1
+- `watchdog.py` — 24 connections, change_freq=0
 
 ## Overview
 
@@ -69,6 +97,7 @@ auto-ops/
 - `systemctl --user` requires `XDG_RUNTIME_DIR` when running as root for openclaw user
 - Telegram plugin path pattern (`bun.*\.claude/plugins/.*telegram`) must stay in sync across ops repo and auto-ops (tagged `claude-plugin-path` concept)
 - Log fallback: any best-effort logger that catches OSError must fall back to stderr, not pass silently
+- checkpoint-watchdog.sh creates duplicate stale-checkpoint issues when segment state file has no last_checkpoint field (task never checkpointed). Root cause: script checks mtime instead of YAML last_checkpoint value. Fix: read last_checkpoint from inside current.yaml (2026-06-20)
 
 ## Patterns
 

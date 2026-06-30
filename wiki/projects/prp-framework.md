@@ -2,7 +2,7 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 22
 sources:
   - https://github.com/gobikom/prp-framework
@@ -10,7 +10,34 @@ project: github.com/gobikom/prp-framework
 tags: [wiki, prp-framework, workflow, cross-tool]
 ---
 
+
+
 # PRP Framework
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- scripts: 18 functions
+
+## Entry Points (auto — CK)
+
+- generate_adapter_file `def generate_adapter_file(adapter_name: str, cmd_name: str, config: dict) -> tuple[str, str]` — scripts/generate-adapters.py (11 connections)
+- get_description `def get_description(adapter_name: str, cmd_cfg: dict) -> str` — scripts/generate-adapters.py (5 connections)
+- generate_frontmatter_md `def generate_frontmatter_md(adapter_name: str, cmd_name: str, cmd_cfg: dict, adapter_cfg: dict) -> str` — scripts/generate-adapters.py (4 connections)
+- generate_codex_frontmatter `def generate_codex_frontmatter(cmd_name: str, cmd_cfg: dict, adapter_cfg: dict) -> str` — scripts/generate-adapters.py (4 connections)
+- generate_all `def generate_all(config: dict, adapter_filter: str | None = None, dry_run: bool = False, show_diff: bool = False) -> dict[str, int]` — scripts/generate-adapters.py (4 connections)
+- yaml_quote `def yaml_quote(value: str) -> str` — scripts/generate-adapters.py (3 connections)
+- generate_alias_content `def generate_alias_content(cmd_name: str, cmd_cfg: dict, adapter_name: str) -> str` — scripts/generate-adapters.py (3 connections)
+- wrap_with_xml `def wrap_with_xml(content: str, overlay: dict | None) -> str` — scripts/generate-adapters.py (3 connections)
+- generate_toml_content `def generate_toml_content(description: str, prompt_body: str) -> str` — scripts/generate-adapters.py (3 connections)
+- main `def main()` — scripts/generate-adapters.py (3 connections)
+
+## Hotspots (auto — CK)
+
+- `scripts/generate-adapters.py` — 23 connections, change_freq=1
+- `scripts/generate-adapters.py` — 11 connections, change_freq=0
+- `scripts/generate-adapters.py` — 5 connections, change_freq=0
+- `scripts/generate-adapters.py` — 4 connections, change_freq=0
+- `scripts/generate-adapters.py` — 4 connections, change_freq=0
 
 ## Overview
 
