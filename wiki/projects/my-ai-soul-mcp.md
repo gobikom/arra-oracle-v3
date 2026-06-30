@@ -2,7 +2,7 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 21
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
@@ -10,7 +10,36 @@ project: github.com/gobikom/my-ai-soul-mcp
 tags: [wiki, my-ai-soul-mcp, memory, mcp]
 ---
 
+
+
 # My AI Soul MCP
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- tests: 216 classes, 1438 functions
+- src/psak_soul: 13 classes, 257 functions
+- scripts: 10 classes, 155 functions
+
+## Entry Points (auto — CK)
+
+- make_provider `def make_provider(tmp_path, pin="123456", bearer_token="test-bearer-token")` — tests/test_oauth.py (51 connections)
+- run `def run(coro)` — tests/test_oauth.py (49 connections)
+- init_resources `def init_resources()` — src/psak_soul/tools.py (42 connections)
+- search_memory `def search_memory(query: str, category: str = None, limit: int = 3, project: str = None) -> str` — src/psak_soul/tools.py (41 connections)
+- add_memory `def add_memory(text: str, category: str = "general", project: str = "") -> str` — src/psak_soul/tools.py (36 connections)
+- make_client_info `def make_client_info(client_id="test-client", redirect_uri="https://example.com/callback")` — tests/test_oauth.py (33 connections)
+- classify `def classify( rule: DetectionRule, learning_id: str, learning_content: str, cache: sqlite3.Connection, *, model: str = LLM_MODEL, openai_client: Any | None = None, classifier_log_path: Path = CLASSIFIER_LOG_PATH, _diag: dict[str, int] | Non` — scripts/evolution_metrics.py (24 connections)
+- load_applied `def load_applied(applied_dir: Path) -> tuple[list[AppliedEvolution], dict[str, str]]` — scripts/evolution_metrics.py (20 connections)
+- LocalClient `class LocalClient` — src/psak_soul/cli_client.py (19 connections)
+- compute_metric `def compute_metric( ev: AppliedEvolution, cache: sqlite3.Connection, *, window_days: int = WINDOW_DAYS, min_sample: int = MIN_SAMPLE, openai_client: Any | None = None, qdrant_client: Any | None = None, oracle_db_path: str = ORACLE_DB_PATH, ` — scripts/evolution_metrics.py (18 connections)
+
+## Hotspots (auto — CK)
+
+- `tests/test_tools_unit.py` — 367 connections, change_freq=14
+- `tests/test_server.py` — 168 connections, change_freq=7
+- `tests/test_daily_digest.py` — 154 connections, change_freq=6
+- `tests/test_evolution_proposer.py` — 137 connections, change_freq=5
+- `tests/test_cli.py` — 113 connections, change_freq=0
 
 ## Overview
 

@@ -2,7 +2,7 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-06-01
+updated: 2026-06-30
 oracle_entries: 62
 sources:
   - https://github.com/gobikom/soul-orchestra
@@ -10,7 +10,43 @@ project: github.com/gobikom/soul-orchestra
 tags: [wiki, soul-orchestra]
 ---
 
+
+
+
+
 # Soul Orchestra
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- test: 213 classes, 1539 functions
+- dashboard: 52 classes, 403 functions
+- scripts/tests: 6 classes, 223 functions
+- generator: 3 classes, 224 functions
+- dashboard-ui/src: 131 functions, 39 interfaces, 3 types
+- scripts: 4 classes, 104 functions
+- scheduler: 5 classes, 102 functions
+- dashboard-mcp: 2 functions
+
+## Entry Points (auto — CK)
+
+- create_app `def create_app( repo_root: Path | str | None = None, multi_agents_events: Path | str | None = None, mcp_plugin_url: str | None = None, agent_session_mgr: "AgentSessionManager | None" = None, terminal_mgr: "TerminalManager | None" = None, ) ` — dashboard/server.py (65 connections)
+- make_finding `def make_finding( name: str, status: str, detail: str, category: str, metadata: dict[str, Any] | None = None, ) -> dict[str, Any]` — scheduler/infra_collector.py (45 connections)
+- ProposalError `class ProposalError(RuntimeError)` — scripts/apply-evolution.py (42 connections)
+- check `def check(name: str, condition: bool, detail: str = "")` — generator/test_generate_full_config.py (36 connections)
+- process_proposal `def process_proposal(proposal: Proposal, *, dry_run: bool, no_push: bool) -> dict` — scripts/apply-evolution.py (35 connections)
+- load_template `def load_template(name: str) -> dict` — generator/generate-from-template.py (32 connections)
+- main `def main()` — generator/test_generate_full_config.py (31 connections)
+- check `def check(name: str, condition: bool, detail: str = "")` — generator/test_generate_claude_md.py (26 connections)
+- check `def check(name: str, condition: bool, detail: str = "")` — generator/test_deploy.py (26 connections)
+- build_full_config `def build_full_config(score_name: str, profile: str | None = None) -> dict` — generator/generate-full-config.py (25 connections)
+
+## Hotspots (auto — CK)
+
+- `test/test_infra_collector.py` — 259 connections, change_freq=4
+- `dashboard/server.py` — 166 connections, change_freq=6
+- `scripts/tests/test_apply_evolution.py` — 140 connections, change_freq=0
+- `test/test_task_executor.py` — 132 connections, change_freq=1
+- `dashboard/chat.py` — 121 connections, change_freq=0
 
 ## Overview
 

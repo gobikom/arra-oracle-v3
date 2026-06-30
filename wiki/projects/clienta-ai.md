@@ -2,7 +2,7 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-06-08
+updated: 2026-06-30
 oracle_entries: 64
 sources:
   - https://github.com/gobikom/clienta.ai
@@ -10,7 +10,42 @@ project: github.com/gobikom/clienta.ai
 tags: [wiki, clienta-ai]
 ---
 
+
+
 # Clienta.ai
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- packages/api: 118 classes, 854 functions, 127 interfaces, 104 types
+- packages/web: 9 classes, 789 functions, 125 interfaces, 57 types, 3 variables
+- packages/contracts: 7 functions, 88 interfaces, 38 types
+- packages/widget: 1 class, 86 functions, 23 interfaces, 7 types
+- packages/docs: 39 functions, 8 interfaces, 29 types
+- packages/landing: 2 classes, 33 functions, 13 interfaces, 6 types
+- .claude/PRPs: 34 functions
+- scripts: 10 functions
+- old-prp-commands/scripts: 5 functions
+
+## Entry Points (auto — CK)
+
+- emailLayout `function emailLayout(content: string, options?: { preheader?: string }): string` — packages/api/src/lib/email-layout.ts (27 connections)
+- widgetFrame `function widgetFrame(page: Page)` — packages/web/e2e/menu-coverage/_widget-helpers.ts (24 connections)
+- emailButton `function emailButton(text: string, url: string): string` — packages/api/src/lib/email-layout.ts (22 connections)
+- escapeHtml `function escapeHtml(unsafe: string): string` — packages/api/src/lib/email-layout.ts (21 connections)
+- emailNote `function emailNote(text: string): string` — packages/api/src/lib/email-layout.ts (20 connections)
+- logPartnerEvent `async function logPartnerEvent(params: { partnerId?: string; organizationId?: string; action: PartnerAuditAction; actor: string; actorType: string; details: Record<string, unknown>; request?: FastifyRequest; }): Promise<void` — packages/api/src/modules/partner/audit-logger.ts (20 connections)
+- logBillingEvent `async function logBillingEvent(params: { organizationId: string; action: BillingAction; actor: string; actorType: BillingActorType; details: Record<string, unknown>; request?: FastifyRequest; }): Promise<void` — packages/api/src/modules/billing/audit-logger.ts (16 connections)
+- BillingTab `function BillingTab()` — packages/web/src/components/organization/billing-tab.tsx (15 connections)
+- main `def main() -> None` — .claude/PRPs/scripts/prp_workflow_enhanced.py (14 connections)
+- emailGreeting `function emailGreeting(name: string): string` — packages/api/src/lib/email-layout.ts (13 connections)
+
+## Hotspots (auto — CK)
+
+- `dependencies` — 256 connections, change_freq=0
+- `packages/api/src/modules/shared/repository-logger.ts` — 232 connections, change_freq=0
+- `dependencies` — 149 connections, change_freq=0
+- `dependencies` — 117 connections, change_freq=0
+- `packages/api/src/config/database.ts` — 103 connections, change_freq=0
 
 ## Overview
 

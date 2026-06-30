@@ -2,7 +2,7 @@
 title: Multi-Agents
 type: wiki
 status: active
-updated: 2026-06-12
+updated: 2026-06-30
 oracle_entries: 20
 sources:
   - https://github.com/gobikom/multi-agents
@@ -10,7 +10,48 @@ project: github.com/gobikom/multi-agents
 tags: [wiki, multi-agents, orchestration, dag]
 ---
 
+
+
 # Multi-Agents
+
+## Code Structure (auto — CK, refreshed 2026-06-30)
+
+- tests/unit: 140 classes, 1925 functions
+- core/dashboard-next: 212 functions, 31 interfaces, 38 types
+- core/orchestrator: 83 classes, 178 functions
+- tests/integration: 24 classes, 102 functions
+- core/platform_adapters: 10 classes, 52 functions
+- tests/contracts: 53 functions
+- core/dashboard: 5 classes, 42 functions
+- tests: 8 classes, 29 functions
+- core/memory: 8 classes, 22 functions
+- core/plugins: 4 classes, 20 functions
+- core/queue: 3 classes, 19 functions
+- core/cost_controller: 5 classes, 16 functions
+- core/session_manager: 2 classes, 16 functions
+- core/scheduler: 5 classes, 12 functions
+- core/notifications: 5 classes, 11 functions
+
+## Entry Points (auto — CK)
+
+- load_config `def load_config(config_path: str = "config/default.yaml", project_dir: str | None = None) -> Config` — core/orchestrator/config.py (185 connections)
+- DAGOrchestrator `class DAGOrchestrator` — core/orchestrator/dag.py (177 connections)
+- ClaudeCodeAdapter `class ClaudeCodeAdapter(PlatformAdapter)` — core/platform_adapters/claude_code.py (92 connections)
+- SessionManager `class SessionManager` — core/session_manager/manager.py (89 connections)
+- cn `function cn(...inputs: ClassValue[])` — core/dashboard-next/src/lib/utils.ts (70 connections)
+- CodexAdapter `class CodexAdapter(PlatformAdapter)` — core/platform_adapters/codex.py (65 connections)
+- WorkspaceManager `class WorkspaceManager` — core/orchestrator/workspace.py (57 connections)
+- SequentialOrchestrator `class SequentialOrchestrator` — core/orchestrator/sequential.py (40 connections)
+- parse_review_verdict `def parse_review_verdict(artifact_path: Path) -> ReviewVerdict` — core/verdict_parser.py (33 connections)
+- ConfigError `class ConfigError(MultiAgentsError)` — core/orchestrator/errors.py (32 connections)
+
+## Hotspots (auto — CK)
+
+- `core/orchestrator/types.py` — 217 connections, change_freq=0
+- `tests/unit/test_dag_orchestrator.py` — 214 connections, change_freq=0
+- `core/orchestrator/config.py` — 185 connections, change_freq=0
+- `core/orchestrator/dag.py` — 177 connections, change_freq=0
+- `core/queue/manager.py` — 139 connections, change_freq=0
 
 ## Overview
 
