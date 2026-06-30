@@ -29,3 +29,4 @@ Append-only record of wiki page updates.
 | 2026-06-12 | created | projects/agent-psak.md | Initial synthesis — home repo pattern, conductor protocol, memory dual-system |
 | 2026-06-12 | updated | wiki/index.md | +7 project pages (4→11), total_pages: 5→12 |
 | 2026-06-27 | updated | projects/soul-orchestra.md | +AC extraction pipeline pattern (agent-devops#696, /extract-acs skill) |
+- 2026-06-30 soul-skills: added mechanical gate enforcement pattern (gate-audit-validate Check 6, agent-devops#732)

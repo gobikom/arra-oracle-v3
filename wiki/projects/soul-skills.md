@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-06-12
-oracle_entries: 8
+updated: 2026-06-30
+oracle_entries: 9
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -43,7 +43,7 @@ soul-skills/
 │   │       └── shortcut.ts    # `soul shortcut` — register shell shortcuts
 │   ├── profiles.ts            # Profile definitions (seed/standard/full + features)
 │   ├── skills/                # 29 active skills (SKILL.md per skill)
-│   │   ├── gate/              # CI/CD gate keeper (check, execute, knowledge scripts)
+│   │   ├── gate/              # CI/CD gate keeper (check, execute, knowledge, plan-walk, gate-audit-validate scripts)
 │   │   ├── project/           # Project management (reunion, offload, resolve-slug)
 │   │   ├── dig/               # Session mining (Python)
 │   │   ├── e2e-results/       # Parse Playwright results from GitHub Actions
@@ -98,6 +98,7 @@ soul-install-all --dry-run    # Preview without executing
 - **SKILL.md convention**: Every skill is a directory with `SKILL.md` (instructions) + optional `scripts/` (helper scripts in TypeScript/Python). YAML frontmatter defines name, description, trigger patterns, tier.
 - **Profile composition**: `standard = seed + [additional skills]`, `full = standard + [more]`. Features (`+soul`, `+memory`) are orthogonal add-ons.
 - **Global installer**: `soul-install-all` iterates `~/repos/**` directories, runs `soul install --profile standard` in each. Idempotent — safe to re-run.
+- **Mechanical gate enforcement**: `gate-audit-validate.ts` runs 6 checks (AC inventory, Layer 1/2, Warden, SHA, mutating, plan-walk) before PROD-GATE-ACK. SKILL.md step 4 makes it mandatory. `--project-dir` required at prod gate — omission = explicit error (agent-devops#732).
 
 ## See Also
 
