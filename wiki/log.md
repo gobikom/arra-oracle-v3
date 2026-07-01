@@ -31,3 +31,4 @@ Append-only record of wiki page updates.
 - 2026-06-30 wiki-refresh: CK enrichment — soul-orchestra
 - 2026-06-30 wiki-refresh: CK enrichment — agent-psak, auto-ops, btc-trend-hunter, clienta.ai, multi-agents, my-ai-soul-mcp, arra-oracle-v3, prp-framework, sniper-s50, soul-orchestra, soul-skills
 - 2026-07-01 clienta-ai: 3 resolved issues (UAT OOM, runner phantom-busy, WS typing feedback)
+- 2026-07-01 wiki-refresh: CK enrichment — agent-psak, auto-ops, btc-trend-hunter, clienta.ai, multi-agents, my-ai-soul-mcp, arra-oracle-v3, prp-framework, sniper-s50, soul-orchestra, soul-skills

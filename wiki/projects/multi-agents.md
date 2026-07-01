@@ -2,7 +2,7 @@
 title: Multi-Agents
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 20
 sources:
   - https://github.com/gobikom/multi-agents
@@ -12,9 +12,11 @@ tags: [wiki, multi-agents, orchestration, dag]
 
 
 
+
+
 # Multi-Agents
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - tests/unit: 140 classes, 1925 functions
 - core/dashboard-next: 212 functions, 31 interfaces, 38 types

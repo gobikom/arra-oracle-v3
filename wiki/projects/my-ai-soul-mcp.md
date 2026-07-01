@@ -2,7 +2,7 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 21
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
@@ -12,9 +12,11 @@ tags: [wiki, my-ai-soul-mcp, memory, mcp]
 
 
 
+
+
 # My AI Soul MCP
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - tests: 216 classes, 1438 functions
 - src/psak_soul: 13 classes, 257 functions
