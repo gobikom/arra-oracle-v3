@@ -2,7 +2,7 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 64
 sources:
   - https://github.com/gobikom/clienta.ai
@@ -112,6 +112,9 @@ User message → queryRewrite (OpenAI, 2 calls)
 - v1.3.5 Billing Cleanup shipped (2026-06-07) — currency persist, Omise removal, plan cancellation. 15 PRs, UAT 100%, staging 99.3%, prod 100%.
 - v1.3.6 Pricing Consistency shipped (2026-06-07) — all pricing surfaces aligned with billing.ts. 7 plans, 17% discount, correct overage rates across landing, docs, billing tab, partner portal.
 - v1.3.7 Stability & Partner Fixes shipped (2026-06-08) — invoice multi-plan (DB migration + 5-plan pipeline), dashboard stat cards, wholesalePlan fallback, Sonner toast fix, channels delete fix, flaky tests umbrella. 7 sub-PRs + 6 gate fix PRs. UAT 99.7%, staging 99.3%, prod 100%.
+- [RESOLVED 2026-07-01] UAT web container OOM (384MB) — bumped to 1024MB (PR#1640). Widget specs excluded from blocking UAT gate via testIgnore (PR#1727).
+- [RESOLVED 2026-07-01] E2E runner phantom-busy + shard timeout — unified concurrency groups, added shard concurrency, bumped setup timeouts (PR#1728).
+- [RESOLVED 2026-07-01] agent_typing WS handler missing error feedback — added socket.send + fixed pino err key (PR#1727).
 
 ## Patterns
 
