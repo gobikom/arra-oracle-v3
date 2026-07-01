@@ -12,12 +12,14 @@ tags: [wiki, clienta-ai]
 
 
 
+
+
 # Clienta.ai
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - packages/api: 118 classes, 854 functions, 127 interfaces, 104 types
-- packages/web: 9 classes, 789 functions, 125 interfaces, 57 types, 3 variables
+- packages/web: 9 classes, 791 functions, 125 interfaces, 57 types, 3 variables
 - packages/contracts: 7 functions, 88 interfaces, 38 types
 - packages/widget: 1 class, 86 functions, 23 interfaces, 7 types
 - packages/docs: 39 functions, 8 interfaces, 29 types

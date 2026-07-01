@@ -2,7 +2,7 @@
 title: BTC Trend Hunter
 type: wiki
 status: archived
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 4
 sources:
   - https://github.com/gobikom/btc-trend-hunter
@@ -12,9 +12,11 @@ tags: [wiki, btc-trend-hunter, trading, crypto]
 
 
 
+
+
 # BTC Trend Hunter
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - tests: 46 classes, 259 functions
 - .: 9 classes, 73 functions

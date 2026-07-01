@@ -2,7 +2,7 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 62
 sources:
   - https://github.com/gobikom/soul-orchestra
@@ -14,9 +14,11 @@ tags: [wiki, soul-orchestra]
 
 
 
+
+
 # Soul Orchestra
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - test: 213 classes, 1539 functions
 - dashboard: 52 classes, 403 functions
@@ -43,7 +45,7 @@ tags: [wiki, soul-orchestra]
 ## Hotspots (auto — CK)
 
 - `test/test_infra_collector.py` — 259 connections, change_freq=4
-- `dashboard/server.py` — 166 connections, change_freq=6
+- `dashboard/server.py` — 166 connections, change_freq=5
 - `scripts/tests/test_apply_evolution.py` — 140 connections, change_freq=0
 - `test/test_task_executor.py` — 132 connections, change_freq=1
 - `dashboard/chat.py` — 121 connections, change_freq=0

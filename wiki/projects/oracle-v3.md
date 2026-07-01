@@ -2,7 +2,7 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 oracle_entries: 14
 sources:
   - https://github.com/gobikom/arra-oracle-v3
@@ -12,9 +12,11 @@ tags: [wiki, oracle-v3]
 
 
 
+
+
 # Oracle v3 (Arra)
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-07-01)
 
 - frontend/src: 268 functions, 45 interfaces, 6 types
 - src/vector: 9 classes, 98 functions, 7 interfaces, 2 types
@@ -30,7 +32,7 @@ tags: [wiki, oracle-v3]
 - src/forum: 12 functions, 10 interfaces, 2 types
 - src/cli: 21 functions, 1 interface
 - src/integration: 15 functions, 2 interfaces
-- src/scripts: 7 functions
+- scripts: 15 functions
 
 ## Entry Points (auto — CK)
 
@@ -47,9 +49,9 @@ tags: [wiki, oracle-v3]
 
 ## Hotspots (auto — CK)
 
+- `src/vector/factory.ts` — 75 connections, change_freq=0
 - `src/routes/supersede.ts` — 75 connections, change_freq=0
 - `src/process-manager/logger.ts` — 74 connections, change_freq=0
-- `src/vector/factory.ts` — 72 connections, change_freq=0
 - `frontend/src/pages/Graph.tsx` — 54 connections, change_freq=3
 - `dependencies` — 46 connections, change_freq=0
 
