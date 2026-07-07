@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-07-07
-oracle_entries: 63
+updated: 2026-07-08
+oracle_entries: 65
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -114,6 +114,8 @@ soul-orchestra/
 - **Score template patterns**: scan-deliver, monitor-alert, content-review — reusable across new scores
 - **deploy-after-merge**: Score YAML changes need `generator/deploy.py` + commit to multi-agents config before they're live. deploy.py now auto-enables systemd units for new agents (#968, PR #1053).
 - **health.jsonl rotation**: `_runner-lib.sh` auto-rotates health.jsonl to last 2000 lines at 3000+ (#732, PR #1059). Stale .pid/.exitcode cleaned after 7 days.
+- **identity-audit score**: Weekly Monday 09:30 BKK — audits 6 core agents for philosophy compliance, stale goals, escalation patterns, capability coverage (#309, PR #1061).
+- **`/gate fill-row` skill**: Atomically update one gate tracker row. Auto-detects tracker type (plan-walk VERIFIED vs prod-gate PASS). `--section` disambiguation. Recalculates summary + verdict (agent-devops#751, soul-skills PR #127).
 - **safe-merge gate**: All PRs merged via `~/ops/bin/safe-merge` (CI-green + review-artifact gates)
 - **Respawn PID guard**: Each respawn script writes `$$` to `$RESPAWN_DIR/{agent}.pid` on start. On each loop iteration, checks if PID file still matches — exits if superseded. Agent-runner reads PID file on start, SIGKILL old respawn (verified via `/proc/PID/cmdline`), clears file. Belt-and-suspenders: both sides guard against orphans.
 - **wiki_ref lazy-loading**: Agent YAML `tools_knowledge`, `philosophy`, and `autonomous_mode` support `wiki_ref` field pointing to `conductor/wiki/*.md` pages. Generator emits compact "REQUIRED: Read" pointers instead of inline content. Score prompts (`generate-prompt.py`) unaffected — always inline. Path-validated via `_validate_wiki_ref` (injection guard + containment + existence). Added 2026-05-26 (PRs #848-#850).
