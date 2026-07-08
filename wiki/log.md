@@ -33,3 +33,4 @@ Append-only record of wiki page updates.
 - 2026-07-01 clienta-ai: 3 resolved issues (UAT OOM, runner phantom-busy, WS typing feedback)
 2026-07-07 | soul-orchestra | Updated Known Issues (3 new active, 3 newly resolved), Patterns (deploy systemd auto-enable, health.jsonl rotation). Batch cleanup: 14 issues closed, 11 PRs.
 2026-07-08 | soul-orchestra | Added identity-audit score + /gate fill-row skill patterns. Updated oracle_entries 63→65. 5 carryovers superseded.
+2026-07-08 | agent-psak | clienta-ai: prod infra health audit — added billing webhook-only architecture, Stripe webhook fix (#1860), migration auto-resolve, backup→R2, Production Infra Health Audit pattern. oracle_entries 64→66. 1 learning superseded (stripe-live-price-IDs). Issues #1858/#1859/#1860/#1868.

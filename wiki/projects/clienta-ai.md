@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-07-01
-oracle_entries: 64
+updated: 2026-07-08
+oracle_entries: 66
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -115,8 +115,14 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-07-01] UAT web container OOM (384MB) — bumped to 1024MB (PR#1640). Widget specs excluded from blocking UAT gate via testIgnore (PR#1727).
 - [RESOLVED 2026-07-01] E2E runner phantom-busy + shard timeout — unified concurrency groups, added shard concurrency, bumped setup timeouts (PR#1728).
 - [RESOLVED 2026-07-01] agent_typing WS handler missing error feedback — added socket.send + fixed pino err key (PR#1727).
+- **Production billing is WEBHOOK-ONLY** (verified 2026-07-08 audit) — subscription state written to app DB solely by Stripe webhook handler (`billing/webhook-handler.ts`); access gating reads that DB (`subscription-guard`/`feature-gate`), NOT live Stripe. No reconcile/poll fallback. Webhook URL: `https://api.clienta.ai/api/billing/webhook/stripe` (note `/stripe` suffix — route `POST /webhook/stripe` under `/api/billing` prefix). `STRIPE_WEBHOOK_SECRET` = whsec_ ASCII string used raw as HMAC key (do NOT decode).
+- [RESOLVED 2026-07-08] Prod Stripe live webhook was UNREGISTERED for months (0 endpoints) despite `STRIPE_WEBHOOK_SECRET` set — customers could pay but subscriptions never activate. Caught by prod infra audit (#1860), registered + end-to-end verified. Lesson: always include "live webhook registered + signed-event test" in go-live.
+- Migration cruft: 2 records recur as failed (`init_with_pgvector`, `fix_subscription_defaults`) but `migrate-database.yml` auto-resolves (`migrate resolve --rolled-back`) before `migrate deploy` — deploys succeed regardless. Not a blocker; hygiene cleanup pending.
+- DB backups run via GH Action `backup-database.yml` (daily cron 2AM UTC → pg_dump pg17 → R2 `s3://clienta-backups/database/` + retention), NOT Supabase automated backups. `SUPABASE_ACCESS_TOKEN` expired (#1868) but does not affect backups.
 
 ## Patterns
+
+- **Production Infra Health Audit** (2026-07-08): recurring, release-independent 9-section audit (`Docs/PRODUCTION_INFRA_HEALTH_AUDIT.md`, PR#1858) — health/SSL/env-parity/migrations/Stripe-live/monitoring/backup/OAuth. Catches drift between releases that one-time go-live checklists miss. Split by access: public/Vercel (any agent) vs Railway/Stripe/Supabase (devops). Monitoring verified via Grafana API (16 dashboards, 13 alert rules) + Sentry API.
 
 - **Multi-stage Dockerfile**: 3 stages (deps → build → runtime). Critical to copy both package.json AND source for workspace packages.
 - **Docker base image caching**: Pre-built base image `ghcr.io/gobikom/clienta-base` (node:20-alpine + pnpm@10 + all workspace node_modules, 1694 packages). Speeds up CI builds by caching dependency layer.
