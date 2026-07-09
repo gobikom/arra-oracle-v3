@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-07-08
-oracle_entries: 65
+updated: 2026-07-09
+oracle_entries: 66
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -117,6 +117,7 @@ soul-orchestra/
 - **identity-audit score**: Weekly Monday 09:30 BKK — audits 6 core agents for philosophy compliance, stale goals, escalation patterns, capability coverage (#309, PR #1061).
 - **`/gate fill-row` skill**: Atomically update one gate tracker row. Auto-detects tracker type (plan-walk VERIFIED vs prod-gate PASS). `--section` disambiguation. Recalculates summary + verdict (agent-devops#751, soul-skills PR #127).
 - **safe-merge gate**: All PRs merged via `~/ops/bin/safe-merge` (CI-green + review-artifact gates)
+- **Warden checklist-centric pre-implement sweep (2026-07-09, agent-devops#799):** `agents/warden.yaml` `tools_knowledge` "gate (plan-walk)" (the GENERATOR-READ source — NOT `gate_checkpoints`, which is maintainer-reference-only) drives Warden's pre-implement audit. It now does a checklist-centric sweep of `new_feature` + `multi_phase_epic`(epic-gated) + `post_ship`, emits "Uncovered Gate Items", and BLOCKs on any unowned operational item — closing the operational-compliance blind spot that AC-centric auditing missed. `communication-protocol.md` + `epic-orchestration.md` codify the 3-layer gate-readiness model: L1 peer-review (soundness) / L2 Warden AC-completeness / L3 operational /gate-checklist. NOTE: the generated `output/agent-homes/warden/CLAUDE.md` must be regenerated + committed in the same PR (source edit alone leaves the runtime prompt stale).
 - **Respawn PID guard**: Each respawn script writes `$$` to `$RESPAWN_DIR/{agent}.pid` on start. On each loop iteration, checks if PID file still matches — exits if superseded. Agent-runner reads PID file on start, SIGKILL old respawn (verified via `/proc/PID/cmdline`), clears file. Belt-and-suspenders: both sides guard against orphans.
 - **wiki_ref lazy-loading**: Agent YAML `tools_knowledge`, `philosophy`, and `autonomous_mode` support `wiki_ref` field pointing to `conductor/wiki/*.md` pages. Generator emits compact "REQUIRED: Read" pointers instead of inline content. Score prompts (`generate-prompt.py`) unaffected — always inline. Path-validated via `_validate_wiki_ref` (injection guard + containment + existence). Added 2026-05-26 (PRs #848-#850).
 - **CODE-SIDE vs Infrastructure triage** (2026-05-25): When infra-health-check detects soul-orchestra score failures (exit code 4, long runtime), triage them as CODE-SIDE (agent pool timeout, DAG deadlock) not infrastructure. Infrastructure is healthy if disk/memory/services PASS. Escalate code-side failures to soul-orchestra team; auto-ops/infra-health-check focuses on infrastructure-only fixes.

@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-06-30
-oracle_entries: 8
+updated: 2026-07-09
+oracle_entries: 10
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -124,10 +124,12 @@ soul-install-all --dry-run    # Preview without executing
 - Skill discovery relies on filesystem walk — compiled binary uses VFS (virtual filesystem) which must be regenerated after adding skills
 - `detectInstalledAgents()` checks for Claude Code, Codex, Gemini, etc. config dirs — may false-positive on empty dirs
 - `initWindsurf` / `initAmazonQ` require mcp-remote bridge — extra dependency for Tier 3 platforms
+- **Adapter parity (2026-07-09, #797/#131):** some skills ship as BOTH `src/skills/<name>/SKILL.md` (Claude) AND a separate hand-maintained `src/adapters/codex/<name>/SKILL.md` (codex). These do NOT auto-sync — `soul install` regenerates the gitignored `.claude/.codex` install-copies from each source but never syncs codex-adapter FROM skills. A fix to one leaves the other stale (ping got fixed in src/skills + codex ping-reply but codex ping was forgotten → #131). When fixing ping/ping-reply/gate/delegate-*, grep ALL copies and fix each.
 
 ## Patterns
 
 - **SKILL.md convention**: Every skill is a directory with `SKILL.md` (instructions) + optional `scripts/` (helper scripts in TypeScript/Python). YAML frontmatter defines name, description, trigger patterns, tier.
+- **`/gate` pre-implement = checklist-centric sweep (2026-07-09, agent-devops#799):** `src/skills/gate/SKILL.md` Step 3e-1 iterates every APPLICABLE `new_feature` + `post_ship` item (+ `multi_phase_epic` when epic-gated) from the project rules YAML and BLOCKs on unowned operational items — catching gaps with no acceptance criterion (smoke-test, seed data, entry points). `rules/_default.yaml` now ships generic new_feature/post_ship/multi_phase_epic checklists so the sweep works fleet-wide, not just for clienta-ai. Behavior-proven: BLOCK on gappy plan (14 items), PASS on compliant (0).
 - **Profile composition**: `standard = seed + [additional skills]`, `full = standard + [more]`. Features (`+soul`, `+memory`) are orthogonal add-ons.
 - **Global installer**: `soul-install-all` iterates `~/repos/**` directories, runs `soul install --profile standard` in each. Idempotent — safe to re-run.
 
