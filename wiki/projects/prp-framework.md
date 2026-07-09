@@ -2,8 +2,8 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-06-30
-oracle_entries: 22
+updated: 2026-07-09
+oracle_entries: 24
 sources:
   - https://github.com/gobikom/prp-framework
 project: github.com/gobikom/prp-framework
@@ -132,6 +132,8 @@ prp-framework/
 - **Review-fix loop**: `prp-review-agents` → `prp-review-fix` → re-run `prp-review-agents` → repeat until artifact shows 0 issues. Max 5 cycles with escalation.
 - **Artifact-based verification**: Every review produces `.prp-output/reviews/pr-<N>-agents-review.md` — merge blocked without this artifact via `safe-merge`.
 - **3-round review to 0 issues**: Standard workflow: round 1 finds issues → fix → round 2 catches cascading → fix → round 3 confirms 0. Established pattern across all projects.
+- **prp-plan §Gate Compliance scaffold (2026-07-09, v2.13.0, agent-devops#799):** `prompts/plan.md` Phase 6 emits an always-present `## Gate Compliance` plan section (tiered: full new_feature/epic_kickoff/post_ship item→task mapping for user-facing changes; enumerated-`N/A` for internal-only, blanket-N/A rejected) so the pre-implement gate-audit (Layer 3) can mechanically verify operational compliance. Loose-coupling: prp scaffolds, `/gate audit` verifies — prp never hard-reads the gate rules YAML (stays tool-agnostic). Conditional `/gate` hint in the base prompt degrades gracefully for non-gate toolchains (no codex overlay — only claude-code has overlay support).
+- **Plan artifacts committed to git (2026-07-09, #801):** prp-plan commits the plan artifact to the feature branch (`[ -n "$BR" ]` guards detached-HEAD; never main); prp-implement Phase 5.4 archives via `git mv` (not `mv`) so the completed/ move stays tracked (`.prp-output/**` is gitignored for NEW paths → a plain mv silently un-tracks it).
 
 ## See Also
 
