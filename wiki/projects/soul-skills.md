@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-07-09
-oracle_entries: 10
+updated: 2026-07-10
+oracle_entries: 11
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -131,6 +131,7 @@ soul-install-all --dry-run    # Preview without executing
 - **SKILL.md convention**: Every skill is a directory with `SKILL.md` (instructions) + optional `scripts/` (helper scripts in TypeScript/Python). YAML frontmatter defines name, description, trigger patterns, tier.
 - **`/gate` pre-implement = checklist-centric sweep (2026-07-09, agent-devops#799):** `src/skills/gate/SKILL.md` Step 3e-1 iterates every APPLICABLE `new_feature` + `post_ship` item (+ `multi_phase_epic` when epic-gated) from the project rules YAML and BLOCKs on unowned operational items — catching gaps with no acceptance criterion (smoke-test, seed data, entry points). `rules/_default.yaml` now ships generic new_feature/post_ship/multi_phase_epic checklists so the sweep works fleet-wide, not just for clienta-ai. Behavior-proven: BLOCK on gappy plan (14 items), PASS on compliant (0).
 - **Profile composition**: `standard = seed + [additional skills]`, `full = standard + [more]`. Features (`+soul`, `+memory`) are orthogonal add-ons.
+- **Skill usage tracking (2026-07-10, E4)**: PostToolUse hook (matcher: Skill) logs every invocation to `~/.claude/skill-usage.log`. Format: `ISO8601 | skill_name | agent_id | session_name`. Script: `scripts/skill-usage-hook.sh`. Async, non-blocking, auto-rotate at 10MB. Data foundation for E2 (Skill Curator) staleness detection.
 - **Global installer**: `soul-install-all` iterates `~/repos/**` directories, runs `soul install --profile standard` in each. Idempotent — safe to re-run.
 
 ## See Also

@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-07-09
-oracle_entries: 66
+updated: 2026-07-10
+oracle_entries: 68
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -93,6 +93,7 @@ soul-orchestra/
 | Config generation | Python generators + YAML templates | Manual config maintenance | 38+ auto-generated files drift continuously; generators ensure consistency |
 | Task scheduling | Append-only JSONL + fcntl locking | Redis / PostgreSQL queue | Zero external dependencies, survives reboots, simple to debug |
 | Score versioning | dev-task-v3 (Sonnet implement + Opus verify) | v1 (single Opus session) | v3 is cheaper with safety net; v1 reserved for architecture/breaking changes |
+| Blocked tools enforcement | Prompt-level (CLAUDE.md section) | Engine-level MCP middleware | Prompt-level is sufficient for non-adversarial agents; engine enforcement deferred to Phase 2 |
 
 ## Known Issues
 
