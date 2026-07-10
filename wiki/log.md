@@ -37,3 +37,5 @@ Append-only record of wiki page updates.
 2026-07-09 | agent-psak | Gate-mechanical + tooling batch (#799/#800/#801/#797/#131). soul-skills: adapter-parity known-issue + /gate checklist-centric pre-implement sweep pattern (oracle_entries 8→10). soul-orchestra: Warden checklist-centric sweep + 3-layer gate-readiness pattern (65→66). prp-framework: §Gate Compliance scaffold + commit-plan-artifacts patterns (22→24). 5 PRs merged across 4 repos; behavior-proven (AC5 BLOCK 14 / AC6 PASS 0). No supersede — new learnings extend existing checklist-driven/plan-walk rules.
 2026-07-10 | soul-orchestra | +1 key decision (blocked_tools enforcement approach) | PSak
 2026-07-10 | soul-skills | +1 pattern (skill usage tracking hook) | PSak
+2026-07-10 | oracle-v3 | +1 pattern (E1 threat scanning write+read paths) | PSak
+2026-07-10 | my-ai-soul-mcp | +1 pattern (E1 threat scanning _save_to_storage+read paths) | PSak

@@ -2,8 +2,8 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-06-30
-oracle_entries: 21
+updated: 2026-07-10
+oracle_entries: 22
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
 project: github.com/gobikom/my-ai-soul-mcp
@@ -118,6 +118,7 @@ my-ai-soul-mcp/
 - **MCP Shared Instance**: Single HTTP server + mcp-remote proxies. Eliminates per-session process spawning on multi-agent servers.
 - **Session continuity**: `session_handoff` at end → `session_resume` at start = zero-cost context transfer between sessions.
 - **Evolution lifecycle**: Pattern detected → `evolve_soul` proposal → human review → `apply_soul_evolution` → reflected in agent behavior.
+- **Threat scanning (2026-07-10, E1)**: Write-path `scan_content()` in `_save_to_storage()` covers all 8 write tools. Read-path `sanitize_output()` on search_memory, session_resume, unified_search. Bundled `threat-patterns.json` from Oracle with SHA256 checksum. Returns "BLOCKED:" string (not raise) to preserve tool contract. Loop callers (reflect/learn_repo) log-and-continue. PR #85, 13 tests.
 
 ## See Also
 
