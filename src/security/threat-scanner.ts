@@ -85,15 +85,32 @@ export function sanitizeOutput(text: string): string {
 }
 
 export function logThreatBlock(text: string, threats: ThreatMatch[], source: string): void {
+  const ts = new Date().toISOString();
+  const preview = sanitizeOutput(text.substring(0, 100).replace(/\n/g, " "));
+  const names = threats.map((t) => t.name).join(",");
+
+  // File log (always — low-cost, no dependencies)
   try {
     const logDir = join(import.meta.dir ?? __dirname, "..", "..", "ψ", "security");
     mkdirSync(logDir, { recursive: true });
     const logFile = join(logDir, "threat-scan.log");
-    const ts = new Date().toISOString();
-    const preview = sanitizeOutput(text.substring(0, 100).replace(/\n/g, " "));
-    const names = threats.map((t) => t.name).join(",");
     appendFileSync(logFile, `${ts} | ${source} | ${names} | ${preview}\n`);
   } catch {
-    // audit log is best-effort — never block the write-path response
+    // file log is best-effort
+  }
+
+  // DB log (queryable audit trail)
+  try {
+    const { db } = require("../db/index.ts");
+    const { threatScanLog } = require("../db/schema.ts");
+    db.insert(threatScanLog).values({
+      timestamp: ts,
+      source,
+      patternPreview: preview,
+      threats: names,
+      action: "blocked",
+    }).run();
+  } catch {
+    // DB log is best-effort — table may not exist yet if migration hasn't run
   }
 }
