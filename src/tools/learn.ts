@@ -305,7 +305,7 @@ const VECTOR_RETRY_DELAYS = [1000, 4000, 16000];
 export async function syncLearnToVector(
   vectorStore: VectorStoreAdapter | null,
   vectorStatus: string,
-  result: LearnResult,
+  result: LearnResultSuccess,
   content: string,
   concepts: string[],
 ): Promise<{ synced: boolean; error?: string }> {

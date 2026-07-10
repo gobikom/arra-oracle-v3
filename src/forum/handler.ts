@@ -12,7 +12,7 @@
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, forumThreads, forumMessages } from '../db/index.ts';
 import { getProjectContext } from '../server/context.ts';
-import { scanContent } from '../security/threat-scanner.ts';
+import { scanContent, logThreatBlock } from '../security/threat-scanner.ts';
 import type {
   ForumThread,
   ForumMessage,
@@ -174,6 +174,7 @@ export function addMessage(
 ): ForumMessage {
   const scan = scanContent(content, 'forum_message');
   if (!scan.safe) {
+    logThreatBlock(content, scan.threats, 'forum_message');
     throw new Error(`Content blocked by threat scanner: ${scan.threats.map(t => t.name).join(', ')}`);
   }
 
