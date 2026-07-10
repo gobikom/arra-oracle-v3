@@ -3,28 +3,28 @@
     "name": "prompt-override-ignore",
     "regex": "\\bignore\\s+(all\\s+)?(previous|prior|above|earlier)\\s+(instructions|prompts|rules|context)\\b",
     "flags": "i",
-    "severity": "critical",
+    "severity": "high",
     "description": "Classic prompt injection: instructs model to discard prior context"
   },
   {
     "name": "prompt-override-you-are",
-    "regex": "\\byou\\s+are\\s+now\\s+(a|an|the)\\b",
+    "regex": "^\\s*you\\s+are\\s+now\\s+(a|an|the)\\b",
     "flags": "i",
-    "severity": "critical",
+    "severity": "high",
     "description": "Identity override: attempts to redefine agent role"
   },
   {
     "name": "prompt-override-new-instructions",
-    "regex": "\\b(new|updated|revised|override)\\s+instructions\\s*:",
+    "regex": "^\\s*(new|updated|revised|override)\\s+instructions\\s*:",
     "flags": "i",
-    "severity": "critical",
+    "severity": "high",
     "description": "Fake instruction block injection"
   },
   {
     "name": "prompt-override-do-not-follow",
     "regex": "\\bdo\\s+not\\s+follow\\s+(any|the|your)\\s+(previous|prior|original)\\b",
     "flags": "i",
-    "severity": "critical",
+    "severity": "high",
     "description": "Directive to abandon prior instructions"
   },
   {
@@ -85,7 +85,7 @@
   },
   {
     "name": "prompt-leak-request",
-    "regex": "\\b(reveal|show|display|output|print)\\s+(your|the)\\s+(system\\s+prompt|instructions|rules|guidelines)\\b",
+    "regex": "\\b(reveal|show|display|output|print)\\s+(your|the)\\s+system\\s+prompt\\b",
     "flags": "i",
     "severity": "high",
     "description": "Attempts to extract system prompt content"

@@ -12,7 +12,7 @@ import { detectProject } from '../server/project-detect.ts';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import type { ToolContext, ToolResponse, OracleLearnInput } from './types.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
-import { scanContent } from '../security/threat-scanner.ts';
+import { scanContent, logThreatBlock } from '../security/threat-scanner.ts';
 
 // ============================================================================
 // TTL Helpers (Issue #4)
@@ -176,6 +176,7 @@ export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult 
 
   const scan = scanContent(pattern, 'arra_learn');
   if (!scan.safe) {
+    logThreatBlock(pattern, scan.threats, 'arra_learn');
     return {
       success: false,
       blocked: true,

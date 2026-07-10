@@ -30,6 +30,10 @@ export function registerKnowledgeRoutes(app: Hono) {
         },
       );
 
+      if (!result.success) {
+        return c.json(result, 400);
+      }
+
       let vectorStore = null;
       try {
         vectorStore = await ensureVectorStoreConnected();

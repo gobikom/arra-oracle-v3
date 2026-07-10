@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, appendFileSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
 
 interface ThreatPattern {
   name: string;
@@ -14,6 +14,7 @@ export interface ThreatMatch {
   severity: "critical" | "high" | "medium";
   description: string;
   match: string;
+  inCodeBlock?: boolean;
 }
 
 export interface ScanResult {
@@ -32,27 +33,43 @@ const compiledPatterns = rawPatterns.map((p) => ({
 
 const INVISIBLE_UNICODE = /[​-‏﻿‪-‮⁦-⁩]/g;
 const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F]/g;
+const CODE_FENCE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`]+`/g;
 
-function stripCodeBlocks(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/~~~[\s\S]*?~~~/g, "")
-    .replace(/`[^`]+`/g, "");
+function extractCodeBlocks(text: string): { outside: string; inside: string } {
+  const blocks: string[] = [];
+  const outside = text.replace(CODE_FENCE_RE, (m) => {
+    blocks.push(m);
+    return "";
+  });
+  return { outside, inside: blocks.join("\n") };
 }
 
 export function scanContent(text: string, source?: string): ScanResult {
-  const stripped = stripCodeBlocks(text);
+  const { outside, inside } = extractCodeBlocks(text);
   const threats: ThreatMatch[] = [];
 
   for (const pattern of compiledPatterns) {
-    const m = stripped.match(pattern.compiled);
-    if (m) {
+    const mOutside = outside.match(pattern.compiled);
+    if (mOutside) {
       threats.push({
         name: pattern.name,
         severity: pattern.severity,
         description: pattern.description,
-        match: m[0].substring(0, 50),
+        match: mOutside[0].substring(0, 50),
       });
+      continue;
+    }
+    if (pattern.severity === "critical") {
+      const mInside = inside.match(pattern.compiled);
+      if (mInside) {
+        threats.push({
+          name: pattern.name,
+          severity: pattern.severity,
+          description: pattern.description,
+          match: mInside[0].substring(0, 50),
+          inCodeBlock: true,
+        });
+      }
     }
   }
 
@@ -65,4 +82,18 @@ export function scanContent(text: string, source?: string): ScanResult {
 
 export function sanitizeOutput(text: string): string {
   return text.replace(INVISIBLE_UNICODE, "").replace(CONTROL_CHARS, "");
+}
+
+export function logThreatBlock(text: string, threats: ThreatMatch[], source: string): void {
+  try {
+    const logDir = join(import.meta.dir ?? __dirname, "..", "..", "ψ", "security");
+    mkdirSync(logDir, { recursive: true });
+    const logFile = join(logDir, "threat-scan.log");
+    const ts = new Date().toISOString();
+    const preview = sanitizeOutput(text.substring(0, 100).replace(/\n/g, " "));
+    const names = threats.map((t) => t.name).join(",");
+    appendFileSync(logFile, `${ts} | ${source} | ${names} | ${preview}\n`);
+  } catch {
+    // audit log is best-effort — never block the write-path response
+  }
 }
