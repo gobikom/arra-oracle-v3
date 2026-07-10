@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-06-30
-oracle_entries: 14
+updated: 2026-07-10
+oracle_entries: 16
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -134,6 +134,7 @@ Embedding models:
 - **3-tier vault**: Real ψ/ in home repos, symlinks in project repos. All learnings funnel through Oracle server's ψ/.
 - **Stdio guard**: `src/index.ts` checks if HTTP server (port 47778) is reachable via fetch on startup. If yes → exits immediately (redundant instance). Saves ~80-100MB RAM per session. Guard is a defense-in-depth layer — primary fix is correct MCP config.
 - **MCP config locations** (all must point to HTTP, not stdio): `~/.claude/settings.json`, `~/.claude-account-b/settings.json`, `~/.codex/config.toml`, `multi-agents/config/mcp/oracle-*.json`
+- **Threat scanning (2026-07-10, E1)**: Write-path `scanContent()` on all 4 durable write points (createLearning, handleHandoff, createLearningFile, addMessage). Read-path `sanitizeOutput()` on arra_search + arra_read. Shared `threat-patterns.json` (16 patterns). Critical patterns (LLM control tokens) always scan including inside code blocks; non-critical exempted. Audit log via `logThreatBlock()`. PR #64, 37 tests.
 
 ## See Also
 
