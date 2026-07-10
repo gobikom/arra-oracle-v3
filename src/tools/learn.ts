@@ -12,6 +12,7 @@ import { detectProject } from '../server/project-detect.ts';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import type { ToolContext, ToolResponse, OracleLearnInput } from './types.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
+import { scanContent } from '../security/threat-scanner.ts';
 
 // ============================================================================
 // TTL Helpers (Issue #4)
@@ -153,7 +154,7 @@ export interface LearnInput {
   origin?: string;
 }
 
-export interface LearnResult {
+export interface LearnResultSuccess {
   success: true;
   file: string;
   id: string;
@@ -162,8 +163,26 @@ export interface LearnResult {
   message: string;
 }
 
+export interface LearnResultBlocked {
+  success: false;
+  blocked: true;
+  message: string;
+}
+
+export type LearnResult = LearnResultSuccess | LearnResultBlocked;
+
 export function createLearning(deps: LearnDeps, input: LearnInput): LearnResult {
   const { pattern, source, ttl, origin } = input;
+
+  const scan = scanContent(pattern, 'arra_learn');
+  if (!scan.safe) {
+    return {
+      success: false,
+      blocked: true,
+      message: `Content blocked by threat scanner: ${scan.threats.map(t => t.name).join(', ')}`,
+    };
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
 
@@ -330,6 +349,13 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     { db: ctx.db, sqlite: ctx.sqlite, repoRoot: ctx.repoRoot },
     input,
   );
+
+  if (!result.success) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      isError: true,
+    };
+  }
 
   let content: string;
   try {

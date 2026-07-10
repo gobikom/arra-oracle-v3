@@ -10,6 +10,7 @@ import fs from 'fs';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import { detectProject } from '../server/project-detect.ts';
 import type { ToolContext, ToolResponse, OracleHandoffInput } from './types.ts';
+import { scanContent } from '../security/threat-scanner.ts';
 
 export const handoffToolDef = {
   name: 'arra_handoff',
@@ -32,6 +33,15 @@ export const handoffToolDef = {
 
 export async function handleHandoff(ctx: ToolContext, input: OracleHandoffInput): Promise<ToolResponse> {
   const { content, slug: slugInput } = input;
+
+  const scan = scanContent(content, 'arra_handoff');
+  if (!scan.safe) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ success: false, blocked: true, message: `Content blocked: ${scan.threats.map(t => t.name).join(', ')}` }) }],
+      isError: true,
+    };
+  }
+
   const now = new Date();
 
   const dateStr = now.toISOString().split('T')[0];

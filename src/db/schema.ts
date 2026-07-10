@@ -277,3 +277,17 @@ export const settings = sqliteTable('settings', {
   value: text('value'),
   updatedAt: integer('updated_at').notNull(),
 });
+
+export const threatScanLog = sqliteTable('threat_scan_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull(),
+  source: text('source').notNull(),
+  patternPreview: text('pattern_preview'),
+  threats: text('threats'),
+  action: text('action').notNull(),
+  agent: text('agent'),
+  project: text('project'),
+}, (table) => [
+  index('idx_threat_scan_timestamp').on(table.timestamp),
+  index('idx_threat_scan_source').on(table.source),
+]);
