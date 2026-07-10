@@ -11,6 +11,7 @@ import { join, dirname } from 'path';
 import { eq, desc, and, like, sql, isNull } from 'drizzle-orm';
 import { db, traceLog } from '../db/index.ts';
 import { REPO_ROOT } from '../config.ts';
+import { scanContent, logThreatBlock } from '../security/threat-scanner.ts';
 import type {
   CreateTraceInput,
   CreateTraceResult,
@@ -38,6 +39,12 @@ function createLearningFile(
   project: string | null,
   traceQuery: string
 ): string {
+  const scan = scanContent(text, 'arra_trace');
+  if (!scan.safe) {
+    logThreatBlock(text, scan.threats, 'arra_trace');
+    throw new Error(`Content blocked by threat scanner: ${scan.threats.map(t => t.name).join(', ')}`);
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
 

@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { getVaultPsiRoot } from '../vault/handler.ts';
 import type { ToolContext, ToolResponse, OracleReadInput } from './types.ts';
+import { sanitizeOutput } from '../security/threat-scanner.ts';
 
 export const readToolDef = {
   name: 'arra_read',
@@ -129,7 +130,7 @@ export async function handleRead(ctx: ToolContext, input: OracleReadInput): Prom
 
   // File found on disk
   if (resolvedPath && isPathAllowed(resolvedPath, ctx.repoRoot, ghqRoot)) {
-    const content = fs.readFileSync(resolvedPath, 'utf-8');
+    const content = sanitizeOutput(fs.readFileSync(resolvedPath, 'utf-8'));
     return {
       content: [{
         type: 'text',

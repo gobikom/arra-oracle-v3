@@ -10,6 +10,7 @@ import { logSearch } from '../server/logging.ts';
 import { detectProject } from '../server/project-detect.ts';
 import { ensureVectorStoreConnected } from '../vector/factory.ts';
 import type { ToolContext, ToolResponse, OracleSearchInput } from './types.ts';
+import { sanitizeOutput } from '../security/threat-scanner.ts';
 
 export const searchToolDef = {
   name: 'arra_search',
@@ -468,10 +469,15 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
     console.error('[MCP:SEARCH] Failed to log search to database:', e);
   }
 
+  const sanitizedResults = results.map((r: any) => ({
+    ...r,
+    content: typeof r.content === 'string' ? sanitizeOutput(r.content) : r.content,
+  }));
+
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify({ results, total: results.length, query, metadata }, null, 2)
+      text: JSON.stringify({ results: sanitizedResults, total: sanitizedResults.length, query, metadata }, null, 2)
     }]
   };
 }
