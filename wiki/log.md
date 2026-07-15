@@ -39,3 +39,4 @@ Append-only record of wiki page updates.
 2026-07-10 | soul-skills | +1 pattern (skill usage tracking hook) | PSak
 2026-07-10 | oracle-v3 | +1 pattern (E1 threat scanning write+read paths) | PSak
 2026-07-10 | my-ai-soul-mcp | +1 pattern (E1 threat scanning _save_to_storage+read paths) | PSak
+- 2026-07-15: clienta-ai — v1.12.0 Prepaid Credits shipped, 17/17 ACs, Stripe webhook lesson, widget bundle lesson
