@@ -2,7 +2,7 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-07-08
+updated: 2026-07-15
 oracle_entries: 66
 sources:
   - https://github.com/gobikom/clienta.ai
@@ -119,6 +119,10 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-07-08] Prod Stripe live webhook was UNREGISTERED for months (0 endpoints) despite `STRIPE_WEBHOOK_SECRET` set — customers could pay but subscriptions never activate. Caught by prod infra audit (#1860), registered + end-to-end verified. Lesson: always include "live webhook registered + signed-event test" in go-live.
 - Migration cruft: 2 records recur as failed (`init_with_pgvector`, `fix_subscription_defaults`) but `migrate-database.yml` auto-resolves (`migrate resolve --rolled-back`) before `migrate deploy` — deploys succeed regardless. Not a blocker; hygiene cleanup pending.
 - DB backups run via GH Action `backup-database.yml` (daily cron 2AM UTC → pg_dump pg17 → R2 `s3://clienta-backups/database/` + retention), NOT Supabase automated backups. `SUPABASE_ACCESS_TOKEN` expired (#1868) but does not affect backups.
+
+- **v1.12.0 Prepaid Credits SHIPPED** (2026-07-13, PROD-GATE-ACK) — overage-only prepaid credit system. BigInt micro-unit balances, Stripe webhook top-up, reconciliation engine, kill switch (enforcement=true on prod). 17/17 ACs independently verified across 10 Vera QA passes. 13 PRs merged (#1995-#2017). Key components: `billing/usage-meter.ts` (admission routing), `billing/credit-repository.ts` (FOR-UPDATE ledger), `billing/reconciliation-service.ts` (4 invariant checks, hourly cron), `billing/webhook-handler.ts` (charge.refunded with explicit `stripe.refunds.list`), `billing/reconciliation-inspector.ts` (SELECT-only dashboard query), admin dashboard wallet tab. QA infrastructure: seed-qa-prepaid-states.ts (5 orgs with full entity graph), Playwright E2E prepaid tests, qa_readonly DB access.
+- **Stripe webhook sub-object expansion** (v1.12.0 lesson): webhook payloads do NOT auto-expand sub-objects (refunds, line_items). MUST use explicit `stripe.refunds.list({ charge: id })`. Bug caught after 10 QA passes — `charge.refunds.data` was always `[]` in webhook despite refunds existing.
+- **Widget bundle staleness** (v1.12.0 lesson): `packages/api/public/widget.js` was stale since v1.6.11 (Jun 27). Widget source changes don't auto-rebuild the bundle. CI gate added (#2009/#2012) to prevent recurrence.
 
 ## Patterns
 
