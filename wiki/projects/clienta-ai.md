@@ -124,6 +124,10 @@ User message → queryRewrite (OpenAI, 2 calls)
 - **Stripe webhook sub-object expansion** (v1.12.0 lesson): webhook payloads do NOT auto-expand sub-objects (refunds, line_items). MUST use explicit `stripe.refunds.list({ charge: id })`. Bug caught after 10 QA passes — `charge.refunds.data` was always `[]` in webhook despite refunds existing.
 - **Widget bundle staleness** (v1.12.0 lesson): `packages/api/public/widget.js` was stale since v1.6.11 (Jun 27). Widget source changes don't auto-rebuild the bundle. CI gate added (#2009/#2012) to prevent recurrence.
 
+- [RESOLVED 2026-07-17] **publicAuth empty-scopes 500** (#2043/#2052): default-deny guard treated `requiredScopes: []` same as `undefined` → 500 on all unmatched `/api/v1/*` paths. Fix: `!Array.isArray()` for misconfigured, `length === 0` for no-auth (PR #2053).
+- [RESOLVED 2026-07-17] **ci-web e2e-smoke broken 33 days** (since Jun 14): `e2e-smoke` job missing `pnpm --filter contracts build` → Next.js can't resolve `@clienta/contracts` → Playwright timeout. Fix: add build step (PR #2054).
+- [RESOLVED 2026-07-17] **idempotency lease-lost silent** (#2035): `.catch(() => false)` conflated DB errors with CAS lease-lost. Fix: try/catch to keep paths distinct (PR #2056).
+
 ## Patterns
 
 - **Production Infra Health Audit** (2026-07-08): recurring, release-independent 9-section audit (`Docs/PRODUCTION_INFRA_HEALTH_AUDIT.md`, PR#1858) — health/SSL/env-parity/migrations/Stripe-live/monitoring/backup/OAuth. Catches drift between releases that one-time go-live checklists miss. Split by access: public/Vercel (any agent) vs Railway/Stripe/Supabase (devops). Monitoring verified via Grafana API (16 dashboards, 13 alert rules) + Sentry API.
