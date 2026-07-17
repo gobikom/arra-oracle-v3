@@ -43,3 +43,4 @@ Append-only record of wiki page updates.
 2026-07-17 | clienta-ai | PSak | +3 [RESOLVED] entries (post-v1.13 GA fixes: #2043 publicAuth guard, ci-web e2e-smoke, #2035 idempotency lease-lost)
 - 2026-07-17: clienta-ai — v1.14.0 Trust Center Phase 2 shipped, 4 new API endpoints, follow-ups #2067/#2069/#2070
 - 2026-07-17: Added login token field name + staging account mapping to Known Issues (agent-devops#876)
+- 2026-07-17: soul-orchestra — added plan-validate, kickoff protocol, session-end improvement scan, tmux respawn fix (PRs #1083-#1091)
