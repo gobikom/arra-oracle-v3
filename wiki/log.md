@@ -45,4 +45,5 @@ Append-only record of wiki page updates.
 - 2026-07-17: Added login token field name + staging account mapping to Known Issues (agent-devops#876)
 - 2026-07-17: soul-orchestra — added plan-validate, kickoff protocol, session-end improvement scan, tmux respawn fix (PRs #1083-#1091)
 2026-07-19 | psak | Added: v1.15.2 schema drift resolution, CI self-hosted migration, updated oracle_entries 74→77
+2026-07-20 | psak | Added: re-embed script fixes resolved (#2153/#2154), oracle_entries 77→78
 2026-07-25 | psak | Added: wiki/projects/chela.md — new page (นุด-approved): Phase 0 + locked baselines + Plan B context, oracle_entries 3
