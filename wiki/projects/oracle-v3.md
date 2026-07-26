@@ -133,18 +133,27 @@ Embedding models:
 
   Measured 2026-07-26 against `~/.arra-oracle-v2/oracle.db`:
 
+  All figures re-queried 2026-07-26 ~22:5x BKK. This is a live DB — rows cross the expiry
+  threshold continuously (~28/day), so any count involving "already past" drifts by the hour.
+
   | probe | result |
   |---|---|
   | rows total / distinct `source_file` | 13,198 / 7,094 |
-  | `source_file` values with more than one row | **3,001** |
-  | rows with `id LIKE 'learning_ψ/%'` (indexer scheme) | 4,141 — of which **4,141 have `expires_at IS NULL`** |
-  | rows with `id LIKE 'learning_<date>_%'` (arra_learn scheme) | 9,057 |
-  | rows with `expires_at` set and already past | 3,734 |
+  | `source_file` values with more than one row | 3,001 (rows per file range **2–15**, not uniformly 2) |
+  | — of those, files with **no** `arra_learn` row at all | 442 (~15%) — legitimate multi-chunk retro indexing, **not this bug** |
+  | — leaving the arra_learn-paired subset this bug affects | **~2,559** |
+  | `created_by='arra_learn'`, ids `learning_<date>_…` | 6,587 |
+  | `created_by='indexer'`, ids `learning_ψ/…` | **4,141 — every one has `expires_at IS NULL`** |
+  | `created_by='indexer'`, ids `retro_HH.MM_…` | 2,471 (third scheme — do not fold into either bucket above) |
+  | rows with `expires_at` set and already past | 3,756 |
 
-  The same file appears under two different ID schemes. `arra_learn` writes `expires_at` and
-  `ttl_days`; the bulk file-scanner in `src/indexer/storage.ts` `storeDocuments()` never parses
-  either from frontmatter, so its row is `NULL` — and `NULL` reads as *never expires*. One
-  concrete pair, both rows for the identical `source_file`:
+  There are **three** ID schemes, not two — `13,198 − 4,141 = 9,057` is *not* the arra_learn
+  population; that arithmetic silently absorbs the 2,471 `retro_*` rows and overcounts by ~38%.
+
+  `arra_learn` writes `expires_at` and `ttl_days`; the bulk file-scanner in
+  `src/indexer/storage.ts` `storeDocuments()` never parses either from frontmatter (its Drizzle
+  `.values()` / `.onConflictDoUpdate()` payloads omit both fields), so its row is `NULL` — and
+  `NULL` reads as *never expires*. One concrete pair, both rows for the identical `source_file`:
 
   ```
   ψ/…/2026-05-19_daily-goal-w22d3-…-priority-3-p2.md   expires_at=1779813774662  ttl_days=7
@@ -152,9 +161,12 @@ Embedding models:
   ```
 
   So the TTL-bearing twin expires on schedule and the indexer twin is served forever. That is
-  why `arra_stats` `expired=3756` never reconciles with what search returns: the stat counts
-  only column-expired rows, while the copy actually being served is the `NULL` twin it does not
-  count. It is also the likely source of knowledge-lint's `orphaned=2317` / `drifted=998`.
+  why the `expired=3756` figure never reconciles with what search returns: it counts only
+  column-expired rows, while the copy actually being served is the `NULL` twin it does not
+  count. Note that figure comes from **`arra_list`** (`src/tools/list.ts:62-63,103`), not
+  `arra_stats` — `src/tools/stats.ts` has no `expired` field at all, so anyone chasing the
+  mismatch there is reading the wrong file. It is also the likely source of knowledge-lint's
+  `orphaned=2317` / `drifted=998`.
 
   Consequence: LEARN-AND-SUPERSEDE is structurally ineffective for snapshot classes
   (`[score-output]`, `[infra-health]`, `[daily-goal]`, `[goal-carryover]`) — superseding keeps
@@ -166,9 +178,19 @@ Embedding models:
 
   **Fix is in the indexer, not the read path.** Neither adding a read-path filter (already
   there) nor cron-ing `bun run expire` (`scripts/expire-learnings.ts` only supersedes rows whose
-  `expires_at` is already non-NULL — it cannot backfill NULLs) closes this. Needed: have
-  `storeDocuments()` parse `ttl:`/`expires:` frontmatter, plus dedupe the two ID schemes, plus a
-  one-off `src/scripts/backfill-ttl.ts` run. No oracle expire job exists in
+  `expires_at` is already non-NULL — it cannot backfill NULLs) closes this. Needed:
+
+  1. `storeDocuments()` parses `ttl:`/`expires:` frontmatter and writes `expiresAt`/`ttlDays`
+  2. Dedupe the ID schemes so one file is one row
+  3. **`src/scripts/backfill-ttl.ts` must be extended before it is run.** It exists, but it
+     cannot touch these rows as written: line 38 derives its slug via
+     `row.id.replace(/^learning_\d{4}-\d{2}-\d{2}_/, '')`, and an indexer id
+     (`learning_ψ/memory/learnings/…`) never matches `\d{4}` — so slugPart stays as the full
+     path and none of the anchored patterns (`/^score-output/i`, `/^daily-goal/i`, …) can fire.
+     Running it as-is updates ~0 of the 4,141 rows. It needs to match on `source_file`, or to
+     handle the `learning_ψ/%` scheme explicitly.
+
+  No oracle expire job exists in
   `~/ops/cron-registry.yaml` or `crontab -l` — verified, so the 2026-04-07 retro's proposed cron
   entry never shipped, though scheduling it alone would not have helped.
 - [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
