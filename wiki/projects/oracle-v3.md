@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-07-10
-oracle_entries: 16
+updated: 2026-07-26
+oracle_entries: 17
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -125,19 +125,52 @@ Embedding models:
 - Knowledge-lint score (Sunday 20:00) detects contradictions, stale entries, orphans, and cross-store duplicates
 - Oracle DB had 1,339 orphan entries flagged during 2026-05-09 reindex; auto-archive >90d in knowledge-lint
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
-- **P1 — TTL is recorded but never enforced on read.** Entries carry `ttl:` and `expires:`
-  frontmatter, but expired documents are still returned by both `arra_list` and `arra_search`.
-  Measured 2026-07-26: at list offsets 4000 and 7842, 100% of past-expiry entries were still
-  served (25/25 and 37/37); a plain search for "infra-health ghcr-auth CRITICAL" returned 5/5
-  hits that expired in mid-June. `arra_stats` reports `expired=3756` of `total=7942` —
-  consistent with expired docs being counted but not filtered, though that ratio is
-  unreconciled against the 7.9% seen in the sample and should be treated as unverified.
-  Consequence: this makes LEARN-AND-SUPERSEDE structurally ineffective for snapshot classes
-  (`[score-output]`, `[infra-health]`, `[daily-goal]`, `[goal-carryover]`). Superseding keeps
-  one logical entry current while every expired copy stays searchable, and stale CRITICAL /
-  WARNING snapshots outrank current data in vector search. Fix is either filtering
-  `expires: < today` on the read path, or running the `bun run expire` sweep on cron — a
-  2026-04-07 retro already proposed the cron entry and it appears never to have shipped.
+- **P1 — every learning is indexed TWICE, and the duplicate never expires.** Expired
+  documents keep being served by `arra_list` and `arra_search`. The read-path TTL filter is
+  *not* the problem — `src/tools/list.ts:55,73,81` and `src/tools/search.ts:338` both apply
+  `(expires_at IS NULL OR expires_at > ?)`, shipped in `6d5adcc` (2026-04-07) and live in the
+  running service. The problem is upstream of it.
+
+  Measured 2026-07-26 against `~/.arra-oracle-v2/oracle.db`:
+
+  | probe | result |
+  |---|---|
+  | rows total / distinct `source_file` | 13,198 / 7,094 |
+  | `source_file` values with more than one row | **3,001** |
+  | rows with `id LIKE 'learning_ψ/%'` (indexer scheme) | 4,141 — of which **4,141 have `expires_at IS NULL`** |
+  | rows with `id LIKE 'learning_<date>_%'` (arra_learn scheme) | 9,057 |
+  | rows with `expires_at` set and already past | 3,734 |
+
+  The same file appears under two different ID schemes. `arra_learn` writes `expires_at` and
+  `ttl_days`; the bulk file-scanner in `src/indexer/storage.ts` `storeDocuments()` never parses
+  either from frontmatter, so its row is `NULL` — and `NULL` reads as *never expires*. One
+  concrete pair, both rows for the identical `source_file`:
+
+  ```
+  ψ/…/2026-05-19_daily-goal-w22d3-…-priority-3-p2.md   expires_at=1779813774662  ttl_days=7
+  ψ/…/2026-05-19_daily-goal-w22d3-…-priority-3-p2.md   expires_at=NULL           ttl_days=NULL
+  ```
+
+  So the TTL-bearing twin expires on schedule and the indexer twin is served forever. That is
+  why `arra_stats` `expired=3756` never reconciles with what search returns: the stat counts
+  only column-expired rows, while the copy actually being served is the `NULL` twin it does not
+  count. It is also the likely source of knowledge-lint's `orphaned=2317` / `drifted=998`.
+
+  Consequence: LEARN-AND-SUPERSEDE is structurally ineffective for snapshot classes
+  (`[score-output]`, `[infra-health]`, `[daily-goal]`, `[goal-carryover]`) — superseding keeps
+  one logical entry current while the immortal duplicate stays searchable, so stale CRITICAL /
+  WARNING snapshots outrank current data. Downstream effect proven in soul-orchestra#1107:
+  `arra_search("goal-complete", category=goal)` returns nothing newer than 2026-05-02 even
+  though 2026-07-24 entries exist and are indexed, because the old immortal twins carry
+  `tags:[goal-complete]` and outrank them.
+
+  **Fix is in the indexer, not the read path.** Neither adding a read-path filter (already
+  there) nor cron-ing `bun run expire` (`scripts/expire-learnings.ts` only supersedes rows whose
+  `expires_at` is already non-NULL — it cannot backfill NULLs) closes this. Needed: have
+  `storeDocuments()` parse `ttl:`/`expires:` frontmatter, plus dedupe the two ID schemes, plus a
+  one-off `src/scripts/backfill-ttl.ts` run. No oracle expire job exists in
+  `~/ops/cron-registry.yaml` or `crontab -l` — verified, so the 2026-04-07 retro's proposed cron
+  entry never shipped, though scheduling it alone would not have helped.
 - [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
 
 ## Patterns
