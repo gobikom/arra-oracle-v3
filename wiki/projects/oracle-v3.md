@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-07-10
-oracle_entries: 16
+updated: 2026-07-26
+oracle_entries: 17
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -125,6 +125,80 @@ Embedding models:
 - Knowledge-lint score (Sunday 20:00) detects contradictions, stale entries, orphans, and cross-store duplicates
 - Oracle DB had 1,339 orphan entries flagged during 2026-05-09 reindex; auto-archive >90d in knowledge-lint
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
+- **P1 — every learning is indexed TWICE, and the duplicate never expires.** Expired
+  documents keep being served by `arra_list` and `arra_search`. The read-path TTL filter is
+  *not* the problem — `src/tools/list.ts:55,73,81` and `src/tools/search.ts:338` both apply
+  `(expires_at IS NULL OR expires_at > ?)`, shipped in `6d5adcc` (2026-04-07) and live in the
+  running service. The problem is upstream of it.
+
+  Measured 2026-07-26 against `~/.arra-oracle-v2/oracle.db`:
+
+  All figures re-queried 2026-07-26 ~22:5x BKK. **Read this table as a snapshot, not an
+  identity.** The DB is written continuously — `arra_learn` was observed incrementing mid-review
+  — and the rows below were captured across several queries seconds apart, so the three
+  `created_by` buckets will not necessarily sum to the printed total (they were 6,587 + 4,141 +
+  2,471 = 13,199 against a total captured moments earlier as 13,198). Counts involving "already
+  past" additionally drift by the hour, ~28 rows/day crossing the threshold. To re-derive a
+  self-consistent set, take the total and the `GROUP BY created_by` in a single query on one
+  connection. The *ratios* are the point; the last digit is not.
+
+  | probe | result |
+  |---|---|
+  | rows total / distinct `source_file` | 13,198 / 7,094 |
+  | `source_file` values with more than one row | 3,001 (rows per file range **2–15**, not uniformly 2) |
+  | — of those, files with **no** `arra_learn` row at all | 442 (~15%) — legitimate multi-chunk retro indexing, **not this bug** |
+  | — leaving the arra_learn-paired subset this bug affects | **~2,559** |
+  | `created_by='arra_learn'`, ids `learning_<date>_…` | 6,587 |
+  | `created_by='indexer'`, ids `learning_ψ/…` | **4,141 — every one has `expires_at IS NULL`** |
+  | `created_by='indexer'`, ids `retro_HH.MM_…` | 2,471 (third scheme — do not fold into either bucket above) |
+  | rows with `expires_at` set and already past | 3,756 |
+
+  There are **three** ID schemes, not two — `13,198 − 4,141 = 9,057` is *not* the arra_learn
+  population; that arithmetic silently absorbs the 2,471 `retro_*` rows and overcounts by ~38%.
+
+  `arra_learn` writes `expires_at` and `ttl_days`; the bulk file-scanner in
+  `src/indexer/storage.ts` `storeDocuments()` never parses either from frontmatter (its Drizzle
+  `.values()` / `.onConflictDoUpdate()` payloads omit both fields), so its row is `NULL` — and
+  `NULL` reads as *never expires*. One concrete pair, both rows for the identical `source_file`:
+
+  ```
+  ψ/…/2026-05-19_daily-goal-w22d3-…-priority-3-p2.md   expires_at=1779813774662  ttl_days=7
+  ψ/…/2026-05-19_daily-goal-w22d3-…-priority-3-p2.md   expires_at=NULL           ttl_days=NULL
+  ```
+
+  So the TTL-bearing twin expires on schedule and the indexer twin is served forever. That is
+  why the `expired=3756` figure never reconciles with what search returns: it counts only
+  column-expired rows, while the copy actually being served is the `NULL` twin it does not
+  count. Note that figure comes from **`arra_list`** (`src/tools/list.ts:62-63,103`), not
+  `arra_stats` — `src/tools/stats.ts` has no `expired` field at all, so anyone chasing the
+  mismatch there is reading the wrong file. It is also the likely source of knowledge-lint's
+  `orphaned=2317` / `drifted=998`.
+
+  Consequence: LEARN-AND-SUPERSEDE is structurally ineffective for snapshot classes
+  (`[score-output]`, `[infra-health]`, `[daily-goal]`, `[goal-carryover]`) — superseding keeps
+  one logical entry current while the immortal duplicate stays searchable, so stale CRITICAL /
+  WARNING snapshots outrank current data. Downstream effect proven in soul-orchestra#1107:
+  `arra_search("goal-complete", category=goal)` returns nothing newer than 2026-05-02 even
+  though 2026-07-24 entries exist and are indexed, because the old immortal twins carry
+  `tags:[goal-complete]` and outrank them.
+
+  **Fix is in the indexer, not the read path.** Neither adding a read-path filter (already
+  there) nor cron-ing `bun run expire` (`scripts/expire-learnings.ts` only supersedes rows whose
+  `expires_at` is already non-NULL — it cannot backfill NULLs) closes this. Needed:
+
+  1. `storeDocuments()` parses `ttl:`/`expires:` frontmatter and writes `expiresAt`/`ttlDays`
+  2. Dedupe the ID schemes so one file is one row
+  3. **`src/scripts/backfill-ttl.ts` must be extended before it is run.** It exists, but it
+     cannot touch these rows as written: line 38 derives its slug via
+     `row.id.replace(/^learning_\d{4}-\d{2}-\d{2}_/, '')`, and an indexer id
+     (`learning_ψ/memory/learnings/…`) never matches `\d{4}` — so slugPart stays as the full
+     path and none of the anchored patterns (`/^score-output/i`, `/^daily-goal/i`, …) can fire.
+     Running it as-is updates ~0 of the 4,141 rows. It needs to match on `source_file`, or to
+     handle the `learning_ψ/%` scheme explicitly.
+
+  No oracle expire job exists in
+  `~/ops/cron-registry.yaml` or `crontab -l` — verified, so the 2026-04-07 retro's proposed cron
+  entry never shipped, though scheduling it alone would not have helped.
 - [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
 
 ## Patterns
