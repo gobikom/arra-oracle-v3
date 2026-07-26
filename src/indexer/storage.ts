@@ -4,11 +4,48 @@
 
 import { Database } from 'bun:sqlite';
 import { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema.ts';
 import { oracleDocuments } from '../db/schema.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
 import type { OracleDocument } from '../types.ts';
+
+/**
+ * Files whose canonical entry belongs to arra_learn, and which the indexer must
+ * therefore never re-index (agent-devops#539 RC2, #960).
+ *
+ * Ownership is a property of the FILE, not of the row's lifecycle state. Once
+ * arra_learn has written a source_file, that file has an authoritative entry
+ * forever; superseding it does not hand the file back to the indexer.
+ *
+ * This is exported so the regression test can exercise the real query rather
+ * than a re-implementation of it — a test that rebuilds the WHERE clause locally
+ * passes no matter what this file does.
+ */
+export function selectArraLearnOwnedFiles(
+  db: BunSQLiteDatabase<typeof schema>
+): Set<string> {
+  return new Set(
+    db.select({ sourceFile: oracleDocuments.sourceFile })
+      .from(oracleDocuments)
+      // NOTE: deliberately NOT filtered on supersededBy — see #960. Adding
+      // `isNull(oracleDocuments.supersededBy)` here drops a file out of the set
+      // the moment its learning is superseded, so the next scan re-indexes it
+      // into a twin with expires_at NULL and superseded_by NULL: never expires,
+      // never marked superseded, fully live in search. Because
+      // LEARN-AND-SUPERSEDE runs on every score, the better the supersede
+      // hygiene the more immortal duplicates were produced — superseding an
+      // entry was what resurrected it.
+      //
+      // Measured before the fix: of the 738 indexer rows written after the
+      // original guard shipped (2d63f1f, 2026-06-12), 730 landed on files that
+      // ended up duplicated. Of the 296 that had an arra_learn pair, 296 were
+      // superseded and 0 were not.
+      .where(eq(oracleDocuments.createdBy, 'arra_learn'))
+      .all()
+      .map(r => r.sourceFile)
+  );
+}
 
 /**
  * Store documents in SQLite + vector store
@@ -34,18 +71,8 @@ export async function storeDocuments(
   const contents: string[] = [];
   const metadatas: any[] = [];
 
-  // Build set of source_files already owned by arra_learn — skip re-indexing
-  // those to avoid duplicate entries with different IDs (agent-devops#539 RC2).
-  const arralLearnFiles = new Set(
-    db.select({ sourceFile: oracleDocuments.sourceFile })
-      .from(oracleDocuments)
-      .where(and(
-        eq(oracleDocuments.createdBy, 'arra_learn'),
-        isNull(oracleDocuments.supersededBy),
-      ))
-      .all()
-      .map(r => r.sourceFile)
-  );
+  // Files owned by arra_learn — never re-index these (agent-devops#539 RC2, #960).
+  const arralLearnFiles = selectArraLearnOwnedFiles(db);
   let skippedArraLearn = 0;
 
   // Wrap SQLite inserts in a transaction for performance + atomicity
