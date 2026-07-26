@@ -35,6 +35,19 @@ import { DB_PATH } from '../config.ts';
 
 const APPLY = process.argv.includes('--apply');
 
+/**
+ * Outcome of a run, returned so callers (and tests) can assert on it rather
+ * than scraping stdout. `deleted` is 0 on a dry run.
+ */
+export interface DedupResult {
+  twins: number;
+  files: number;
+  soloIndexer: number;
+  total: number;
+  deleted: number;
+  applied: boolean;
+}
+
 // A twin is an indexer row on a source_file that arra_learn also owns.
 const TWIN_PREDICATE = `
   d.created_by = 'indexer'
@@ -45,13 +58,20 @@ const TWIN_PREDICATE = `
   )
 `;
 
-function main(): void {
-  if (!fs.existsSync(DB_PATH)) {
-    console.error(`FATAL: database not found at ${DB_PATH}`);
+export function dedupIndexerTwins(dbPath: string = DB_PATH, apply: boolean = APPLY): DedupResult {
+  if (!fs.existsSync(dbPath)) {
+    console.error(`FATAL: database not found at ${dbPath}`);
     process.exit(1);
   }
 
-  const db = new Database(DB_PATH, { readonly: !APPLY });
+  // bun:sqlite rejects `{ readonly: false }` with SQLITE_MISUSE ("bad parameter
+  // or other API misuse") — verified on bun 1.3.10, which is what CI resolves to.
+  // Write mode needs the readwrite flag explicitly. `create: false` is deliberate
+  // over `create: true`: if dbPath is ever wrong we want a hard failure, not a
+  // brand-new empty database that the script then happily reports as clean.
+  const db = apply
+    ? new Database(dbPath, { readwrite: true, create: false })
+    : new Database(dbPath, { readonly: true });
 
   const [{ twins }] = db
     .query(`SELECT COUNT(*) AS twins FROM oracle_documents d WHERE ${TWIN_PREDICATE}`)
@@ -72,7 +92,7 @@ function main(): void {
     .query('SELECT COUNT(*) AS total FROM oracle_documents')
     .all() as { total: number }[];
 
-  console.log(`database          : ${DB_PATH}`);
+  console.log(`database          : ${dbPath}`);
   console.log(`rows total        : ${total}`);
   console.log(`indexer twins     : ${twins}  (across ${files} files) <- to delete`);
   console.log(`indexer solo rows : ${soloIndexer}  <- PRESERVED (no arra_learn pair)`);
@@ -80,7 +100,7 @@ function main(): void {
   if (twins === 0) {
     console.log('\nNothing to do.');
     db.close();
-    return;
+    return { twins, files, soloIndexer, total, deleted: 0, applied: apply };
   }
 
   console.log('\nsample of what would be deleted:');
@@ -89,22 +109,22 @@ function main(): void {
     .all() as { id: string; source_file: string }[];
   for (const r of sample) console.log(`  ${r.id}`);
 
-  if (!APPLY) {
+  if (!apply) {
     console.log(`\nDRY RUN — nothing written. Re-run with --apply to delete ${twins} rows.`);
     db.close();
-    return;
+    return { twins, files, soloIndexer, total, deleted: 0, applied: false };
   }
 
   // Backup first. Without this, a bad predicate is unrecoverable.
-  const backup = `${DB_PATH}.pre-dedup-960`;
+  const backup = `${dbPath}.pre-dedup-960`;
   if (fs.existsSync(backup)) {
     console.error(`FATAL: ${backup} already exists — refusing to overwrite a prior backup.`);
     console.error('Move or delete it once you are satisfied the previous run was correct.');
     db.close();
     process.exit(1);
   }
-  fs.copyFileSync(DB_PATH, backup);
-  if (!fs.existsSync(backup) || fs.statSync(backup).size !== fs.statSync(DB_PATH).size) {
+  fs.copyFileSync(dbPath, backup);
+  if (!fs.existsSync(backup) || fs.statSync(backup).size !== fs.statSync(dbPath).size) {
     console.error('FATAL: backup verification failed — aborting without deleting anything.');
     db.close();
     process.exit(1);
@@ -164,9 +184,15 @@ function main(): void {
     process.exit(1);
   }
   console.log(`solo rows intact  : ${soloAfter} (unchanged)`);
-  console.log('\nDone. Restore with: cp ' + backup + ' ' + DB_PATH);
+  console.log('\nDone. Restore with: cp ' + backup + ' ' + dbPath);
 
   db.close();
+  return { twins, files, soloIndexer, total, deleted: total - after, applied: true };
 }
 
-main();
+// Only auto-run when invoked as a script. Without this guard the test suite
+// would execute a delete against the real DB_PATH the moment it imported the
+// module — which is exactly the sort of accident this script exists to avoid.
+if (import.meta.main) {
+  dedupIndexerTwins();
+}

@@ -48,6 +48,19 @@ export function selectArraLearnOwnedFiles(
 }
 
 /**
+ * What a store pass actually did. Returned rather than only logged so callers
+ * can record it — `skippedArraLearn` is the observability the original #960 bug
+ * lacked: a guard that silently stopped skipping looked identical from outside
+ * to one that was working, for six weeks.
+ */
+export interface StoreResult {
+  /** Documents written by this pass. Excludes skipped ones. */
+  indexed: number;
+  /** Documents left alone because arra_learn owns their source_file. */
+  skippedArraLearn: number;
+}
+
+/**
  * Store documents in SQLite + vector store
  * Uses Drizzle for type-safe inserts and sets createdBy: 'indexer'
  */
@@ -57,7 +70,7 @@ export async function storeDocuments(
   vectorClient: VectorStoreAdapter | null,
   project: string | null,
   documents: OracleDocument[]
-): Promise<void> {
+): Promise<StoreResult> {
   const now = Date.now();
 
   // Prepare FTS statement (raw SQL required for FTS5)
@@ -156,7 +169,7 @@ export async function storeDocuments(
   // Batch insert to vector store in chunks of 100 (skip if no client)
   if (!vectorClient) {
     console.log('Skipping vector indexing (SQLite-only mode)');
-    return;
+    return { indexed: documents.length - skippedArraLearn, skippedArraLearn };
   }
 
   const BATCH_SIZE = 100;
@@ -202,4 +215,5 @@ export async function storeDocuments(
     console.error(`Vector drift: ${failedBatches.reduce((n, b) => n + b.docIds.length, 0)} docs in SQLite but NOT in ${vectorClient.name}. Weekly backfill cron will catch up, or run: bun scripts/backfill-vector.ts`);
   }
   console.log(`Stored in SQLite${vectorSuccess ? ` + ${vectorClient.name}` : ` (${vectorClient.name} failed — ${failedBatches.length} batch(es))`}`);
+  return { indexed: documents.length - skippedArraLearn, skippedArraLearn };
 }

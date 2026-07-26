@@ -124,10 +124,19 @@ export class OracleIndexer {
       ...collectDocuments({ ...shared, subdir: 'retrospectives', parseFn: parseRetroFile, label: 'retrospective' }),
     ];
 
-    await storeDocuments(this.sqlite, this.db, this.vectorClient, this.project, documents);
+    const result = await storeDocuments(this.sqlite, this.db, this.vectorClient, this.project, documents);
 
-    setIndexingStatus(this.sqlite, this.config, false, documents.length, documents.length);
-    console.log(`Indexed ${documents.length} documents`);
+    // Report what was actually written, not what was collected. These differed
+    // by skippedArraLearn and the old line counted skipped docs as indexed —
+    // so a guard that stopped skipping would have made this number go UP while
+    // silently creating duplicates (agent-devops#960).
+    setIndexingStatus(this.sqlite, this.config, false, result.indexed, documents.length);
+    console.log(
+      `Indexed ${result.indexed} documents` +
+      (result.skippedArraLearn > 0
+        ? ` (${result.skippedArraLearn} of ${documents.length} skipped — owned by arra_learn)`
+        : '')
+    );
     console.log('Indexing complete!');
   }
 
