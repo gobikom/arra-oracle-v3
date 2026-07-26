@@ -133,8 +133,14 @@ Embedding models:
 
   Measured 2026-07-26 against `~/.arra-oracle-v2/oracle.db`:
 
-  All figures re-queried 2026-07-26 ~22:5x BKK. This is a live DB — rows cross the expiry
-  threshold continuously (~28/day), so any count involving "already past" drifts by the hour.
+  All figures re-queried 2026-07-26 ~22:5x BKK. **Read this table as a snapshot, not an
+  identity.** The DB is written continuously — `arra_learn` was observed incrementing mid-review
+  — and the rows below were captured across several queries seconds apart, so the three
+  `created_by` buckets will not necessarily sum to the printed total (they were 6,587 + 4,141 +
+  2,471 = 13,199 against a total captured moments earlier as 13,198). Counts involving "already
+  past" additionally drift by the hour, ~28 rows/day crossing the threshold. To re-derive a
+  self-consistent set, take the total and the `GROUP BY created_by` in a single query on one
+  connection. The *ratios* are the point; the last digit is not.
 
   | probe | result |
   |---|---|
