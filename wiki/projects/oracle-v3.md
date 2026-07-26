@@ -125,6 +125,19 @@ Embedding models:
 - Knowledge-lint score (Sunday 20:00) detects contradictions, stale entries, orphans, and cross-store duplicates
 - Oracle DB had 1,339 orphan entries flagged during 2026-05-09 reindex; auto-archive >90d in knowledge-lint
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
+- **P1 — TTL is recorded but never enforced on read.** Entries carry `ttl:` and `expires:`
+  frontmatter, but expired documents are still returned by both `arra_list` and `arra_search`.
+  Measured 2026-07-26: at list offsets 4000 and 7842, 100% of past-expiry entries were still
+  served (25/25 and 37/37); a plain search for "infra-health ghcr-auth CRITICAL" returned 5/5
+  hits that expired in mid-June. `arra_stats` reports `expired=3756` of `total=7942` —
+  consistent with expired docs being counted but not filtered, though that ratio is
+  unreconciled against the 7.9% seen in the sample and should be treated as unverified.
+  Consequence: this makes LEARN-AND-SUPERSEDE structurally ineffective for snapshot classes
+  (`[score-output]`, `[infra-health]`, `[daily-goal]`, `[goal-carryover]`). Superseding keeps
+  one logical entry current while every expired copy stays searchable, and stale CRITICAL /
+  WARNING snapshots outrank current data in vector search. Fix is either filtering
+  `expires: < today` on the read path, or running the `bun run expire` sweep on cron — a
+  2026-04-07 retro already proposed the cron entry and it appears never to have shipped.
 - [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
 
 ## Patterns
