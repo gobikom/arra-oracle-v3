@@ -2,7 +2,7 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-06-30
+updated: 2026-08-01
 oracle_entries: 20
 sources:
   - https://github.com/gobikom/auto-ops
@@ -12,12 +12,14 @@ tags: [wiki, auto-ops]
 
 
 
+
+
 # Auto-Ops
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
 - tests: 32 classes, 156 functions
-- .: 57 functions
+- .: 58 functions
 
 ## Entry Points (auto — CK)
 
@@ -35,9 +37,9 @@ tags: [wiki, auto-ops]
 ## Hotspots (auto — CK)
 
 - `tests/test_watchdog.py` — 112 connections, change_freq=7
-- `watchdog.py` — 55 connections, change_freq=21
+- `watchdog.py` — 56 connections, change_freq=22
 - `tests/test_market_hours.py` — 44 connections, change_freq=1
-- `tests/test_incident_memory.py` — 31 connections, change_freq=1
+- `tests/test_incident_memory.py` — 31 connections, change_freq=0
 - `watchdog.py` — 24 connections, change_freq=0
 
 ## Overview

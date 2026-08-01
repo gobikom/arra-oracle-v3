@@ -2,7 +2,7 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-07-10
+updated: 2026-08-01
 oracle_entries: 11
 sources:
   - https://github.com/gobikom/soul-skills
@@ -12,13 +12,15 @@ tags: [wiki, soul-skills, cli, distribution]
 
 
 
+
+
 # Soul Skills
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
-- src/skills: 108 functions, 14 interfaces, 7 types
+- src/skills: 132 functions, 17 interfaces, 8 types
 - src/cli: 73 functions, 9 interfaces, 3 types
-- __tests__: 22 functions, 5 interfaces, 2 types
+- __tests__: 26 functions, 5 interfaces, 3 types
 - scripts: 15 functions, 1 interface
 - src: 2 functions
 - src/hooks: 1 function
@@ -30,19 +32,19 @@ tags: [wiki, soul-skills, cli, distribution]
 - initAntigravity `function initAntigravity(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (8 connections)
 - initWindsurf `function initWindsurf(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (8 connections)
 - initAmazonQ `function initAmazonQ( serverUrl: string, token: string, projectDir: string, globalConfig = false, ): string[]` — src/cli/platforms.ts (8 connections)
+- validate `function validate(content: string, gate?: string, projectDir?: string): ValidationResult` — src/skills/gate/scripts/gate-audit-validate.ts (7 connections)
 - isCompiled `function isCompiled(): boolean` — src/cli/skill-source.ts (7 connections)
 - detectInstalledAgents `function detectInstalledAgents(): string[]` — src/cli/agents.ts (7 connections)
 - initOpencode `function initOpencode(serverUrl: string, token: string, projectDir: string): string[]` — src/cli/platforms.ts (7 connections)
-- registerInstall `function registerInstall(program: Command, version: string)` — src/cli/commands/install.ts (6 connections)
-- getSymlinks `async function getSymlinks(baseDir: string): Promise<LinkInfo[]` — src/skills/project/scripts/utils.ts (5 connections)
+- parseMarkdownTableWithHeader `function parseMarkdownTableWithHeader(section: string): ParsedTable` — src/skills/gate/scripts/gate-audit-validate.ts (6 connections)
 
 ## Hotspots (auto — CK)
 
-- `dependencies` — 41 connections, change_freq=0
-- `dependencies` — 40 connections, change_freq=0
+- `dependencies` — 48 connections, change_freq=0
+- `dependencies` — 48 connections, change_freq=0
 - `dependencies` — 26 connections, change_freq=0
+- `src/cli/installer.ts` — 24 connections, change_freq=1
 - `src/skills/project/scripts/utils.ts` — 24 connections, change_freq=0
-- `src/cli/installer.ts` — 24 connections, change_freq=0
 
 ## Overview
 
