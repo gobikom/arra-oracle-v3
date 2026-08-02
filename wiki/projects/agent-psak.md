@@ -2,8 +2,8 @@
 title: Agent PSak
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 10
+updated: 2026-08-02
+oracle_entries: 12
 sources:
   - https://github.com/gobikom/agent-psak
 project: github.com/gobikom/agent-psak
@@ -86,6 +86,7 @@ agent-psak/
 - CLAUDE.md generation depends on soul-orchestra scripts — if generator changes format, must re-test identity loading
 - Cross-project work via absolute paths sometimes confuses PRP skill (wrong-repo artifacts)
 - Pool session detection relies on tmux session name — fails if tmux unavailable (defaults to pool/cron-triage-only mode)
+- **[RESOLVED 2026-08-01] #982 — ψ was a real directory instead of a symlink.** agent-psak was the only agent with a real `ψ/` rather than a symlink into mono-ψ (`~/psi/agent-psak`), which produced 19+ consecutive infra-health CRITICALs. Those were TRUE POSITIVES, not a stuck alarm — misdiagnosed as noise for two days. Root cause: after the 2026-07-27 data-loss incident ψ was rebuilt as a real directory to guarantee git tracking; correct at the time, but it diverged from the mono-ψ layout `psi-daily-sync.sh` depends on. Fixed by reconciling 586 files (99 new + 487 updated) into mono-ψ, then replacing the directory with a symlink (PR #76, `80ad7d6`). **The symlink is local filesystem state, not git-tracked** — a fresh clone or a merge checkout will not recreate it.
 
 ## Patterns
 
@@ -93,6 +94,7 @@ agent-psak/
 - **Self-Implementer Protocol**: For non-epic work: worktree → branch → PR → formal review → fix-loop → safe-merge → Vera QA → close. Review agents serve as independent check.
 - **Gate-keeper pattern**: For epics: investigate → plan → peer-review plan → delegate ENTIRE epic to DevLead. PSak only audits /gate compliance on merged PRs.
 - **Session protocol**: `session_resume` at start → proactive memory saves mid-session → `reflect` then `session_handoff` at end.
+- **Sub-agent parallelism at scale** (2026-08-01): 6 concurrent agents across 6 repos works when each gets a precise brief, worktree isolation, and explicit ACs. Compressed ~3h of sequential implementation into ~45min wall-clock for ~$1.50 in sub-agent tokens against ~$0.50 direct — the trade is time for budget, so reach for it when latency matters, not by default. Gotchas: tmpfs fills with transcript files past 5 agents, pre-commit hooks need their deps installed inside each worktree, and branch protection on the target repo blocks every agent equally.
 
 ## See Also
 

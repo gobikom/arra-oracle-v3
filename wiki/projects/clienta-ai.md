@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 78
+updated: 2026-08-02
+oracle_entries: 79
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -115,6 +115,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - v1.3.5 Billing Cleanup shipped (2026-06-07) — currency persist, Omise removal, plan cancellation. 15 PRs, UAT 100%, staging 99.3%, prod 100%.
 - v1.3.6 Pricing Consistency shipped (2026-06-07) — all pricing surfaces aligned with billing.ts. 7 plans, 17% discount, correct overage rates across landing, docs, billing tab, partner portal.
 - v1.3.7 Stability & Partner Fixes shipped (2026-06-08) — invoice multi-plan (DB migration + 5-plan pipeline), dashboard stat cards, wholesalePlan fallback, Sonner toast fix, channels delete fix, flaky tests umbrella. 7 sub-PRs + 6 gate fix PRs. UAT 99.7%, staging 99.3%, prod 100%.
+- **A gitleaks baseline is mandatory before enabling gitleaks as a required check with `enforce_admins=true`** (2026-08-01). Without one, a line-number shift in a file holding pre-existing test credentials is reported as a NEW finding, and the branch becomes unmergeable by anyone. Three PRs (#2205, #2206, #2207) were blocked at once because `R2_ACCESS_KEY_ID:test` moved from line 233 to 223 — the value was byte-identical to main. `enforce_admins=true` meant even an admin could not bypass it, so breaking the deadlock required temporarily disabling enforce_admins on the branch protection rule. Generate `.gitleaks-baseline.json` first, then turn the check on. Note the baseline pins line numbers, so it needs regenerating when files move materially.
 - [RESOLVED 2026-07-01] UAT web container OOM (384MB) — bumped to 1024MB (PR#1640). Widget specs excluded from blocking UAT gate via testIgnore (PR#1727).
 - [RESOLVED 2026-07-01] E2E runner phantom-busy + shard timeout — unified concurrency groups, added shard concurrency, bumped setup timeouts (PR#1728).
 - [RESOLVED 2026-07-01] agent_typing WS handler missing error feedback — added socket.send + fixed pino err key (PR#1727).
