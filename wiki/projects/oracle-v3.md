@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-07-26
-oracle_entries: 17
+updated: 2026-08-02
+oracle_entries: 18
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -12,33 +12,35 @@ tags: [wiki, oracle-v3]
 
 
 
+
+
 # Oracle v3 (Arra)
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
 - frontend/src: 268 functions, 45 interfaces, 6 types
 - src/vector: 9 classes, 98 functions, 7 interfaces, 2 types
-- src: 3 classes, 61 functions, 15 interfaces, 1 type
-- src/tools: 55 functions, 22 interfaces
+- src: 3 classes, 62 functions, 15 interfaces, 1 type
+- src/tools: 57 functions, 23 interfaces, 1 type
 - src/server: 40 functions, 9 interfaces
 - src/process-manager: 39 functions, 7 interfaces, 1 type
 - src/oauth: 2 classes, 37 functions, 7 interfaces
-- src/indexer: 1 class, 29 functions, 7 interfaces, 1 type, 3 variables
-- src/trace: 15 functions, 12 interfaces
+- src/indexer: 1 class, 30 functions, 8 interfaces, 1 type, 3 variables
+- src/trace: 16 functions, 12 interfaces
+- src/forum: 13 functions, 10 interfaces, 2 types
 - src/routes: 25 functions
 - src/vault: 18 functions, 7 interfaces
-- src/forum: 12 functions, 10 interfaces, 2 types
 - src/cli: 21 functions, 1 interface
+- scripts: 16 functions, 1 interface
 - src/integration: 15 functions, 2 interfaces
-- src/scripts: 7 functions
 
 ## Entry Points (auto — CK)
 
 - printJson `function printJson(data: unknown): void` — src/cli/format.ts (14 connections)
+- createLearning `function createLearning(deps: LearnDeps, input: LearnInput): LearnResult` — src/tools/learn.ts (14 connections)
 - ensureServerRunning `async function ensureServerRunning(options: EnsureServerOptions = {}): Promise<boolean` — src/ensure-server.ts (13 connections)
 - registerOAuthRoutes `function registerOAuthRoutes(app: Hono): void` — src/oauth/routes.ts (13 connections)
 - oracleFetch `async function oracleFetch<T = any>(path: string, options?: FetchOptions): Promise<T` — src/cli/http.ts (12 connections)
-- createLearning `function createLearning(deps: LearnDeps, input: LearnInput): LearnResult` — src/tools/learn.ts (12 connections)
 - registerVault `function registerVault(program: Command): void` — src/cli/commands/vault.ts (11 connections)
 - detectProject `function detectProject(cwd?: string): string | null` — src/server/project-detect.ts (11 connections)
 - syncVault `function syncVault(opts: { dryRun?: boolean; repoRoot: string }): SyncResult` — src/vault/handler.ts (11 connections)
@@ -47,11 +49,11 @@ tags: [wiki, oracle-v3]
 
 ## Hotspots (auto — CK)
 
-- `src/routes/supersede.ts` — 75 connections, change_freq=0
-- `src/process-manager/logger.ts` — 74 connections, change_freq=0
-- `src/vector/factory.ts` — 72 connections, change_freq=0
-- `frontend/src/pages/Graph.tsx` — 54 connections, change_freq=3
-- `dependencies` — 46 connections, change_freq=0
+- `src/routes/supersede.ts` — 76 connections, change_freq=0
+- `src/vector/factory.ts` — 75 connections, change_freq=0
+- `src/process-manager/logger.ts` — 75 connections, change_freq=0
+- `frontend/src/pages/Graph.tsx` — 54 connections, change_freq=0
+- `dependencies` — 50 connections, change_freq=0
 
 ## Overview
 
@@ -199,7 +201,58 @@ Embedding models:
   No oracle expire job exists in
   `~/ops/cron-registry.yaml` or `crontab -l` — verified, so the 2026-04-07 retro's proposed cron
   entry never shipped, though scheduling it alone would not have helped.
+
+  **Update 2026-08-02 — the producer is fixed, the backlog is not.** Re-measured by
+  knowledge-lint. New path-scheme (`learning_ψ/…`) rows by creation month:
+  2026-05 → 1,503, 2026-06 → 2,567, **2026-07 → 71, 2026-08 → 0.** Whatever shipped in July
+  stopped the double-write, so item 1/2 above is effectively closed for new documents.
+  What was never done is the cleanup: **1,550 files still carry both schemes live**, so
+  searches keep returning the same content two and three times today. Visible in this run's
+  own results — one systemd query returned 4 chunks of a single file inside its top 10.
+  The remaining work is a one-off dedupe of those 1,550, not a code change.
 - [RESOLVED] Claude Code/Codex spawned stdio `bun index.ts` despite mcp-remote config — root cause: Codex had stale `~/.codex/config.toml` (fixed to HTTP url), Claude Code binary behavior unknown (mitigated by guard in `src/index.ts` PR #38)
+
+- **P1 — 2,317 source files are gone from disk and nobody investigated.** Measured
+  2026-08-02 (knowledge-lint). All 2,317 were marked superseded on a *single day*,
+  2026-07-05, with `superseded_reason = "File missing from disk (arra_verify)"`. Their
+  `superseded_by` points at document ids that do not exist — 2,317 dangling pointers.
+  Spot-checked 40 paths against `~/psi/agent-psak/`: all 40 still absent. The vault holds
+  5,012 files today; the DB knows 7,255 source paths. That is 32% of the corpus by file
+  count, mostly 2026-03 → 2026-06.
+
+  This is **not** the 2026-07-27 `rm -rf` incident (agent-devops#962) — it is three weeks
+  earlier and a separate event. The content survives inside `oracle.db`; only the files are
+  gone, and because the rows are marked superseded the content is excluded from every
+  default read. Recoverable from the DB, invisible until someone does.
+
+- **Only 129 of 7,980 live rows carry a TTL** (2026-08-02 census). 7,851 have
+  `expires_at IS NULL`, so nothing ages out on its own — the store grows monotonically and
+  staleness is a manual problem. Related to the duplicate-indexing entry above, but broader:
+  even single-indexed `arra_learn` rows mostly ship without `ttl:`.
+
+- **98% of aged documents are never read back.** `document_access` holds 487,635 search-hit
+  rows covering just 640 distinct documents. Of 3,385 live documents older than 14 days,
+  3,315 have never been returned by any logged search. The working set is ~640 documents;
+  the rest is, in practice, write-only.
+
+- **Five documents are superseded by themselves** (`superseded_by == id`). Each is excluded
+  from search *and* names itself as its own replacement, so the content is unreachable by
+  any path. All five came from LEARN-AND-SUPERSEDE calls passing the same id as both
+  arguments — agent behaviour, not a server bug, but the server accepts it.
+
+- **The supersede audit log covers 47 of 4,170 supersessions (1.1%).** `supersede_log` is
+  written by explicit `arra_supersede` calls only; the 2,317 `arra_verify` sweep rows and
+  the score-output rotations set `superseded_by` directly without logging. "Nothing deleted,
+  only superseded" is the core rule, and the table that would evidence it is empty for 99%
+  of the events.
+
+- **Naming trap — `~/.arra-oracle-v2` is the LIVE Oracle *v3* data directory.** The path is
+  legacy; v3 kept it. Both `package.json` and `dist/index.js` reference `arra-oracle-v2`.
+  Anyone doing disk cleanup reads "v2" as "superseded, safe to remove" and deletes ~1.9G
+  containing the entire cross-agent knowledge base. This nearly happened during the
+  2026-08-02 disk cleanup — it was one approval away. What caught it was checking liveness
+  rather than the name: a `-wal` file with a fresh mtime, and `lsof` showing an open `bun`
+  handle. Check liveness, never infer from a version number in a path.
 
 ## Patterns
 

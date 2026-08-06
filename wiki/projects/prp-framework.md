@@ -2,7 +2,7 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-07-09
+updated: 2026-08-01
 oracle_entries: 24
 sources:
   - https://github.com/gobikom/prp-framework
@@ -12,9 +12,11 @@ tags: [wiki, prp-framework, workflow, cross-tool]
 
 
 
+
+
 # PRP Framework
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
 - scripts: 18 functions
 

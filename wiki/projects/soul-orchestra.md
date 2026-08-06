@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-07-17
-oracle_entries: 70
+updated: 2026-08-02
+oracle_entries: 73
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -14,39 +14,41 @@ tags: [wiki, soul-orchestra]
 
 
 
+
+
 # Soul Orchestra
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
-- test: 213 classes, 1539 functions
-- dashboard: 52 classes, 403 functions
+- test: 223 classes, 1600 functions
+- dashboard: 52 classes, 410 functions
+- generator: 3 classes, 227 functions
 - scripts/tests: 6 classes, 223 functions
-- generator: 3 classes, 224 functions
 - dashboard-ui/src: 131 functions, 39 interfaces, 3 types
-- scripts: 4 classes, 104 functions
-- scheduler: 5 classes, 102 functions
+- scripts: 4 classes, 113 functions
+- scheduler: 5 classes, 106 functions
 - dashboard-mcp: 2 functions
 
 ## Entry Points (auto — CK)
 
-- create_app `def create_app( repo_root: Path | str | None = None, multi_agents_events: Path | str | None = None, mcp_plugin_url: str | None = None, agent_session_mgr: "AgentSessionManager | None" = None, terminal_mgr: "TerminalManager | None" = None, ) ` — dashboard/server.py (65 connections)
-- make_finding `def make_finding( name: str, status: str, detail: str, category: str, metadata: dict[str, Any] | None = None, ) -> dict[str, Any]` — scheduler/infra_collector.py (45 connections)
+- create_app `def create_app( repo_root: Path | str | None = None, multi_agents_events: Path | str | None = None, mcp_plugin_url: str | None = None, agent_session_mgr: "AgentSessionManager | None" = None, terminal_mgr: "TerminalManager | None" = None, ) ` — dashboard/server.py (66 connections)
+- make_finding `def make_finding( name: str, status: str, detail: str, category: str, metadata: dict[str, Any] | None = None, ) -> dict[str, Any]` — scheduler/infra_collector.py (48 connections)
 - ProposalError `class ProposalError(RuntimeError)` — scripts/apply-evolution.py (42 connections)
 - check `def check(name: str, condition: bool, detail: str = "")` — generator/test_generate_full_config.py (36 connections)
 - process_proposal `def process_proposal(proposal: Proposal, *, dry_run: bool, no_push: bool) -> dict` — scripts/apply-evolution.py (35 connections)
 - load_template `def load_template(name: str) -> dict` — generator/generate-from-template.py (32 connections)
 - main `def main()` — generator/test_generate_full_config.py (31 connections)
-- check `def check(name: str, condition: bool, detail: str = "")` — generator/test_generate_claude_md.py (26 connections)
+- check `def check(name: str, condition: bool, detail: str = "")` — generator/test_generate_claude_md.py (28 connections)
 - check `def check(name: str, condition: bool, detail: str = "")` — generator/test_deploy.py (26 connections)
 - build_full_config `def build_full_config(score_name: str, profile: str | None = None) -> dict` — generator/generate-full-config.py (25 connections)
 
 ## Hotspots (auto — CK)
 
-- `test/test_infra_collector.py` — 259 connections, change_freq=4
-- `dashboard/server.py` — 166 connections, change_freq=6
+- `test/test_infra_collector.py` — 274 connections, change_freq=2
+- `dashboard/server.py` — 174 connections, change_freq=8
+- `test/test_task_executor.py` — 161 connections, change_freq=3
 - `scripts/tests/test_apply_evolution.py` — 140 connections, change_freq=0
-- `test/test_task_executor.py` — 132 connections, change_freq=1
-- `dashboard/chat.py` — 121 connections, change_freq=0
+- `dashboard/chat.py` — 129 connections, change_freq=0
 
 ## Overview
 
@@ -126,6 +128,9 @@ soul-orchestra/
 - **Respawn PID guard**: Each respawn script writes `$$` to `$RESPAWN_DIR/{agent}.pid` on start. On each loop iteration, checks if PID file still matches — exits if superseded. Agent-runner reads PID file on start, SIGKILL old respawn (verified via `/proc/PID/cmdline`), clears file. Belt-and-suspenders: both sides guard against orphans.
 - **wiki_ref lazy-loading**: Agent YAML `tools_knowledge`, `philosophy`, and `autonomous_mode` support `wiki_ref` field pointing to `conductor/wiki/*.md` pages. Generator emits compact "REQUIRED: Read" pointers instead of inline content. Score prompts (`generate-prompt.py`) unaffected — always inline. Path-validated via `_validate_wiki_ref` (injection guard + containment + existence). Added 2026-05-26 (PRs #848-#850).
 - **CODE-SIDE vs Infrastructure triage** (2026-05-25): When infra-health-check detects soul-orchestra score failures (exit code 4, long runtime), triage them as CODE-SIDE (agent pool timeout, DAG deadlock) not infrastructure. Infrastructure is healthy if disk/memory/services PASS. Escalate code-side failures to soul-orchestra team; auto-ops/infra-health-check focuses on infrastructure-only fixes.
+- **A regex cannot enforce a semantic property written in English prose** (2026-08-01, #1122 / agent-devops#1002). A score's YAML tells an LLM "if `scripts/alpaca.sh` does not exist, STOP". A test was meant to prove every dependent score carries such a gate. Three rounds, three defeats, each by a different synonym: round 1 matched an existence-word anywhere, and `KILL_SWITCH file exists` satisfied it; round 2 scoped existence to the script plus a refusal window, and an unrelated `INSUFFICIENT_CASH … STOP` satisfied the refusal — as did `API_UNAVAILABLE`, which is the string the gate is *told to report*; round 3 voided refusals with a continuation word-list, defeated by `resume`, `keep going`, `carry on`. The working answer is to stop parsing prose: declare a canonical gate string and match it verbatim. Reviewers could not defeat the verbatim match with synonyms, whitespace, NBSP, zero-width characters, or Cyrillic lookalikes.
+- **Canonicalize for the checker, keep the prose for the model** (2026-08-01, #1122). The counterweight to the rule above. When a document is *both* machine-verified and LLM-read, canonicalizing it for the verifier can silently delete what the actual consumer needs. Adopting the canonical gate text into a second score dropped four sentences the original carried — including "Do NOT fabricate, estimate, or cache portfolio data under any circumstance". The verbatim match still passed, so nothing failed; the score simply became more dangerous. The verifier is not the reader. Canonicalize the part that is matched, and keep the prose that the model needs around it.
+- **Symptom-testing passes while the invariant breaks** (2026-08-01). Four fixes written in one session, four critical defects introduced, all four caught only by review agents. In every case the fix had already been verified — the reported symptom was gone. What broke was the property the code existed to preserve, which was never written down and therefore never checked: a gitleaks repair that added a *new* vacuous pass, a hook repair that opened a path traversal into `~/.ssh`, a staging path that made "the deployed file is the file I validated" false. Hence the `Invariant:` / `Verified by:` line now required on every mechanism fix — a mechanical grep, deliberately not a reminder to think harder, because all four happened while the author believed the fix was verified.
 
 ## See Also
 

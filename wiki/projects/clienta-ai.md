@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-07-20
-oracle_entries: 78
+updated: 2026-08-02
+oracle_entries: 79
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -12,40 +12,43 @@ tags: [wiki, clienta-ai]
 
 
 
+
+
 # Clienta.ai
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
-- packages/api: 118 classes, 854 functions, 127 interfaces, 104 types
-- packages/web: 9 classes, 789 functions, 125 interfaces, 57 types, 3 variables
-- packages/contracts: 7 functions, 88 interfaces, 38 types
-- packages/widget: 1 class, 86 functions, 23 interfaces, 7 types
-- packages/docs: 39 functions, 8 interfaces, 29 types
-- packages/landing: 2 classes, 33 functions, 13 interfaces, 6 types
+- packages/api: 174 classes, 1674 functions, 298 interfaces, 188 types, 5 variables
+- packages/web: 11 classes, 941 functions, 157 interfaces, 67 types, 3 variables
+- packages/contracts: 7 functions, 104 interfaces, 49 types
+- packages/widget: 1 class, 96 functions, 27 interfaces, 14 types
+- scripts: 18 classes, 91 functions
+- packages/docs: 38 functions, 8 interfaces, 29 types
+- packages/landing: 2 classes, 32 functions, 13 interfaces, 6 types
 - .claude/PRPs: 34 functions
-- scripts: 10 functions
+- .prp-output/qa: 30 functions
 - old-prp-commands/scripts: 5 functions
 
 ## Entry Points (auto — CK)
 
-- emailLayout `function emailLayout(content: string, options?: { preheader?: string }): string` — packages/api/src/lib/email-layout.ts (27 connections)
-- widgetFrame `function widgetFrame(page: Page)` — packages/web/e2e/menu-coverage/_widget-helpers.ts (24 connections)
-- emailButton `function emailButton(text: string, url: string): string` — packages/api/src/lib/email-layout.ts (22 connections)
-- escapeHtml `function escapeHtml(unsafe: string): string` — packages/api/src/lib/email-layout.ts (21 connections)
-- emailNote `function emailNote(text: string): string` — packages/api/src/lib/email-layout.ts (20 connections)
+- safeIncrement `function safeIncrement(fn: () => void): void` — packages/api/src/config/metrics.ts (36 connections)
+- emailLayout `function emailLayout(content: string, options?: { preheader?: string }): string` — packages/api/src/lib/email-layout.ts (31 connections)
+- stats `def stats(expected, unexpected=0, flaky=0, skipped=0)` — scripts/test_staging_e2e_gate.py (31 connections)
+- emailButton `function emailButton(text: string, url: string): string` — packages/api/src/lib/email-layout.ts (25 connections)
+- widgetFrame `function widgetFrame(page: Page)` — packages/web/e2e/menu-coverage/_widget-helpers.ts (25 connections)
+- escapeHtml `function escapeHtml(unsafe: string): string` — packages/api/src/lib/email-layout.ts (24 connections)
+- emailNote `function emailNote(text: string): string` — packages/api/src/lib/email-layout.ts (24 connections)
+- logBillingEvent `async function logBillingEvent(params: { organizationId: string; action: BillingAction; actor: string; actorType: BillingActorType; details: Record<string, unknown>; request?: FastifyRequest; }): Promise<void` — packages/api/src/modules/billing/audit-logger.ts (22 connections)
+- isRedisHealthy `function isRedisHealthy(): boolean` — packages/api/src/config/redis.ts (21 connections)
 - logPartnerEvent `async function logPartnerEvent(params: { partnerId?: string; organizationId?: string; action: PartnerAuditAction; actor: string; actorType: string; details: Record<string, unknown>; request?: FastifyRequest; }): Promise<void` — packages/api/src/modules/partner/audit-logger.ts (20 connections)
-- logBillingEvent `async function logBillingEvent(params: { organizationId: string; action: BillingAction; actor: string; actorType: BillingActorType; details: Record<string, unknown>; request?: FastifyRequest; }): Promise<void` — packages/api/src/modules/billing/audit-logger.ts (16 connections)
-- BillingTab `function BillingTab()` — packages/web/src/components/organization/billing-tab.tsx (15 connections)
-- main `def main() -> None` — .claude/PRPs/scripts/prp_workflow_enhanced.py (14 connections)
-- emailGreeting `function emailGreeting(name: string): string` — packages/api/src/lib/email-layout.ts (13 connections)
 
 ## Hotspots (auto — CK)
 
-- `dependencies` — 256 connections, change_freq=0
-- `packages/api/src/modules/shared/repository-logger.ts` — 232 connections, change_freq=0
-- `dependencies` — 149 connections, change_freq=0
-- `dependencies` — 117 connections, change_freq=0
-- `packages/api/src/config/database.ts` — 103 connections, change_freq=0
+- `dependencies` — 401 connections, change_freq=0
+- `packages/api/src/modules/shared/repository-logger.ts` — 379 connections, change_freq=0
+- `packages/api/src/config/database.ts` — 188 connections, change_freq=0
+- `dependencies` — 180 connections, change_freq=0
+- `packages/api/src/modules/shared/repository-logger.ts` — 170 connections, change_freq=0
 
 ## Overview
 
@@ -112,6 +115,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - v1.3.5 Billing Cleanup shipped (2026-06-07) — currency persist, Omise removal, plan cancellation. 15 PRs, UAT 100%, staging 99.3%, prod 100%.
 - v1.3.6 Pricing Consistency shipped (2026-06-07) — all pricing surfaces aligned with billing.ts. 7 plans, 17% discount, correct overage rates across landing, docs, billing tab, partner portal.
 - v1.3.7 Stability & Partner Fixes shipped (2026-06-08) — invoice multi-plan (DB migration + 5-plan pipeline), dashboard stat cards, wholesalePlan fallback, Sonner toast fix, channels delete fix, flaky tests umbrella. 7 sub-PRs + 6 gate fix PRs. UAT 99.7%, staging 99.3%, prod 100%.
+- **A gitleaks baseline is mandatory before enabling gitleaks as a required check with `enforce_admins=true`** (2026-08-01). Without one, a line-number shift in a file holding pre-existing test credentials is reported as a NEW finding, and the branch becomes unmergeable by anyone. Three PRs (#2205, #2206, #2207) were blocked at once because `R2_ACCESS_KEY_ID:test` moved from line 233 to 223 — the value was byte-identical to main. `enforce_admins=true` meant even an admin could not bypass it, so breaking the deadlock required temporarily disabling enforce_admins on the branch protection rule. Generate `.gitleaks-baseline.json` first, then turn the check on. Note the baseline pins line numbers, so it needs regenerating when files move materially.
 - [RESOLVED 2026-07-01] UAT web container OOM (384MB) — bumped to 1024MB (PR#1640). Widget specs excluded from blocking UAT gate via testIgnore (PR#1727).
 - [RESOLVED 2026-07-01] E2E runner phantom-busy + shard timeout — unified concurrency groups, added shard concurrency, bumped setup timeouts (PR#1728).
 - [RESOLVED 2026-07-01] agent_typing WS handler missing error feedback — added socket.send + fixed pino err key (PR#1727).

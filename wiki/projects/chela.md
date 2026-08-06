@@ -2,15 +2,25 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-07-25
-oracle_entries: 3
+updated: 2026-08-02
+oracle_entries: 5
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
 tags: [wiki, chela, agent-harness, rust, benchmark]
 ---
 
+
+
 # chela 🦞
+
+## Code Structure (auto — CK, refreshed 2026-08-01)
+
+- (no indexed symbols)
+
+## Entry Points (auto — CK)
+
+- (no exported functions/classes detected)
 
 ## Code Structure (manual — repo not ck-indexed yet; refreshed 2026-07-25 @ f4da4b6)
 
@@ -115,6 +125,23 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
   their fixed script produced SCOPE_VIOLATIONs — infra gap fixed post-campaign).
 - push-main hook false-positives on `git push --delete` while on main (workaround:
   `gh api` to delete remote branches).
+- **CI trap — adding ANY test changes two files that must move in the same commit.**
+  The LOC gate excludes `#[cfg(test)]` lines from per-crate production budgets, but pins
+  the excluded test-LOC counts in two places: `loc-budget.toml` `[test_loc_baseline]`
+  (reported as a delta, not enforced) and `ci/test-loc-gate.sh` `expect_line "…"`, which
+  asserts the gate's output byte-for-byte and is what actually fails CI — e.g.
+  `expect_line "total = 9108 / 25000 (excluded 7608 test LOC)"`. So adding unit tests, or
+  any production line, turns CI red unless both files are updated in the same commit. The
+  per-crate budgets themselves rarely need raising; headroom is large. It is the baselines
+  and the string assertions that need touching.
+- **A PR merged while CI is unavailable ships latent defects that surface one at a time.**
+  chela#83 merged while GitHub Actions was refused account-wide — a real run on that PR
+  recorded `runner_id=0` with zero steps executed, so none of its gates ran. When a
+  self-hosted runner was later attached, `main` was red and *stayed* red across two
+  separate fix PRs: CI gate chains are sequential and fail-fast, so fixing defect 1 does
+  not turn main green, it advances the failure to defect 2. Each fix reveals the next.
+  Budget N fix rounds for N untested defects, and prefer not merging at all over merging
+  into a dark CI.
 
 ## Patterns
 
