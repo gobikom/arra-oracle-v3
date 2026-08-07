@@ -5,7 +5,7 @@
  * "Nothing is Deleted" — old doc preserved but marked outdated.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, and, ne, isNull } from 'drizzle-orm';
 import { oracleDocuments } from '../db/schema.ts';
 import type { ToolContext, ToolResponse, OracleSupersededInput } from './types.ts';
 
@@ -36,7 +36,11 @@ export async function handleSupersede(ctx: ToolContext, input: OracleSupersededI
   const { oldId, newId, reason } = input;
   const now = Date.now();
 
-  const oldDoc = ctx.db.select({ id: oracleDocuments.id, type: oracleDocuments.type })
+  const oldDoc = ctx.db.select({
+      id: oracleDocuments.id,
+      type: oracleDocuments.type,
+      sourceFile: oracleDocuments.sourceFile,
+    })
     .from(oracleDocuments)
     .where(eq(oracleDocuments.id, oldId))
     .get();
@@ -48,16 +52,47 @@ export async function handleSupersede(ctx: ToolContext, input: OracleSupersededI
   if (!oldDoc) throw new Error(`Old document not found: ${oldId}`);
   if (!newDoc) throw new Error(`New document not found: ${newId}`);
 
-  ctx.db.update(oracleDocuments)
-    .set({
-      supersededBy: newId,
-      supersededAt: now,
-      supersededReason: reason || null,
-    })
-    .where(eq(oracleDocuments.id, oldId))
-    .run();
+  if (!oldDoc.sourceFile) {
+    throw new Error(`Old document has empty source_file: ${oldId} — refusing twin propagation`);
+  }
 
-  console.error(`[MCP:SUPERSEDE] ${oldId} → superseded by → ${newId}`);
+  let twinCount = 0;
+
+  // Wrap both UPDATEs in a transaction — partial commit would reproduce the
+  // exact bug this fix exists to close (canonical marked, twins untouched).
+  ctx.sqlite.exec('BEGIN');
+  try {
+    ctx.db.update(oracleDocuments)
+      .set({
+        supersededBy: newId,
+        supersededAt: now,
+        supersededReason: reason || null,
+      })
+      .where(eq(oracleDocuments.id, oldId))
+      .run();
+
+    const twinResult = ctx.db.update(oracleDocuments)
+      .set({
+        supersededBy: newId,
+        supersededAt: now,
+        supersededReason: reason || null,
+      })
+      .where(and(
+        eq(oracleDocuments.sourceFile, oldDoc.sourceFile),
+        ne(oracleDocuments.id, oldId),
+        isNull(oracleDocuments.supersededBy),
+      ))
+      .run();
+
+    twinCount = twinResult.changes;
+    ctx.sqlite.exec('COMMIT');
+  } catch (err) {
+    ctx.sqlite.exec('ROLLBACK');
+    console.error(`[MCP:SUPERSEDE] FAILED ${oldId} → ${newId}`, err);
+    throw err;
+  }
+
+  console.error(`[MCP:SUPERSEDE] ${oldId} → superseded by → ${newId} (${twinCount} twin rows propagated)`);
 
   return {
     content: [{
@@ -70,7 +105,8 @@ export async function handleSupersede(ctx: ToolContext, input: OracleSupersededI
         new_type: newDoc.type,
         reason: reason || null,
         superseded_at: new Date(now).toISOString(),
-        message: `"${oldId}" is now marked as superseded by "${newId}". It will still appear in searches with a warning.`
+        twin_rows_propagated: twinCount,
+        message: `"${oldId}" is now marked as superseded by "${newId}". ${twinCount} twin rows also marked. It will still appear in searches with a warning.`
       }, null, 2)
     }]
   };
