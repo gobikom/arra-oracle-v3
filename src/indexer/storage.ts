@@ -4,7 +4,7 @@
 
 import { Database } from 'bun:sqlite';
 import { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.ts';
 import { oracleDocuments } from '../db/schema.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
@@ -58,6 +58,8 @@ export interface StoreResult {
   indexed: number;
   /** Documents left alone because arra_learn owns their source_file. */
   skippedArraLearn: number;
+  /** arra_learn-owned documents refreshed in place (content updated, ID preserved). */
+  refreshedArraLearn: number;
 }
 
 /**
@@ -84,19 +86,56 @@ export async function storeDocuments(
   const contents: string[] = [];
   const metadatas: any[] = [];
 
-  // Files owned by arra_learn — never re-index these (agent-devops#539 RC2, #960).
+  // Files owned by arra_learn — never INSERT new rows for these (#539 RC2, #960),
+  // but DO update existing rows when content drifts (#1012).
   const arralLearnFiles = selectArraLearnOwnedFiles(db);
   let skippedArraLearn = 0;
+  let refreshedArraLearn = 0;
 
   // Wrap SQLite inserts in a transaction for performance + atomicity
   sqlite.exec('BEGIN');
   try {
     for (const doc of documents) {
-      // Skip files already indexed by arra_learn — they have authoritative
-      // entries with richer metadata (project, concepts, TTL) than the indexer
-      // would produce. Re-indexing creates duplicates with _0 suffix IDs.
+      // arra_learn-owned files: update the canonical row in place instead of
+      // creating a duplicate. Preserves the canonical ID, createdBy, project,
+      // and supersede state while refreshing content (#1012).
       if (arralLearnFiles.has(doc.source_file)) {
-        skippedArraLearn++;
+        const canonical = db.select({ id: oracleDocuments.id })
+          .from(oracleDocuments)
+          .where(and(
+            eq(oracleDocuments.sourceFile, doc.source_file),
+            eq(oracleDocuments.createdBy, 'arra_learn'),
+          ))
+          .get();
+
+        if (!canonical) {
+          skippedArraLearn++;
+          continue;
+        }
+
+        db.update(oracleDocuments)
+          .set({
+            concepts: JSON.stringify(doc.concepts),
+            updatedAt: doc.updated_at,
+            indexedAt: now,
+          })
+          .where(eq(oracleDocuments.id, canonical.id))
+          .run();
+
+        insertFts.run(canonical.id, doc.content, doc.concepts.join(' '));
+
+        const vectorContent = doc.content && doc.content.trim();
+        if (vectorContent) {
+          ids.push(canonical.id);
+          contents.push(doc.content);
+          metadatas.push({
+            type: doc.type,
+            source_file: doc.source_file,
+            concepts: doc.concepts.join(',')
+          });
+        }
+
+        refreshedArraLearn++;
         continue;
       }
 
@@ -162,14 +201,17 @@ export async function storeDocuments(
     throw e;
   }
 
+  if (refreshedArraLearn > 0) {
+    console.log(`Refreshed ${refreshedArraLearn} arra_learn-owned docs in place`);
+  }
   if (skippedArraLearn > 0) {
-    console.log(`Skipped ${skippedArraLearn} docs already owned by arra_learn`);
+    console.log(`Skipped ${skippedArraLearn} arra_learn-owned docs (canonical row not found)`);
   }
 
   // Batch insert to vector store in chunks of 100 (skip if no client)
   if (!vectorClient) {
     console.log('Skipping vector indexing (SQLite-only mode)');
-    return { indexed: documents.length - skippedArraLearn, skippedArraLearn };
+    return { indexed: documents.length - skippedArraLearn - refreshedArraLearn, skippedArraLearn, refreshedArraLearn };
   }
 
   const BATCH_SIZE = 100;
@@ -215,5 +257,5 @@ export async function storeDocuments(
     console.error(`Vector drift: ${failedBatches.reduce((n, b) => n + b.docIds.length, 0)} docs in SQLite but NOT in ${vectorClient.name}. Weekly backfill cron will catch up, or run: bun scripts/backfill-vector.ts`);
   }
   console.log(`Stored in SQLite${vectorSuccess ? ` + ${vectorClient.name}` : ` (${vectorClient.name} failed — ${failedBatches.length} batch(es))`}`);
-  return { indexed: documents.length - skippedArraLearn, skippedArraLearn };
+  return { indexed: documents.length - skippedArraLearn - refreshedArraLearn, skippedArraLearn, refreshedArraLearn };
 }
