@@ -4,7 +4,7 @@
 
 import { Database } from 'bun:sqlite';
 import { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.ts';
 import { oracleDocuments } from '../db/schema.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
@@ -100,18 +100,27 @@ export async function storeDocuments(
       // creating a duplicate. Preserves the canonical ID, createdBy, project,
       // and supersede state while refreshing content (#1012).
       if (arralLearnFiles.has(doc.source_file)) {
-        const canonical = db.select({ id: oracleDocuments.id })
+        const candidates = db.select({ id: oracleDocuments.id })
           .from(oracleDocuments)
           .where(and(
             eq(oracleDocuments.sourceFile, doc.source_file),
             eq(oracleDocuments.createdBy, 'arra_learn'),
+            isNull(oracleDocuments.supersededBy),
           ))
-          .get();
+          .orderBy(desc(oracleDocuments.updatedAt))
+          .all();
 
-        if (!canonical) {
+        if (candidates.length === 0) {
+          console.warn(`[indexer] arra_learn-owned file has no active canonical row, skipping refresh: ${doc.source_file}`);
           skippedArraLearn++;
           continue;
         }
+
+        if (candidates.length > 1) {
+          console.warn(`[indexer] ${candidates.length} active arra_learn rows for ${doc.source_file}, refreshing most recent: ${candidates[0].id}`);
+        }
+
+        const canonical = candidates[0];
 
         db.update(oracleDocuments)
           .set({
@@ -133,6 +142,8 @@ export async function storeDocuments(
             source_file: doc.source_file,
             concepts: doc.concepts.join(',')
           });
+        } else {
+          console.warn(`[indexer] Skipping vector embedding for refreshed arra_learn doc (empty content): ${doc.source_file}`);
         }
 
         refreshedArraLearn++;
