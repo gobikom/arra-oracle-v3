@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-08-07
-oracle_entries: 21
+updated: 2026-08-08
+oracle_entries: 22
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -101,6 +101,7 @@ auto-ops/
 - Log fallback: any best-effort logger that catches OSError must fall back to stderr, not pass silently
 - checkpoint-watchdog.sh creates duplicate stale-checkpoint issues when segment state file has no last_checkpoint field (task never checkpointed). Root cause: script checks mtime instead of YAML last_checkpoint value. Fix: read last_checkpoint from inside current.yaml (2026-06-20)
 - **[RESOLVED 2026-08-07] Hook lockout + orphan hooks (#1004/#1005)**: 5 untracked hooks in `~/.task-state/hooks/` could lock agents out if any had a syntax error (exit 2 blocks ALL tools). Fixed in ops#87: `safe-hook-wrapper` validates with `bash -n` before exec (syntax error → degrade, not die). Hooks moved to `ops/hooks/` with `install-hooks.sh` symlink deploy. `settings.json` updated to route `monitor-check.sh` through wrapper.
+- **[RESOLVED 2026-08-08] GH secret staleness check (#932)**: No automated check between GH secret rotation and local credential caches (~/.env.qa, ~/.secrets/). Fixed in ops#89: `secret-staleness-check.sh` compares rotation timestamps vs file mtimes. Syslog-logged. Live-tested against clienta.ai.
 
 ## Patterns
 

@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 78
+updated: 2026-08-08
+oracle_entries: 80
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -123,6 +123,8 @@ User message → queryRewrite (OpenAI, 2 calls)
 - Migration cruft: 2 records recur as failed (`init_with_pgvector`, `fix_subscription_defaults`) but `migrate-database.yml` auto-resolves (`migrate resolve --rolled-back`) before `migrate deploy` — deploys succeed regardless. Not a blocker; hygiene cleanup pending.
 - DB backups run via GH Action `backup-database.yml` (daily cron 2AM UTC → pg_dump pg17 → R2 `s3://clienta-backups/database/` + retention), NOT Supabase automated backups. `SUPABASE_ACCESS_TOKEN` expired (#1868) but does not affect backups.
 - [RESOLVED 2026-07-19] Production schema drift (5 pages 500) — deploy-production.yml had no `prisma migrate deploy` step + PR#2113 added @map without column rename. Fixed: v1.15.2 adds auto-migration to deploy workflow, column rename migration applied, schema-drift CI now blocking (#2140, #2141, #2147).
+- [RESOLVED 2026-08-08] Prisma raw SQL camelCase mismatch (#931) — webhook-dispatch, kb-embedding-dispatch, kb-embedding-reconciler used "createdAt"/"updatedAt" in $queryRaw but actual columns are created_at/updated_at via @map. Fixed in PR#2218.
+- [RESOLVED 2026-08-08] Runner concurrency races (#796) — containerd build race, npm-install ENOTEMPTY, deploy poll-timeout from concurrent jobs on shared runner. Fixed in PR#2219: concurrency groups on 10 workflows, cancel-in-progress: false on deploys.
 - [RESOLVED 2026-07-19] CI-PR gate on GitHub-hosted runners (all jobs 2s/0 steps) — billing/quota issue. Fixed: all CI moved to self-hosted runners (#2145, agent-devops#912).
 - [RESOLVED 2026-07-20] re-embed script finally/disconnect dead code (#2153) + empty checkpoint-path validation (#2154). Fixed: process.exitCode replaces process.exit, empty string rejected with CliArgError. PR#2156.
 
