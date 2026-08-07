@@ -133,8 +133,11 @@ export class OracleIndexer {
     setIndexingStatus(this.sqlite, this.config, false, result.indexed, documents.length);
     console.log(
       `Indexed ${result.indexed} documents` +
+      (result.refreshedArraLearn > 0
+        ? `, refreshed ${result.refreshedArraLearn} arra_learn-owned`
+        : '') +
       (result.skippedArraLearn > 0
-        ? ` (${result.skippedArraLearn} of ${documents.length} skipped — owned by arra_learn)`
+        ? ` (${result.skippedArraLearn} skipped — arra_learn canonical not found)`
         : '')
     );
     console.log('Indexing complete!');
