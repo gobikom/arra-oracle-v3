@@ -52,31 +52,46 @@ export async function handleSupersede(ctx: ToolContext, input: OracleSupersededI
   if (!oldDoc) throw new Error(`Old document not found: ${oldId}`);
   if (!newDoc) throw new Error(`New document not found: ${newId}`);
 
-  // Mark the canonical row
-  ctx.db.update(oracleDocuments)
-    .set({
-      supersededBy: newId,
-      supersededAt: now,
-      supersededReason: reason || null,
-    })
-    .where(eq(oracleDocuments.id, oldId))
-    .run();
+  if (!oldDoc.sourceFile) {
+    throw new Error(`Old document has empty source_file: ${oldId} — refusing twin propagation`);
+  }
 
-  // Propagate to all twin rows sharing the same source_file (indexer chunks)
-  const twinResult = ctx.db.update(oracleDocuments)
-    .set({
-      supersededBy: newId,
-      supersededAt: now,
-      supersededReason: reason || null,
-    })
-    .where(and(
-      eq(oracleDocuments.sourceFile, oldDoc.sourceFile),
-      ne(oracleDocuments.id, oldId),
-      isNull(oracleDocuments.supersededBy),
-    ))
-    .run();
+  let twinCount = 0;
 
-  const twinCount = twinResult.changes;
+  // Wrap both UPDATEs in a transaction — partial commit would reproduce the
+  // exact bug this fix exists to close (canonical marked, twins untouched).
+  ctx.sqlite.exec('BEGIN');
+  try {
+    ctx.db.update(oracleDocuments)
+      .set({
+        supersededBy: newId,
+        supersededAt: now,
+        supersededReason: reason || null,
+      })
+      .where(eq(oracleDocuments.id, oldId))
+      .run();
+
+    const twinResult = ctx.db.update(oracleDocuments)
+      .set({
+        supersededBy: newId,
+        supersededAt: now,
+        supersededReason: reason || null,
+      })
+      .where(and(
+        eq(oracleDocuments.sourceFile, oldDoc.sourceFile),
+        ne(oracleDocuments.id, oldId),
+        isNull(oracleDocuments.supersededBy),
+      ))
+      .run();
+
+    twinCount = twinResult.changes;
+    ctx.sqlite.exec('COMMIT');
+  } catch (err) {
+    ctx.sqlite.exec('ROLLBACK');
+    console.error(`[MCP:SUPERSEDE] FAILED ${oldId} → ${newId}`, err);
+    throw err;
+  }
+
   console.error(`[MCP:SUPERSEDE] ${oldId} → superseded by → ${newId} (${twinCount} twin rows propagated)`);
 
   return {
