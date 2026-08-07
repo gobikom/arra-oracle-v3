@@ -57,3 +57,4 @@ Append-only record of wiki page updates.
 2026-08-08 | psak | chela: +2 [RESOLVED] chela-dev promoted (#951) + soul-evolution candidate closed (#949). 3→5
 2026-08-08 | psak | soul-orchestra: +2 [RESOLVED] post-implement step 7 (#1022, PR#1131) + auto-deploy CI (#1024, PR#1132). 73→75. auto-ops: +1 [RESOLVED] docs-only safe-merge (#1023, ops#90). 22→23
 2026-08-08 | psak | soul-orchestra: +1 [RESOLVED] retro goal-emit (#1107, PR#1133). 75→76. ops: +2 [RESOLVED] cleanup squash (#86) + bypass class-split (#56), both PR#91
+- 2026-08-08: chela.md — pre-M7 sweep 28/28 complete (#151 PR #171 merged), oracle_entries 8→9
