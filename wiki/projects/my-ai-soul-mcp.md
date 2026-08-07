@@ -2,7 +2,7 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-07-10
+updated: 2026-08-01
 oracle_entries: 22
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
@@ -12,12 +12,14 @@ tags: [wiki, my-ai-soul-mcp, memory, mcp]
 
 
 
+
+
 # My AI Soul MCP
 
-## Code Structure (auto — CK, refreshed 2026-06-30)
+## Code Structure (auto — CK, refreshed 2026-08-01)
 
-- tests: 216 classes, 1438 functions
-- src/psak_soul: 13 classes, 257 functions
+- tests: 221 classes, 1452 functions
+- src/psak_soul: 15 classes, 263 functions
 - scripts: 10 classes, 155 functions
 
 ## Entry Points (auto — CK)
@@ -36,10 +38,10 @@ tags: [wiki, my-ai-soul-mcp, memory, mcp]
 ## Hotspots (auto — CK)
 
 - `tests/test_tools_unit.py` — 367 connections, change_freq=14
-- `tests/test_server.py` — 168 connections, change_freq=7
+- `tests/test_server.py` — 168 connections, change_freq=6
 - `tests/test_daily_digest.py` — 154 connections, change_freq=6
 - `tests/test_evolution_proposer.py` — 137 connections, change_freq=5
-- `tests/test_cli.py` — 113 connections, change_freq=0
+- `src/psak_soul/tools.py` — 107 connections, change_freq=17
 
 ## Overview
 

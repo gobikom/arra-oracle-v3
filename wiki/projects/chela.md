@@ -2,7 +2,7 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-07-25
+updated: 2026-08-01
 oracle_entries: 3
 sources:
   - https://github.com/gobikom/chela
@@ -10,7 +10,17 @@ project: github.com/gobikom/chela
 tags: [wiki, chela, agent-harness, rust, benchmark]
 ---
 
+
+
 # chela 🦞
+
+## Code Structure (auto — CK, refreshed 2026-08-01)
+
+- (no indexed symbols)
+
+## Entry Points (auto — CK)
+
+- (no exported functions/classes detected)
 
 ## Code Structure (manual — repo not ck-indexed yet; refreshed 2026-07-25 @ f4da4b6)
 
