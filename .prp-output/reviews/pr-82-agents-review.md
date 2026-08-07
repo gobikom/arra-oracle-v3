@@ -55,3 +55,5 @@ agents: [code-reviewer, security-reviewer, silent-failure-hunter]
 
 ### Verdict
 READY TO MERGE
+
+<!-- safe-merge-review: verdict=READY_TO_MERGE critical=0 important=0 agents=code-reviewer,security-reviewer,silent-failure-hunter head=d74a361827520c49f16ae9a64b7b1e1cb0f70d74 -->
