@@ -3,7 +3,7 @@ title: Soul Orchestra
 type: wiki
 status: active
 updated: 2026-08-08
-oracle_entries: 75
+oracle_entries: 76
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -107,6 +107,7 @@ soul-orchestra/
 - **[RESOLVED 2026-08-07] Triage classification defects (#1009)**: Substring keyword matching (false P0s) + label-first not implemented. Fixed in PR #1124 — word-boundary matching + 2-step label-first restructure.
 - **[RESOLVED 2026-08-08] Post-implement step 7 (#1022)**: PSak skipped Oracle/wiki updates unless reminded. Fixed in PR #1131 — knowledge-sync added as mandatory checklist step 7.
 - **[RESOLVED 2026-08-08] Auto-deploy identity (#1024)**: Manual deploy.py after every merge. Fixed in PR #1132 — CI workflow triggers on agents/*.yaml + conductor/** changes. Needs DEPLOY_PAT secret.
+- **[RESOLVED 2026-08-08] Retro goal-emit path (#1107)**: PART D (goal emission) at line 239 of 400-line single-step task; LLM skips it (0/7 days in W30). Fixed in PR #1133 — HARD GATE marker + new verify-goal-emit safety-net step. Recovery scoped to [daily-goal] only; carryovers deferred to PART D. Pool contention (Defect 2) not addressed — needs dispatcher-level changes.
 - **Pool cancel only queued**: `cancel_task` rejects RUNNING tasks (#967 — design pending: SIGINT+fallback approach recommended).
 - **Vestigial score**: `urgent-task-dispatch` has no runner script, cron, or API trigger. Either implement or remove (#733 audit 2026-07-07).
 - **Pre-existing test failures**: `test_infra_collector::TestCheckSentry` (5 tests) fail on every CI run — unrelated to recent changes, needs separate investigation.
