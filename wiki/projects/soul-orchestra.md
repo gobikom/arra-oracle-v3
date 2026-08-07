@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-08-07
-oracle_entries: 73
+updated: 2026-08-08
+oracle_entries: 75
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -105,6 +105,8 @@ soul-orchestra/
 - **[RESOLVED 2026-08-07] AGENTS.md drift not detected (#1006)**: `check_claude_md_drift()` only checked CLAUDE.md. Fixed in PR #1123 — now checks both CLAUDE.md and AGENTS.md, filtered by agent_targets(). All 14 drifted agents deployed in sync.
 - **[RESOLVED 2026-08-07] Phase 7 HANDOFF truncation (#883)**: Generator's `_render_compact_protocol()` dropped indented content under action bullets. Fixed in PR #1125 — content-aware handler replaces indent filter. All agents redeployed.
 - **[RESOLVED 2026-08-07] Triage classification defects (#1009)**: Substring keyword matching (false P0s) + label-first not implemented. Fixed in PR #1124 — word-boundary matching + 2-step label-first restructure.
+- **[RESOLVED 2026-08-08] Post-implement step 7 (#1022)**: PSak skipped Oracle/wiki updates unless reminded. Fixed in PR #1131 — knowledge-sync added as mandatory checklist step 7.
+- **[RESOLVED 2026-08-08] Auto-deploy identity (#1024)**: Manual deploy.py after every merge. Fixed in PR #1132 — CI workflow triggers on agents/*.yaml + conductor/** changes. Needs DEPLOY_PAT secret.
 - **Pool cancel only queued**: `cancel_task` rejects RUNNING tasks (#967 — design pending: SIGINT+fallback approach recommended).
 - **Vestigial score**: `urgent-task-dispatch` has no runner script, cron, or API trigger. Either implement or remove (#733 audit 2026-07-07).
 - **Pre-existing test failures**: `test_infra_collector::TestCheckSentry` (5 tests) fail on every CI run — unrelated to recent changes, needs separate investigation.

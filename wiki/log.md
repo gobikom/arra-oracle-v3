@@ -55,3 +55,4 @@ Append-only record of wiki page updates.
 2026-08-07 | psak | soul-orchestra: +2 [RESOLVED] Phase 7 HANDOFF truncation (#883, PR#1125) + triage classification (#1009, PR#1124). 71→73
 2026-08-08 | psak | clienta-ai: +2 [RESOLVED] Prisma raw SQL (#931, PR#2218) + runner concurrency (#796, PR#2219). 78→80. auto-ops: +1 [RESOLVED] secret staleness check (#932, ops#89). 21→22
 2026-08-08 | psak | chela: +2 [RESOLVED] chela-dev promoted (#951) + soul-evolution candidate closed (#949). 3→5
+2026-08-08 | psak | soul-orchestra: +2 [RESOLVED] post-implement step 7 (#1022, PR#1131) + auto-deploy CI (#1024, PR#1132). 73→75. auto-ops: +1 [RESOLVED] docs-only safe-merge (#1023, ops#90). 22→23
