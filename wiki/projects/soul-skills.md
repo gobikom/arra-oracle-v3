@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 11
+updated: 2026-08-07
+oracle_entries: 12
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -127,6 +127,7 @@ soul-install-all --dry-run    # Preview without executing
 - `detectInstalledAgents()` checks for Claude Code, Codex, Gemini, etc. config dirs — may false-positive on empty dirs
 - `initWindsurf` / `initAmazonQ` require mcp-remote bridge — extra dependency for Tier 3 platforms
 - **Adapter parity (2026-07-09, #797/#131):** some skills ship as BOTH `src/skills/<name>/SKILL.md` (Claude) AND a separate hand-maintained `src/adapters/codex/<name>/SKILL.md` (codex). These do NOT auto-sync — `soul install` regenerates the gitignored `.claude/.codex` install-copies from each source but never syncs codex-adapter FROM skills. A fix to one leaves the other stale (ping got fixed in src/skills + codex ping-reply but codex ping was forgotten → #131). When fixing ping/ping-reply/gate/delegate-*, grep ALL copies and fix each.
+- **[RESOLVED 2026-08-07] Ping-reply insurance file silent failure (#1003)**: Insurance file write had no logging — failures were invisible. Fixed in PR #165: syslog instrumentation (tag: ping-reply) for INSURANCE_WRITTEN, MKDIR_FAIL, WRITE_FAIL, NO_REPLY_PATH. Root cause of original dir absence not yet established.
 
 ## Patterns
 
