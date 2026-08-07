@@ -2,8 +2,8 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 22
+updated: 2026-08-07
+oracle_entries: 23
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
 project: github.com/gobikom/my-ai-soul-mcp
@@ -113,6 +113,7 @@ my-ai-soul-mcp/
 - OAuth 2.1 browser flow can stall if Qdrant Cloud is slow (tokens timeout before handshake completes)
 - Daily/weekly digest quality depends on LLM prompt — Thai content occasionally mis-categorized
 - `sync_from_mcp.py` / `sync_to_mcp.py` are one-directional — no conflict resolution for diverged state
+- **[RESOLVED 2026-08-07] FTS empty project column (#1011)**: All 10,685 FTS rows had empty project — project-scoped reads silently unscoped. Fixed in PR #88: write + read paths populate project field. Backfill of existing rows pending (migrate.py --rebuild-fts needs Qdrant CLI credentials)
 
 ## Patterns
 
