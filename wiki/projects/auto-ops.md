@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 20
+updated: 2026-08-07
+oracle_entries: 21
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -100,6 +100,7 @@ auto-ops/
 - Telegram plugin path pattern (`bun.*\.claude/plugins/.*telegram`) must stay in sync across ops repo and auto-ops (tagged `claude-plugin-path` concept)
 - Log fallback: any best-effort logger that catches OSError must fall back to stderr, not pass silently
 - checkpoint-watchdog.sh creates duplicate stale-checkpoint issues when segment state file has no last_checkpoint field (task never checkpointed). Root cause: script checks mtime instead of YAML last_checkpoint value. Fix: read last_checkpoint from inside current.yaml (2026-06-20)
+- **[RESOLVED 2026-08-07] Hook lockout + orphan hooks (#1004/#1005)**: 5 untracked hooks in `~/.task-state/hooks/` could lock agents out if any had a syntax error (exit 2 blocks ALL tools). Fixed in ops#87: `safe-hook-wrapper` validates with `bash -n` before exec (syntax error → degrade, not die). Hooks moved to `ops/hooks/` with `install-hooks.sh` symlink deploy. `settings.json` updated to route `monitor-check.sh` through wrapper.
 
 ## Patterns
 
