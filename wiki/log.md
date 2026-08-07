@@ -52,3 +52,4 @@ Append-only record of wiki page updates.
 2026-08-07 | psak | oracle-v3: Updated known issues with 2026-08-07 health-check data (2,317 orphans, 1,168 drifted, arra_learn skip root cause). oracle_entries 17→18
 2026-08-07 | psak | oracle-v3: +2 [RESOLVED] entries (#1010 supersede twin-row, #1012 arra_learn drift). oracle_entries 18→20. soul-orchestra: +1 [RESOLVED] #1006 AGENTS.md drift. 70→71. my-ai-soul-mcp: +1 [RESOLVED] #1011 FTS project column. 22→23
 2026-08-07 | psak | auto-ops: +1 [RESOLVED] hook lockout+orphans (#1004/#1005). 20→21. soul-skills: +1 [RESOLVED] ping-reply insurance (#1003). 11→12
+2026-08-07 | psak | soul-orchestra: +2 [RESOLVED] Phase 7 HANDOFF truncation (#883, PR#1125) + triage classification (#1009, PR#1124). 71→73
