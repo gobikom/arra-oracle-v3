@@ -49,3 +49,4 @@ Append-only record of wiki page updates.
 2026-07-25 | psak | Added: wiki/projects/chela.md — new page (นุด-approved): Phase 0 + locked baselines + Plan B context, oracle_entries 3
 2026-07-26 | psak | Added: oracle-v3 P1 known issue — duplicate indexing (~2,559 arra_learn-paired files carry an indexer twin; all 4,141 indexer-scheme rows have NULL expires_at so they never expire) is why expired entries stay searchable; corrects an earlier "read path never filters" diagnosis. Refs agent-devops#960, soul-orchestra#1107. oracle_entries 16→17
 - 2026-08-01 wiki-refresh: CK enrichment — agent-psak, auto-ops, btc-trend-hunter, chela, clienta.ai, multi-agents, my-ai-soul-mcp, arra-oracle-v3, prp-framework, sniper-s50, soul-orchestra, soul-skills
+2026-08-07 | psak | oracle-v3: Updated known issues with 2026-08-07 health-check data (2,317 orphans, 1,168 drifted, arra_learn skip root cause). oracle_entries 17→18
