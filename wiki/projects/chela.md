@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 3
+updated: 2026-08-08
+oracle_entries: 5
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -114,8 +114,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
   from claw-code (`runtime/oauth.rs` + `api/client.rs`, bootstrap @ CLI main.rs:452).
-- agent-devops#949: temp-copy-adversarial-tests rule at 2/3 occurrences (soul-evolution
-  candidate watch).
+- **[RESOLVED 2026-08-08] agent-devops#949**: temp-copy rule closed (2/3 occurrences, no 3rd in 13 days). Write-tool rule already adopted as soul evolution 2026-07-25.
+- **[RESOLVED 2026-08-08] agent-devops#951**: chela-dev promoted from ephemeral executor to registered agent (soul-orchestra#1130). Pool auto-enabled, ping routing fixed.
 - chela#3 (closed) thread notes: sandbox hardening required before running UNTRUSTED
   third-party fixtures; our own fixtures are fine under current bwrap profiles.
 - AST-grade checkers follow-up: documented lexer residuals (one-hop tracing misses some
