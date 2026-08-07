@@ -3,7 +3,7 @@ title: chela
 type: wiki
 status: active
 updated: 2026-08-08
-oracle_entries: 5
+oracle_entries: 8
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,9 +60,9 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-07-25: Phase 0 complete (scaffold, CI LOC gate, bench runner, 15-task
-suite, 135-run baseline campaign). Plan B (v0 kernel) authored, in peer review
-(chela#17).
+Status 2026-08-08: v0 kernel SHIPPED (M1-M4+AC3, 2026-07-29). v1 Plan C M0-M6 SHIPPED
+(2026-08-02). Pre-M7 issue sweep completed (23/28 closed, 2026-08-08). Next: M7 exit
+campaign (≥39/48 bench pass rate + 7-day production trial).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -111,6 +111,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Known Issues / Watch-items
 
+- **Pre-M7 sweep (2026-08-08):** 23/28 issues closed. Remaining: #122 (compaction observability), #123 (MessageStop truncation indicator), #151 (agent_sdk auth classification). Security model: L1=boundary (bash denial), L2=best-effort (documented #112), env credential detection (#125), agent/ delegates to subprocess policy (#129 by-design). Deferred to v2: #91 (SecretString), #93 (URL validation), #101 (credential broker).
+- **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161). vendor-audit.sh fails in gate-dep because claw-code repo missing at ~/repos/agents/claw-code.
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
   from claw-code (`runtime/oauth.rs` + `api/client.rs`, bootstrap @ CLI main.rs:452).
