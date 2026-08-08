@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 78
+updated: 2026-08-08
+oracle_entries: 83
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -123,6 +123,8 @@ User message → queryRewrite (OpenAI, 2 calls)
 - Migration cruft: 2 records recur as failed (`init_with_pgvector`, `fix_subscription_defaults`) but `migrate-database.yml` auto-resolves (`migrate resolve --rolled-back`) before `migrate deploy` — deploys succeed regardless. Not a blocker; hygiene cleanup pending.
 - DB backups run via GH Action `backup-database.yml` (daily cron 2AM UTC → pg_dump pg17 → R2 `s3://clienta-backups/database/` + retention), NOT Supabase automated backups. `SUPABASE_ACCESS_TOKEN` expired (#1868) but does not affect backups.
 - [RESOLVED 2026-07-19] Production schema drift (5 pages 500) — deploy-production.yml had no `prisma migrate deploy` step + PR#2113 added @map without column rename. Fixed: v1.15.2 adds auto-migration to deploy workflow, column rename migration applied, schema-drift CI now blocking (#2140, #2141, #2147).
+- [RESOLVED 2026-08-08] Prisma raw SQL camelCase mismatch (#931) — webhook-dispatch, kb-embedding-dispatch, kb-embedding-reconciler used "createdAt"/"updatedAt" in $queryRaw but actual columns are created_at/updated_at via @map. Fixed in PR#2218.
+- [RESOLVED 2026-08-08] Runner concurrency races (#796) — containerd build race, npm-install ENOTEMPTY, deploy poll-timeout from concurrent jobs on shared runner. Fixed in PR#2219: concurrency groups on 10 workflows, cancel-in-progress: false on deploys.
 - [RESOLVED 2026-07-19] CI-PR gate on GitHub-hosted runners (all jobs 2s/0 steps) — billing/quota issue. Fixed: all CI moved to self-hosted runners (#2145, agent-devops#912).
 - [RESOLVED 2026-07-20] re-embed script finally/disconnect dead code (#2153) + empty checkpoint-path validation (#2154). Fixed: process.exitCode replaces process.exit, empty string rejected with CliArgError. PR#2156.
 
@@ -135,7 +137,10 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-07-17] **idempotency lease-lost silent** (#2035): `.catch(() => false)` conflated DB errors with CAS lease-lost. Fix: try/catch to keep paths distinct (PR #2056).
 
 - **Login response field name**: `/api/auth/login` response uses `token` field, NOT `accessToken`. Agents using `response.accessToken` get undefined (learned v1.14.0: staging curl misdiagnosed as "endpoint broken").
-- **Staging test account mapping**: UAT/staging use `admin@qa-test.test` / `QaTest1234!` (from `packages/web/e2e/global-setup.ts`). `qa-test@clienta.ai` does NOT exist on staging DB — only on production (smoke test). Agent account: `agent@qa-test.test` / `QaTest1234!` (learned v1.14.0: wrong credentials caused 4h misdiagnosis).
+- **Staging test account mapping**: UAT/staging use `admin@qa-test.test` / `QaTest1234!` (from `packages/web/e2e/test-accounts.ts`). `qa-test@clienta.ai` does NOT exist on staging DB — only on production (smoke test). Agent account: `agent@qa-test.test` / `QaTest1234!` (learned v1.14.0: wrong credentials caused 4h misdiagnosis).
+- [RESOLVED 2026-08-08] **Gitleaks baseline line-number fragility** (#2211/#2223) — 44 baseline entries keyed on line numbers; any line shift relocked main. Fixed: all entries eliminated via `.gitleaks.toml` regexes + shared `test-accounts.ts` module + per-rule path allowlist. CI uses `--ignore-gitleaks-allow` so inline comments are ineffective — all suppressions must be in .gitleaks.toml. PR #2240.
+- [RESOLVED 2026-08-08] **i18n MISSING_MESSAGE on analytics sentiment page** (#2230) — `useTranslations('analytics')` scope made `t('common.loading')` resolve to non-existent `analytics.common.loading`. Fix: separate `useTranslations('common')`. PR #2241.
+- [RESOLVED 2026-08-08] **WebSocket broadcastToAdmins in-memory-only** (#2229) — admin connections on other replicas never received broadcasts (25+ call sites). Fixed: Redis pub/sub layer with envelope dedup, dedicated health tracking, runtime envelope validation, graceful fallback to local-only. Remaining: `sendToConversation`/`send` have same gap. PR #2242.
 
 - **v1.14.0 Trust Center Phase 2 SHIPPED** (2026-07-17) — in-app `/settings/security` dashboard. DPA management (status/sign/download/countersign), sub-processor list (9 items, `DPA_SUB_PROCESSORS` from contracts) + notification toggle, DSAR per-contact export (PDPA §31), account deletion UI (PDPA §33), security audit log, compliance documents. Admin-only (`requireAdmin` on all new routes). 14 ACs, 6 PRs (#2057 feature + #2058 bump + #2062 toggle fix + #2065 gate audit + #2066 plan-walk + #2068 smoke tests). Migration: `sub_processor_change_notify` Boolean on Organization. New API: `GET /api/settings/security`, `PATCH /api/settings/notifications`, `POST /api/settings/security/dpa/countersign`, `GET /api/legal/dpa/download`. Vera QA: UAT 9/9 + staging 9/9. E2E: staging 7/7. Follow-ups: #2067 (docs), #2069 (countersign toast UX), #2070 (DPA sign E2E).
 
