@@ -60,3 +60,4 @@ Append-only record of wiki page updates.
 - 2026-08-08: chela.md — pre-M7 sweep 28/28 complete (#151 PR #171 merged), oracle_entries 8→9
 - 2026-08-08: soul-orchestra.md — [RESOLVED] agent YAML parse error silent drop, oracle_entries 76→77
 - 2026-08-08: clienta-ai.md — added 3 [RESOLVED] entries (gitleaks baseline #2211/#2223, i18n #2230, WebSocket pub/sub #2229), updated test-accounts source path, bumped oracle_entries 80→83
+- 2026-08-09: clienta-ai.md — 3 [RESOLVED] + 1 [CLOSED] entries (#2212 gitleaks action, #2182/#2183 flaky E2E, #2059 KB re-index duplicate), oracle_entries 83→85
