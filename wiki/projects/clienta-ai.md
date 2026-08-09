@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-08-08
-oracle_entries: 83
+updated: 2026-08-09
+oracle_entries: 85
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -141,6 +141,10 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-08-08] **Gitleaks baseline line-number fragility** (#2211/#2223) — 44 baseline entries keyed on line numbers; any line shift relocked main. Fixed: all entries eliminated via `.gitleaks.toml` regexes + shared `test-accounts.ts` module + per-rule path allowlist. CI uses `--ignore-gitleaks-allow` so inline comments are ineffective — all suppressions must be in .gitleaks.toml. PR #2240.
 - [RESOLVED 2026-08-08] **i18n MISSING_MESSAGE on analytics sentiment page** (#2230) — `useTranslations('analytics')` scope made `t('common.loading')` resolve to non-existent `analytics.common.loading`. Fix: separate `useTranslations('common')`. PR #2241.
 - [RESOLVED 2026-08-08] **WebSocket broadcastToAdmins in-memory-only** (#2229) — admin connections on other replicas never received broadcasts (25+ call sites). Fixed: Redis pub/sub layer with envelope dedup, dedicated health tracking, runtime envelope validation, graceful fallback to local-only. Remaining: `sendToConversation`/`send` have same gap. PR #2242.
+- [RESOLVED 2026-08-09] **Gitleaks install duplicated in secret-scan.yml** (#2212) — two identical pinned+checksum install blocks. Extracted into `.github/actions/install-gitleaks/` composite action. Version+SHA256 now pinned in one place. PR #2243.
+- [RESOLVED 2026-08-09] **Flaky E2E: Google Sheets wizard tab advance** (#2182) — missing waits for Radix Dialog animation, input visibility, and button enabled state after React onChange. PR #2244.
+- [RESOLVED 2026-08-09] **Flaky E2E: RSS feed title display** (#2183) — missing waitForResponse synchronization after page.goto; inconsistent per-assertion timeouts. Fixed with Promise.all + structural anchor wait. PR #2245.
+- [CLOSED 2026-08-09] **KB re-index tool** (#2059) — closed as already-satisfied. Per-org: `POST /documents/reprocess-all` (PR #110, Mar 2026). Cross-org: `scripts/re-embed-all-vectors.ts` (574 lines, v1.15.0). Issue filed 3 days before script merged.
 
 - **v1.14.0 Trust Center Phase 2 SHIPPED** (2026-07-17) — in-app `/settings/security` dashboard. DPA management (status/sign/download/countersign), sub-processor list (9 items, `DPA_SUB_PROCESSORS` from contracts) + notification toggle, DSAR per-contact export (PDPA §31), account deletion UI (PDPA §33), security audit log, compliance documents. Admin-only (`requireAdmin` on all new routes). 14 ACs, 6 PRs (#2057 feature + #2058 bump + #2062 toggle fix + #2065 gate audit + #2066 plan-walk + #2068 smoke tests). Migration: `sub_processor_change_notify` Boolean on Organization. New API: `GET /api/settings/security`, `PATCH /api/settings/notifications`, `POST /api/settings/security/dpa/countersign`, `GET /api/legal/dpa/download`. Vera QA: UAT 9/9 + staging 9/9. E2E: staging 7/7. Follow-ups: #2067 (docs), #2069 (countersign toast UX), #2070 (DPA sign E2E).
 
