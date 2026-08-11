@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-10
-oracle_entries: 11
+updated: 2026-08-11
+oracle_entries: 14
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -113,7 +113,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 - **[RESOLVED 2026-08-08] Pre-M7 sweep:** 28/28 issues closed. Last 3: #122 (compaction observability, PR #156), #123 (MessageStop, PR #169), #151 (agent_sdk auth classification, PR #171). Security model: L1=boundary (bash denial), L2=best-effort (documented #112), env credential detection (#125), agent/ delegates to subprocess policy (#129 by-design). Deferred to v2: #91 (SecretString), #93 (URL validation), #101 (credential broker).
 - **[RESOLVED 2026-08-10] GLM URL path bug:** OpenAI client hardcoded `/v1/chat/completions` in path template — GLM base `/v4` produced `/v4/v1/chat/completions` (404). Fixed: moved `/v1` into DEFAULT_BASE_URL (PR #214). Also added `GLM_BASE_URL` env override (PR #215) for api.z.ai via headroom proxy. Note: bigmodel.cn account has zero balance — all GLM access goes via api.z.ai.
-- **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161). vendor-audit.sh fails in gate-dep because claw-code repo missing at ~/repos/agents/claw-code.
+- **[RESOLVED 2026-08-11] vendor-audit MANIFEST:** 6 files from v1.1-v1.2 (openai.rs, provider.rs, jsonrpc.rs, mcp.rs, names.rs, registry.rs) missing from MANIFEST written-fresh section. Fixed PR #216. CI now green on main.
+- **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
   from claw-code (`runtime/oauth.rs` + `api/client.rs`, bootstrap @ CLI main.rs:452).
