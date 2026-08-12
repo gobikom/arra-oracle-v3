@@ -66,3 +66,4 @@ Append-only record of wiki page updates.
 - 2026-08-11 | chela | #221 dynamic model name (removed hardcoded Opus 4.6 from system prompt). Interactive respawn + subscription auth for pool agents. chela_interactive default=true. | psak
 - 2026-08-12 | chela | #182 --verbose flag (PR #224): VerboseObserver prints tool/text/result to stderr. Review found UTF-8 byte-slice panics — fixed with char-boundary-safe truncation + catch_unwind isolation. LOC baseline updated. | psak
 - 2026-08-12: agent-psak — [RESOLVED] verification scripts (PR #81), stale Oracle goals cleanup (7 entries), duplicate dispatch root cause (soul-orchestra#1150)
+- 2026-08-12: soul-orchestra — [RESOLVED] deploy-time timeout validation (#1151 merged, multi-agents#232 closed), runner retry issue filed (#1150)
