@@ -3,7 +3,7 @@ title: chela
 type: wiki
 status: active
 updated: 2026-08-14
-oracle_entries: 19
+oracle_entries: 20
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,12 +60,12 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-14: v1.7.0 SHIPPED — interactive persistence (#276/#278: pool agents
-stay alive across tasks via ConversationRuntime::reset(), ApiClient::reset_conversation()
-trait, lock_renderer() mutex poison recovery, BrokenPipe delivery fix). v1.6.0
-(2026-08-13): subprocess reuse, /skills, UX overhaul, 30 PRs. v0-v1 Plan C M0-M6
-SHIPPED (2026-08-02). Next: max_iterations default raise (#277), M7 production trial
-completion (D9 today), formal skill system epic (#240).
+Status 2026-08-14: v1.8.0 SHIPPED — structured event log (#280/#281: EventEnvelope
+ts+agent on every event, ProcessStart/End + TaskStart/End lifecycle pairs, chela logs
+CLI, prompt opt-in, agent identity in filenames). v1.7.0 (2026-08-14): interactive
+persistence (#276/#278: pool agents stay alive across tasks). v1.6.0 (2026-08-13):
+subprocess reuse, /skills, UX overhaul. Next: panic lifecycle gap (#282),
+max_iterations default raise (#277), formal skill system epic (#240).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -119,6 +119,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-11] vendor-audit MANIFEST:** 6 files from v1.1-v1.2 (openai.rs, provider.rs, jsonrpc.rs, mcp.rs, names.rs, registry.rs) missing from MANIFEST written-fresh section. Fixed PR #216. CI now green on main.
 - **[RESOLVED 2026-08-12] chela#182 verbose flag:** `--verbose` / `-v` / `CHELA_VERBOSE=1` prints tool calls, results, text to stderr. PR #224 — review found UTF-8 byte-index slicing panics (all 3 agents), fixed with `.chars().take(n).collect()` + `catch_unwind` panic isolation. LOC baseline updated (chela prod 1154, test 831).
 - **[RESOLVED 2026-08-14] chela#276 interactive exit:** `run_interactive()` exited after task completion (TurnEnd::Done), killing pool agent panes. Fixed in v1.7.0 (PR #278): reset-and-continue loop, 4 review rounds, 17 findings all fixed. Also fixed pre-existing BrokenPipe silent swallow + mutex poison crash cascade.
+- **[RESOLVED 2026-08-14] chela#280 event log observability:** No agent identity, timestamps, or query tool for 84+ log files. Fixed in v1.8.0 (PR #281): EventEnvelope (ts+agent on every event), ProcessStart/End + TaskStart/End lifecycle, chela logs CLI, prompt opt-in. 4 review rounds, 11 findings fixed. Panic lifecycle gap tracked as #282.
+- **chela#282 panic lifecycle:** ProcessEnd/TaskEnd not emitted on panic — tracked, not yet fixed. Requires catch_unwind around runtime.run_turn().
 - **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
