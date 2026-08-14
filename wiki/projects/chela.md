@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-11
-oracle_entries: 17
+updated: 2026-08-14
+oracle_entries: 19
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,9 +60,12 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-08: v0 kernel SHIPPED (M1-M4+AC3, 2026-07-29). v1 Plan C M0-M6 SHIPPED
-(2026-08-02). Pre-M7 issue sweep completed (23/28 closed, 2026-08-08). Next: M7 exit
-campaign (≥39/48 bench pass rate + 7-day production trial).
+Status 2026-08-14: v1.7.0 SHIPPED — interactive persistence (#276/#278: pool agents
+stay alive across tasks via ConversationRuntime::reset(), ApiClient::reset_conversation()
+trait, lock_renderer() mutex poison recovery, BrokenPipe delivery fix). v1.6.0
+(2026-08-13): subprocess reuse, /skills, UX overhaul, 30 PRs. v0-v1 Plan C M0-M6
+SHIPPED (2026-08-02). Next: max_iterations default raise (#277), M7 production trial
+completion (D9 today), formal skill system epic (#240).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -114,6 +117,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-08] Pre-M7 sweep:** 28/28 issues closed. Last 3: #122 (compaction observability, PR #156), #123 (MessageStop, PR #169), #151 (agent_sdk auth classification, PR #171). Security model: L1=boundary (bash denial), L2=best-effort (documented #112), env credential detection (#125), agent/ delegates to subprocess policy (#129 by-design). Deferred to v2: #91 (SecretString), #93 (URL validation), #101 (credential broker).
 - **[RESOLVED 2026-08-10] GLM URL path bug:** OpenAI client hardcoded `/v1/chat/completions` in path template — GLM base `/v4` produced `/v4/v1/chat/completions` (404). Fixed: moved `/v1` into DEFAULT_BASE_URL (PR #214). Also added `GLM_BASE_URL` env override (PR #215) for api.z.ai via headroom proxy. Note: bigmodel.cn account has zero balance — all GLM access goes via api.z.ai.
 - **[RESOLVED 2026-08-11] vendor-audit MANIFEST:** 6 files from v1.1-v1.2 (openai.rs, provider.rs, jsonrpc.rs, mcp.rs, names.rs, registry.rs) missing from MANIFEST written-fresh section. Fixed PR #216. CI now green on main.
+- **[RESOLVED 2026-08-12] chela#182 verbose flag:** `--verbose` / `-v` / `CHELA_VERBOSE=1` prints tool calls, results, text to stderr. PR #224 — review found UTF-8 byte-index slicing panics (all 3 agents), fixed with `.chars().take(n).collect()` + `catch_unwind` panic isolation. LOC baseline updated (chela prod 1154, test 831).
+- **[RESOLVED 2026-08-14] chela#276 interactive exit:** `run_interactive()` exited after task completion (TurnEnd::Done), killing pool agent panes. Fixed in v1.7.0 (PR #278): reset-and-continue loop, 4 review rounds, 17 findings all fixed. Also fixed pre-existing BrokenPipe silent swallow + mutex poison crash cascade.
 - **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
