@@ -68,3 +68,4 @@ Append-only record of wiki page updates.
 - 2026-08-12: agent-psak — [RESOLVED] verification scripts (PR #81), stale Oracle goals cleanup (7 entries), duplicate dispatch root cause (soul-orchestra#1150)
 - 2026-08-12: soul-orchestra — [RESOLVED] deploy-time timeout validation (#1151 merged, multi-agents#232 closed), runner retry issue filed (#1150)
 - 2026-08-14: chela — v1.7.0 shipped (#276/#278): interactive persistence for pool agents, 4-round review, 17 findings fixed
+- 2026-08-14: chela — v1.8.0 shipped (#280/#281): structured event log, agent identity, lifecycle events, chela logs CLI
