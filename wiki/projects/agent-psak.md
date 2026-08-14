@@ -2,8 +2,8 @@
 title: Agent PSak
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 10
+updated: 2026-08-12
+oracle_entries: 14
 sources:
   - https://github.com/gobikom/agent-psak
 project: github.com/gobikom/agent-psak
@@ -86,6 +86,9 @@ agent-psak/
 - CLAUDE.md generation depends on soul-orchestra scripts — if generator changes format, must re-test identity loading
 - Cross-project work via absolute paths sometimes confuses PRP skill (wrong-repo artifacts)
 - Pool session detection relies on tmux session name — fails if tmux unavailable (defaults to pool/cron-triage-only mode)
+- [RESOLVED 2026-08-11] Missing verification scripts (gh-verify-issue.sh, systemctl-verify-unit.sh) blocked morning-brief + daily-retro for 4 days — fixed in PR #81
+- [RESOLVED 2026-08-12] Stale Oracle goal entries (7 entries from Apr-May, 90-126 days old) caused identity audit DRIFT_WARNING — superseded in cleanup
+- Duplicate score dispatch: runner retry (max_retries=2) fires on non-retryable gate failures — root cause identified, fix tracked in soul-orchestra#1150
 
 ## Patterns
 

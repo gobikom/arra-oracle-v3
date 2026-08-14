@@ -61,3 +61,10 @@ Append-only record of wiki page updates.
 - 2026-08-08: soul-orchestra.md — [RESOLVED] agent YAML parse error silent drop, oracle_entries 76→77
 - 2026-08-08: clienta-ai.md — added 3 [RESOLVED] entries (gitleaks baseline #2211/#2223, i18n #2230, WebSocket pub/sub #2229), updated test-accounts source path, bumped oracle_entries 80→83
 - 2026-08-09: clienta-ai.md — 3 [RESOLVED] + 1 [CLOSED] entries (#2212 gitleaks action, #2182/#2183 flaky E2E, #2059 KB re-index duplicate), oracle_entries 83→85
+- 2026-08-10 | chela | v1.3.0-v1.3.1: interactive mode (#212, 10 ACs verified), GLM URL fix (#214), GLM_BASE_URL env (#215). D6 trial 4/4 pass. | psak
+- 2026-08-11 | chela | #188 AGENTS.md fallback (PR #219), #187 skill/slash support (PR #220), #217 shared setup refactor (PR #218), #216 vendor-audit MANIFEST fix. 8 PRs this session (#213-#220). CI green. | psak
+- 2026-08-11 | chela | #221 dynamic model name (removed hardcoded Opus 4.6 from system prompt). Interactive respawn + subscription auth for pool agents. chela_interactive default=true. | psak
+- 2026-08-12 | chela | #182 --verbose flag (PR #224): VerboseObserver prints tool/text/result to stderr. Review found UTF-8 byte-slice panics — fixed with char-boundary-safe truncation + catch_unwind isolation. LOC baseline updated. | psak
+- 2026-08-12: agent-psak — [RESOLVED] verification scripts (PR #81), stale Oracle goals cleanup (7 entries), duplicate dispatch root cause (soul-orchestra#1150)
+- 2026-08-12: soul-orchestra — [RESOLVED] deploy-time timeout validation (#1151 merged, multi-agents#232 closed), runner retry issue filed (#1150)
+- 2026-08-14: chela — v1.7.0 shipped (#276/#278): interactive persistence for pool agents, 4-round review, 17 findings fixed
