@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-08-07
-oracle_entries: 12
+updated: 2026-08-16
+oracle_entries: 14
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -136,6 +136,7 @@ soul-install-all --dry-run    # Preview without executing
 - **Profile composition**: `standard = seed + [additional skills]`, `full = standard + [more]`. Features (`+soul`, `+memory`) are orthogonal add-ons.
 - **Skill usage tracking (2026-07-10, E4)**: PostToolUse hook (matcher: Skill) logs every invocation to `~/.claude/skill-usage.log`. Format: `ISO8601 | skill_name | agent_id | session_name`. Script: `scripts/skill-usage-hook.sh`. Async, non-blocking, auto-rotate at 10MB. Data foundation for E2 (Skill Curator) staleness detection.
 - **Global installer**: `soul-install-all` iterates `~/repos/**` directories, runs `soul install --profile standard` in each. Idempotent — safe to re-run.
+- **extract-acs count validation (2026-08-08, #118/PR#167):** `validate-counts.sh` script + SKILL.md Step 5.5 enforce AC count parity between issue checkboxes and frozen inventory. 3-round review caught critical tilde-bug in round 1; 238/238 tests green. Deploy with `soul-install-all`.
 
 ## See Also
 
