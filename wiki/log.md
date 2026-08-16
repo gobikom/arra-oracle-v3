@@ -72,4 +72,3 @@ Append-only record of wiki page updates.
 - 2026-08-14: chela — v2 Smarter Core epic (#283): 8 tracks, 3 Oracle learnings (design-gaps, competitor-landscape, code-intelligence-a-b), 4 new tools planned (#290)
 - 2026-08-15: chela — v1.9.0 shipped (#290/#299): 3 new tools (write_file, glob_search, http_fetch), 4 review rounds, 24 findings fixed. Binary deployed.
 - 2026-08-16 | chela | PSak | [RESOLVED] infra gaps #301/#302/#303 (PR #304), vendor-audit #305 (PR #306). Wiki: status+known-issues updated, oracle_entries 24→25.
-| 2026-08-16 | updated | projects/soul-skills.md | extract-acs count validation (#118/PR#167) — 2 new learnings |
