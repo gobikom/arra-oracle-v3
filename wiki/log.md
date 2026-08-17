@@ -73,3 +73,4 @@ Append-only record of wiki page updates.
 - 2026-08-15: chela — v1.9.0 shipped (#290/#299): 3 new tools (write_file, glob_search, http_fetch), 4 review rounds, 24 findings fixed. Binary deployed.
 - 2026-08-16 | chela | PSak | [RESOLVED] infra gaps #301/#302/#303 (PR #304), vendor-audit #305 (PR #306). Wiki: status+known-issues updated, oracle_entries 24→25.
 - 2026-08-17 | chela | PSak | v1.11.1: agent_send+agent_list (#309/#310) merged+reviewed, post-review fixes. Plans approved: #311/#312 observability (R4), #313 fallback (R6). oracle_entries 25→26.
+- 2026-08-17 | chela | PSak | v1.12.1: CLI wiring #325 (--fallback arg). Fallback chain fully usable. #313 complete. oracle_entries 26→27.

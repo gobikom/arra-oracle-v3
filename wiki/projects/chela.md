@@ -3,7 +3,7 @@ title: chela
 type: wiki
 status: active
 updated: 2026-08-17
-oracle_entries: 26
+oracle_entries: 27
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -65,7 +65,7 @@ PR #314, post-review fixes PR #319). Complete agent comm stack: agent_list (tmux
 discovery + YAML enrichment), agent_send (named buffer delivery, exact resolution,
 self-send refused), ping_reply (v1.10.0). v1.10.0: trusted paths, skill engine,
 vendor-audit fix. Next: v2 epic #283 (#285 Task State Machine, plan APPROVED).
-Plans approved awaiting implementation: #311/#312 observability (R4), #313 model
+Plans approved awaiting implementation: #311/#312 observability (R4). #313 model
 fallback chain (R6, two-level provider/model).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
