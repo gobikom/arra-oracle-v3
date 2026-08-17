@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-16
-oracle_entries: 25
+updated: 2026-08-17
+oracle_entries: 26
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,14 +60,13 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-16: v1.9.0+ — infra gap fixes merged (PR #304: trusted write-path
-allowlist #301, native ping_reply tool #302, L2 skill execution engine #303; PR #306:
-vendor-audit pin skip fix #305). Chela agents can now: write outside workspace to
-trusted paths (~/.task-state/), reply to pings natively (PingContext routing), and
-execute skill bash blocks with policy+observer enforcement. Tool count 5→8+2
-(ping_reply + skill engine). v1.9.0 (2026-08-15): write_file/glob_search/http_fetch.
-v1.8.1: Codex subscription. Next: v2 Smarter Core epic (#283, 7/7 plans approved),
-#285 Task State Machine first (plan R10 APPROVED, AC10 verify-before-done gate added).
+Status 2026-08-17: v1.11.1 — agent_send + agent_list built-in tools (#309/#310,
+PR #314, post-review fixes PR #319). Complete agent comm stack: agent_list (tmux
+discovery + YAML enrichment), agent_send (named buffer delivery, exact resolution,
+self-send refused), ping_reply (v1.10.0). v1.10.0: trusted paths, skill engine,
+vendor-audit fix. Next: v2 epic #283 (#285 Task State Machine, plan APPROVED).
+Plans approved awaiting implementation: #311/#312 observability (R4), #313 model
+fallback chain (R6, two-level provider/model).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
