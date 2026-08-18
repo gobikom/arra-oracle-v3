@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-16
-oracle_entries: 25
+updated: 2026-08-18
+oracle_entries: 28
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,14 +60,14 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-16: v1.9.0+ — infra gap fixes merged (PR #304: trusted write-path
-allowlist #301, native ping_reply tool #302, L2 skill execution engine #303; PR #306:
-vendor-audit pin skip fix #305). Chela agents can now: write outside workspace to
-trusted paths (~/.task-state/), reply to pings natively (PingContext routing), and
-execute skill bash blocks with policy+observer enforcement. Tool count 5→8+2
-(ping_reply + skill engine). v1.9.0 (2026-08-15): write_file/glob_search/http_fetch.
-v1.8.1: Codex subscription. Next: v2 Smarter Core epic (#283, 7/7 plans approved),
-#285 Task State Machine first (plan R10 APPROVED, AC10 verify-before-done gate added).
+Status 2026-08-18: v1.13.0 — agent observability shipped. Phase events (#311):
+PhaseChange event variant, report_phase tool, PRP skill auto-phasing, stderr
+phase banner. agent_status tool (#312): query agent phase/idle/last-tool via
+EventLog + tmux. Subprocess/bridge mode fix (#336/#338): strip_mcp_prefix for
+MCP-bridged tool names. E2E verified on agent/claude-haiku-4-5. Also: model
+fallback chain (#313, v1.12.0-v1.12.1), agent comm (#309/#310, v1.11.x),
+trusted paths + skill engine (#301-303, v1.10.0). Next: v2 epic #283
+(#285 Task State Machine, plan APPROVED R10).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -124,6 +124,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-14] chela#280 event log observability:** No agent identity, timestamps, or query tool for 84+ log files. Fixed in v1.8.0 (PR #281): EventEnvelope (ts+agent on every event), ProcessStart/End + TaskStart/End lifecycle, chela logs CLI, prompt opt-in. 4 review rounds, 11 findings fixed.
 - **chela#282 panic lifecycle:** ProcessEnd/TaskEnd not emitted on panic. Tracked, requires catch_unwind around runtime.run_turn().
 - **[RESOLVED 2026-08-16] chela infra gaps (#301/#302/#303):** Chela agents couldn't ping-reply (write_file workspace-confined, skill system read-only, no native ping tool). Fixed PR #304: ConfinementContext with trusted paths, PingContext-bound ping_reply tool, L2 SkillPreparer trait. Plan peer-reviewed R10 by devlead-codex (10 rounds, 26 findings). Also #305 vendor-audit pin skip fix (PR #306).
+- **[RESOLVED 2026-08-18] chela#311/#312 agent observability:** PhaseChange event, report_phase tool (runtime-intercepted), PRP skill auto-phasing (8 skills → canonical phases), agent_status query tool (EventLog + tmux + segment state). 3-agent review, 6 findings fixed (substring matching → JSONL agent field, `?` in loop → continue+log, deny_unknown_fields, unconditional phase lookup, u64→u32 saturating cast). Subprocess/bridge mode wired (#336, PR #337) + MCP prefix handling (#338). E2E verified. Shipped v1.13.0.
+- **[RESOLVED 2026-08-17] chela#313 model fallback chain:** FallbackApiClient with provider-group planning, --fallback CLI arg, auto-recovery on 429/500. E2E verified: GLM 429 → Codex fallback → task completed. Shipped v1.12.0-v1.12.1.
 - **v2 Smarter Core epic (#283):** 8 tracks closing DESIGN.md §4.2 gaps. Sub-issues: #285 task state (plan APPROVED R10 + AC10 verify-before-done gate), #286 policy completion, #287 verify-before-done, #288 memory loop, #289 model routing (blocked), #290 tools gap (shipped v1.9.0), #291 context intelligence, #292 code intelligence A+B hybrid.
 - **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
