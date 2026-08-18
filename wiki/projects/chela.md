@@ -3,7 +3,7 @@ title: chela
 type: wiki
 status: active
 updated: 2026-08-18
-oracle_entries: 28
+oracle_entries: 29
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,14 +60,13 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-18: v1.13.0 — agent observability shipped. Phase events (#311):
-PhaseChange event variant, report_phase tool, PRP skill auto-phasing, stderr
-phase banner. agent_status tool (#312): query agent phase/idle/last-tool via
-EventLog + tmux. Subprocess/bridge mode fix (#336/#338): strip_mcp_prefix for
-MCP-bridged tool names. E2E verified on agent/claude-haiku-4-5. Also: model
-fallback chain (#313, v1.12.0-v1.12.1), agent comm (#309/#310, v1.11.x),
-trusted paths + skill engine (#301-303, v1.10.0). Next: v2 epic #283
-(#285 Task State Machine, plan APPROVED R10).
+Status 2026-08-18: v1.13.1 — fallback follow-up fixes (#328): subscription
+auth for Anthropic fallback models, chela/ prefix stripping, group-assignment
+by provider existence (not position), aggregate all-fallbacks-failed warning.
+v1.13.0: agent observability (#311/#312/#336/#338) — PhaseChange events,
+report_phase tool, PRP auto-phasing, agent_status, stderr banner, MCP prefix
+handling, E2E verified. v1.12.x: model fallback chain (#313). Next: v2 epic
+#283 (#285 Task State Machine, plan APPROVED R10).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
