@@ -75,3 +75,4 @@ Append-only record of wiki page updates.
 - 2026-08-17 | chela | PSak | v1.11.1: agent_send+agent_list (#309/#310) merged+reviewed, post-review fixes. Plans approved: #311/#312 observability (R4), #313 fallback (R6). oracle_entries 25→26.
 - 2026-08-17 | chela | PSak | v1.12.1: CLI wiring #325 (--fallback arg). Fallback chain fully usable. #313 complete. oracle_entries 26→27.
 - 2026-08-18 chela: v1.13.0 shipped — agent observability (#311/#312), subprocess fix (#336/#338), E2E verified. Status + Known Issues updated.
+- 2026-08-18 chela: v1.13.1 — fallback follow-up fixes (#328). Status updated.
