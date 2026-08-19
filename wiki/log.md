@@ -76,3 +76,4 @@ Append-only record of wiki page updates.
 - 2026-08-17 | chela | PSak | v1.12.1: CLI wiring #325 (--fallback arg). Fallback chain fully usable. #313 complete. oracle_entries 26→27.
 - 2026-08-18 chela: v1.13.0 shipped — agent observability (#311/#312), subprocess fix (#336/#338), E2E verified. Status + Known Issues updated.
 - 2026-08-18 chela: v1.13.1 — fallback follow-up fixes (#328). Status updated.
+- 2026-08-19 chela: v1.14.0 — Task State Machine shipped (#285), max_iterations fix (#277). 3-agent review caught 2 critical gate bypasses. v2 Track 1 complete.
