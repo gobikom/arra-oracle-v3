@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-18
-oracle_entries: 29
+updated: 2026-08-19
+oracle_entries: 30
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,13 +60,13 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-18: v1.13.1 — fallback follow-up fixes (#328): subscription
-auth for Anthropic fallback models, chela/ prefix stripping, group-assignment
-by provider existence (not position), aggregate all-fallbacks-failed warning.
-v1.13.0: agent observability (#311/#312/#336/#338) — PhaseChange events,
-report_phase tool, PRP auto-phasing, agent_status, stderr banner, MCP prefix
-handling, E2E verified. v1.12.x: model fallback chain (#313). Next: v2 epic
-#283 (#285 Task State Machine, plan APPROVED R10).
+Status 2026-08-19: v1.14.0 — Task State Machine shipped (v2 Track 1, #285).
+TaskState/TaskPhase in kernel with compaction survival, 3 model-facing tools
+(set_task_goal, update_task_ac, task_phase), PhasePolicyLayer Plan/Act mode,
+verify-before-done gate (hardened: done tool enforces task_phase first, empty
+ACs blocked). Also: max_iterations 50→200 (#277). 3-agent review caught 2
+critical bypass routes — both fixed before merge. v1.13.x: agent observability
+(#311/#312), fallback fixes (#328). Next: v2 remaining tracks (#286-#292).
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -125,7 +125,8 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-16] chela infra gaps (#301/#302/#303):** Chela agents couldn't ping-reply (write_file workspace-confined, skill system read-only, no native ping tool). Fixed PR #304: ConfinementContext with trusted paths, PingContext-bound ping_reply tool, L2 SkillPreparer trait. Plan peer-reviewed R10 by devlead-codex (10 rounds, 26 findings). Also #305 vendor-audit pin skip fix (PR #306).
 - **[RESOLVED 2026-08-18] chela#311/#312 agent observability:** PhaseChange event, report_phase tool (runtime-intercepted), PRP skill auto-phasing (8 skills → canonical phases), agent_status query tool (EventLog + tmux + segment state). 3-agent review, 6 findings fixed (substring matching → JSONL agent field, `?` in loop → continue+log, deny_unknown_fields, unconditional phase lookup, u64→u32 saturating cast). Subprocess/bridge mode wired (#336, PR #337) + MCP prefix handling (#338). E2E verified. Shipped v1.13.0.
 - **[RESOLVED 2026-08-17] chela#313 model fallback chain:** FallbackApiClient with provider-group planning, --fallback CLI arg, auto-recovery on 429/500. E2E verified: GLM 429 → Codex fallback → task completed. Shipped v1.12.0-v1.12.1.
-- **v2 Smarter Core epic (#283):** 8 tracks closing DESIGN.md §4.2 gaps. Sub-issues: #285 task state (plan APPROVED R10 + AC10 verify-before-done gate), #286 policy completion, #287 verify-before-done, #288 memory loop, #289 model routing (blocked), #290 tools gap (shipped v1.9.0), #291 context intelligence, #292 code intelligence A+B hybrid.
+- **[RESOLVED 2026-08-19] chela#285 Task State Machine (v2 Track 1):** TaskState/TaskPhase in kernel (chela-context), 3 tools (set_task_goal, update_task_ac, task_phase) intercepted in run_turn, PhasePolicyLayer Plan/Act mode (read-only during Planning), verify-before-done gate (Done blocked unless all ACs passed). 3-agent review caught 2 critical bypass routes: (1) done tool bypassed gate entirely — fixed by requiring task_phase("done") first, (2) empty ACs passed gate vacuously — fixed by blocking Done with 0 ACs. Compaction survival via explicit rebuild_session copy. Also shipped #277 (max_iterations 50→200). PR #342, v1.14.0.
+- **v2 Smarter Core epic (#283):** 8 tracks closing DESIGN.md §4.2 gaps. Sub-issues: ~~#285 task state~~ (SHIPPED v1.14.0), #286 policy completion, #287 verify-before-done, #288 memory loop, #289 model routing (blocked), #290 tools gap (shipped v1.9.0), #291 context intelligence, #292 code intelligence A+B hybrid.
 - **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns
   Claude Code as a subprocess (vendoring it = circular benchmark). Native OAuth comes
