@@ -3,7 +3,7 @@ title: chela
 type: wiki
 status: active
 updated: 2026-08-19
-oracle_entries: 30
+oracle_entries: 31
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,13 +60,15 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-19: v1.14.0 — Task State Machine shipped (v2 Track 1, #285).
-TaskState/TaskPhase in kernel with compaction survival, 3 model-facing tools
-(set_task_goal, update_task_ac, task_phase), PhasePolicyLayer Plan/Act mode,
-verify-before-done gate (hardened: done tool enforces task_phase first, empty
-ACs blocked). Also: max_iterations 50→200 (#277). 3-agent review caught 2
-critical bypass routes — both fixed before merge. v1.13.x: agent observability
-(#311/#312), fallback fixes (#328). Next: v2 remaining tracks (#286-#292).
+Status 2026-08-19: v1.15.0 — 3-tier Task Awareness + Built-in Skills (#347).
+Auto TaskState from delegation (Tier 1 mandatory), turn-based nudge + edit-
+before-plan warning (Tier 2 proactive), 4 built-in skills (plan/implement/
+review-agents/review-fix with filesystem > built-in priority), durable
+delegation callback with traversal-safe path validation + symlink rejection,
+first-writer-wins reply preservation, tmux pane title updates. 8 review
+rounds (most in project history), 13 findings fixed. v1.14.0: Task State
+Machine (#285). v1.13.x: observability, fallback. Next: #348 persistent
+status line, #350 dynamic loop termination, v2 tracks #286-#292.
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
