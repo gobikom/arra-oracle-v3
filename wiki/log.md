@@ -78,3 +78,4 @@ Append-only record of wiki page updates.
 - 2026-08-18 chela: v1.13.1 — fallback follow-up fixes (#328). Status updated.
 - 2026-08-19 chela: v1.14.0 — Task State Machine shipped (#285), max_iterations fix (#277). 3-agent review caught 2 critical gate bypasses. v2 Track 1 complete.
 - 2026-08-19 chela: v1.15.0 — 3-tier Task Awareness + Built-in Skills (#347). 8 review rounds, 13 findings. Auto delegation TaskState, built-in skills, durable callback, done-gate hardened.
+- 2026-08-22 chela: v1.16.0 — Dynamic loop termination (#350, 10K safety backstop), bridge-mode delegation callback credit (#346, closes duplicate-auto-callback gap), defensive logging (#356). 4 PRs, 10 review agents, CI timeout 10→15 min. oracle_entries 31→33.
