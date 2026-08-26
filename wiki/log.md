@@ -81,3 +81,5 @@ Append-only record of wiki page updates.
 - 2026-08-22 chela: v1.16.0 — Dynamic loop termination (#350, 10K safety backstop), bridge-mode delegation callback credit (#346, closes duplicate-auto-callback gap), defensive logging (#356). 4 PRs, 10 review agents, CI timeout 10→15 min. oracle_entries 31→33.
 - 2026-08-22 | soul-orchestra | [RESOLVED] #1167 identity_mismatch spawn race (PR #1169), #1150 scope corrected (exit 3 = WorkspaceError) | psak
 - 2026-08-22 | chela | [RESOLVED] agent-devops#1056 harness parity — v1.17.0 global CLAUDE.md discovery + MCP fixes (PSak)
+- 2026-08-26 chela: epic reconciliation — 9 epics verified (27/68 ACs done), all issue checklists updated, #196 closed, Oracle learning superseded
+- 2026-08-26 | soul-orchestra | [RESOLVED] infra-collector false disk (#1064) + billing gate test-mode (#1062) — PR #1175 merged
