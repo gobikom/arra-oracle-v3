@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-08-12
-oracle_entries: 79
+updated: 2026-08-26
+oracle_entries: 85
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -108,11 +108,13 @@ soul-orchestra/
 - **[RESOLVED 2026-08-08] Post-implement step 7 (#1022)**: PSak skipped Oracle/wiki updates unless reminded. Fixed in PR #1131 — knowledge-sync added as mandatory checklist step 7.
 - **[RESOLVED 2026-08-08] Auto-deploy identity (#1024)**: Manual deploy.py after every merge. Fixed in PR #1132 — CI workflow triggers on agents/*.yaml + conductor/** changes. Needs DEPLOY_PAT secret.
 - **[RESOLVED 2026-08-12] Deploy-time timeout mismatch (multi-agents#232)**: Generated configs could have different timeout_seconds than score YAMLs (stale config committed without regeneration). Fixed in PR #1151 — deploy.py now validates per-node timeouts against score YAML before copying.
-- Runner retry on non-retryable failures (#1150): `_runner-lib.sh` retries gate failures (SCRIPT_MISSING) that can never succeed, causing 3x duplicate dispatch. Fix pending — add non-retryable exit code class.
+- Runner retry on non-retryable failures (#1150): `_runner-lib.sh` retries all non-zero exits including non-recoverable ones. **Corrected scope (2026-08-22)**: exit 3 = WorkspaceError (transient), NOT gate failure as originally assumed. SCRIPT_MISSING exits as 4 (generic DAG failure). Fix needs cross-repo exit code contract in multi-agents CLI before runner can distinguish retryable from non-retryable.
+- **[RESOLVED 2026-08-22] identity_mismatch spawn race (#1167, refs #1157)**: Empty `pane_current_path` during shell spawn treated as identity_mismatch, cancelling 8/15 tasks per week. Fixed in PR #1169 — retry empty cwd 4x with 3s backoff, detect pane_dead=1 with auto-respawn, distinct reason values (pane_dead, session_not_ready, identity_mismatch). Review: R1 2 Critical (hardcoded reason, missing respawn) → fixed → R3 0 issues.
 - **[RESOLVED 2026-08-08] Retro goal-emit path (#1107)**: PART D (goal emission) at line 239 of 400-line single-step task; LLM skips it (0/7 days in W30). Fixed in PR #1133 — HARD GATE marker + new verify-goal-emit safety-net step. Recovery scoped to [daily-goal] only; carryovers deferred to PART D. Pool contention (Defect 2) not addressed — needs dispatcher-level changes.
 - **[RESOLVED 2026-08-08] Agent YAML parse error silently drops agent from pool**: `list_agents()` in `dashboard/readers.py` caught `yaml.YAMLError` with `logger.warning` + `continue` — psak vanished from pool because `psak.yaml` had unescaped single quotes in a shell example. Fixed: (1) escaped quotes in psak.yaml, (2) upgraded to `logger.error` with `AGENT_YAML_PARSE_FAIL` tag + broken agents now surface in API response with `parse_error` field.
 - **Pool cancel only queued**: `cancel_task` rejects RUNNING tasks (#967 — design pending: SIGINT+fallback approach recommended).
 - **Vestigial score**: `urgent-task-dispatch` has no runner script, cron, or API trigger. Either implement or remove (#733 audit 2026-07-07).
+- **[RESOLVED 2026-08-26] infra-collector false disk measurement (#1064, #1055)**: `check_disk` used `shutil.disk_usage` which diverged from `df` in mount/overlay contexts — reported 93-96% for 16 days while actual was 69%. Fixed in PR #1175: prefers `df -P -B1` with shutil fallback. Also fixed billing gate (#1062): test-mode subscriptions now WARNING not CRITICAL via exact match instead of substring.
 - **Pre-existing test failures**: `test_infra_collector::TestCheckSentry` (5 tests) fail on every CI run — unrelated to recent changes, needs separate investigation.
 - **[RESOLVED 2026-07-07] Inbox API 405** (#502): Inbox data layer existed but HTTP routes were never wired. Fixed in PR #1057 — GET/POST/DELETE with auth + validation.
 - **[RESOLVED 2026-07-07] Test phase 5/6/7 import failure** (#831): Missing sys.path.insert in 3 test files. Fixed in PR #1056 — 91 tests unblocked.
