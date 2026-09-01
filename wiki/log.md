@@ -88,3 +88,4 @@ Append-only record of wiki page updates.
 - 2026-08-30 chela: v1.20.0 shipped — panic-path hardening #366-#370 (PR #394), version bump (PR #393). PR #371 closed, cherry-picked fresh. Repo fully clean: 0 PRs, 0 branches.
 | 2026-08-30 | updated | projects/sniper-s50.md | 3 new learnings: futures TP monitor, EOD sweep, ATR dynamic TP (2026-08-26) |
 | 2026-08-30 | updated | projects/agent-psak.md | Bumped entry count for friction-report learning |
+| 2026-09-01 | updated | projects/auto-ops.md | +2 Oracle entries: real-infra auth validation and consumer-sweep operational rollout patterns |
