@@ -2,8 +2,8 @@
 title: Agent PSak
 type: wiki
 status: active
-updated: 2026-08-12
-oracle_entries: 14
+updated: 2026-08-30
+oracle_entries: 15
 sources:
   - https://github.com/gobikom/agent-psak
 project: github.com/gobikom/agent-psak

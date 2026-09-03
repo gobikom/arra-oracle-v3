@@ -2,8 +2,8 @@
 title: Sniper S50
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 6
+updated: 2026-08-30
+oracle_entries: 9
 sources:
   - https://github.com/gobikom/sniper-s50
 project: github.com/gobikom/sniper-s50
@@ -116,14 +116,17 @@ sniper-s50/
 ## Known Issues
 
 - Max 1 contract per trade — multi-contract support not yet implemented
-- Phase 5 (Bot Controller for futures) pending — currently options-only for live trading
 - Options chain snapshots require systemd timer configured on server — not portable
+- [RESOLVED 2026-08-26] Phase 5 futures live trading shipped: intraday TP monitor (PR #118), EOD sweep closes all positions (PR #116), ATR-based dynamic TP (PR #124)
 
 ## Patterns
 
 - **Strategy plugin**: Each strategy is a standalone module in `sniper/strategies/` with consistent interface (signal, entry, exit). Backtester dispatches by strategy name.
 - **Walk-forward validation**: Train on N periods → test on N+1 → slide forward. Prevents overfitting to historical data.
 - **THB-denominated reporting**: All P&L in Thai Baht (not ticks/points). Matches real trading account.
+- **Futures TP monitor**: Daemon thread `_futures_monitor_loop()` polls `get_portfolio()` for futures positions, compares unrealized P&L against configurable threshold, auto-closes via market order when TP hit. Runs alongside options trading.
+- **EOD sweep**: Config flag `sessions.eod_close_all_positions` (default True) closes ALL positions (options + futures) at EOD, not just options. Safety net for forgotten positions.
+- **ATR-based dynamic TP**: Scales futures TP threshold with market volatility using ATR from daily OHLCV. High-vol days get wider TP (±0.7 ATR), low-vol days tighter (±0.3 ATR). Eliminates fixed-threshold whipsaws.
 
 ## See Also
 

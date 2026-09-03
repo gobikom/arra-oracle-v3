@@ -83,3 +83,10 @@ Append-only record of wiki page updates.
 - 2026-08-22 | chela | [RESOLVED] agent-devops#1056 harness parity — v1.17.0 global CLAUDE.md discovery + MCP fixes (PSak)
 - 2026-08-26 chela: epic reconciliation — 9 epics verified (27/68 ACs done), all issue checklists updated, #196 closed, Oracle learning superseded
 - 2026-08-26 | soul-orchestra | [RESOLVED] infra-collector false disk (#1064) + billing gate test-mode (#1062) — PR #1175 merged
+- 2026-08-27 chela: epic #382 Continuous Conversation COMPLETE — 3 layers shipped (PRs #383/#385/#386), v1.19.0 deployed, 20 review fixes, E2E verified. Follow-ups: #387, #388.
+- 2026-08-30 chela: #389 --continue flag + #390 hook system Phase 1 shipped (PRs #391/#392). Plans peer-reviewed 5 rounds (13 findings). E2E verified.
+- 2026-08-30 chela: v1.20.0 shipped — panic-path hardening #366-#370 (PR #394), version bump (PR #393). PR #371 closed, cherry-picked fresh. Repo fully clean: 0 PRs, 0 branches.
+| 2026-08-30 | updated | projects/sniper-s50.md | 3 new learnings: futures TP monitor, EOD sweep, ATR dynamic TP (2026-08-26) |
+| 2026-08-30 | updated | projects/agent-psak.md | Bumped entry count for friction-report learning |
+| 2026-09-01 | updated | projects/auto-ops.md | +2 Oracle entries: real-infra auth validation and consumer-sweep operational rollout patterns |
+| 2026-09-03 | updated | projects/auto-ops.md | +1 Oracle entry: headroom-proxy 192k crash loop fix (ConditionPathExists, headroom-deploy script, PR #62) |

@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-08-08
-oracle_entries: 23
+updated: 2026-09-03
+oracle_entries: 26
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -61,6 +61,7 @@ auto-ops/
 ├── bin/
 │   ├── ops             # Service management CLI (status, logs, restart)
 │   ├── auto-ops        # Health check entry point
+│   ├── headroom-deploy # Clone+build+install headroom-rs proxy binary
 │   └── safe-merge      # CI-gated PR merge wrapper
 └── tests/
 ```
@@ -69,7 +70,7 @@ auto-ops/
 
 | Type | How | Example |
 |------|-----|---------|
-| `systemd-user` | `systemctl --user status` | psak-soul-mcp, claude-telegram-bot |
+| `systemd-user` | `systemctl --user status` | psak-soul-mcp, headroom-proxy, claude-telegram-bot |
 | `systemd-system` | `systemctl status` (root) | nginx |
 | `http` | HTTP GET + expected_status | Supabase, Railway, clienta.ai endpoints |
 | `process` | `pgrep` pattern match | bun processes |
@@ -110,6 +111,8 @@ auto-ops/
 - **Cross-repo pattern consistency**: Telegram process detection regex shared between ops/ shell scripts and auto-ops/ Python — any change must update both.
 - **Actuator loop**: Detection → diagnosis → action → verify. Disk auto-cleanup is the first actuator (PR #14).
 - **Memory monitoring via /proc/meminfo**: `check_memory()` reads MemTotal, MemAvailable, SwapTotal, SwapFree from /proc/meminfo. Alerts on RAM usage above threshold and swap usage above threshold. Added via PR #39 (2026-05-21).
+- **Real-infra validation before auth/monitoring claims**: 2026-08 retrospectives reinforced that token/auth and monitoring changes must be tested against real infrastructure before declaring them healthy; simulated success can miss endpoint/token-class mismatches.
+- **Consumer sweep before operational feature changes**: grep/search all consumers before shipping ops-facing changes; multiple components can implement one feature path, and missing a secondary consumer causes partial rollouts.
 
 ## See Also
 
