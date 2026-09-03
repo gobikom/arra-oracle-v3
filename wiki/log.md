@@ -89,3 +89,4 @@ Append-only record of wiki page updates.
 | 2026-08-30 | updated | projects/sniper-s50.md | 3 new learnings: futures TP monitor, EOD sweep, ATR dynamic TP (2026-08-26) |
 | 2026-08-30 | updated | projects/agent-psak.md | Bumped entry count for friction-report learning |
 | 2026-09-01 | updated | projects/auto-ops.md | +2 Oracle entries: real-infra auth validation and consumer-sweep operational rollout patterns |
+| 2026-09-03 | updated | projects/auto-ops.md | +1 Oracle entry: headroom-proxy 192k crash loop fix (ConditionPathExists, headroom-deploy script, PR #62) |

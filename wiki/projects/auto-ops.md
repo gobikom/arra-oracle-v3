@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-09-01
-oracle_entries: 25
+updated: 2026-09-03
+oracle_entries: 26
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -61,6 +61,7 @@ auto-ops/
 ├── bin/
 │   ├── ops             # Service management CLI (status, logs, restart)
 │   ├── auto-ops        # Health check entry point
+│   ├── headroom-deploy # Clone+build+install headroom-rs proxy binary
 │   └── safe-merge      # CI-gated PR merge wrapper
 └── tests/
 ```
@@ -69,7 +70,7 @@ auto-ops/
 
 | Type | How | Example |
 |------|-----|---------|
-| `systemd-user` | `systemctl --user status` | psak-soul-mcp, claude-telegram-bot |
+| `systemd-user` | `systemctl --user status` | psak-soul-mcp, headroom-proxy, claude-telegram-bot |
 | `systemd-system` | `systemctl status` (root) | nginx |
 | `http` | HTTP GET + expected_status | Supabase, Railway, clienta.ai endpoints |
 | `process` | `pgrep` pattern match | bun processes |
