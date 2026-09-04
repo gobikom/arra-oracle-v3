@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-22
-oracle_entries: 34
+updated: 2026-09-04
+oracle_entries: 38
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -60,15 +60,17 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-19: v1.15.0 — 3-tier Task Awareness + Built-in Skills (#347).
-Auto TaskState from delegation (Tier 1 mandatory), turn-based nudge + edit-
-before-plan warning (Tier 2 proactive), 4 built-in skills (plan/implement/
-review-agents/review-fix with filesystem > built-in priority), durable
-delegation callback with traversal-safe path validation + symlink rejection,
-first-writer-wins reply preservation, tmux pane title updates. 8 review
-rounds (most in project history), 13 findings fixed. v1.14.0: Task State
-Machine (#285). v1.13.x: observability, fallback. Next: #348 persistent
-status line, #350 dynamic loop termination, v2 tracks #286-#292.
+Status 2026-09-04: v1.22.0 — **Policy Engine COMPLETE** (#286 Track 2 closed).
+v1.22.0: TierPolicy (3-tier tool classification: auto_allow/require_approval/
+forbidden with default_tier whitelist posture + startup tool-name validation),
+PolicyEvaluated (every tool call outcome in JSONL), OverridePolicy (git-verified
+config-signed + human-token env var, thread-local audit, symlink rejection,
+repo-root-relative git checks), BudgetPolicy bridge+fallback fix (#397),
+AUTH-NEGATIVE CI fix (#402). Plan R5 peer-reviewed by devlead-codex (3 rounds).
+v1.21.0: Verify-Before-Done (#287), PolicyChain+GitSafety+Budget (#396).
+v1.15.0: Task Awareness + Built-in Skills (#347). Epic #283 ~28/31.
+Next: Tracks 4-8 (Memory, Model Routing, Context Intelligence, Code Intelligence),
+#348 persistent status line.
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
