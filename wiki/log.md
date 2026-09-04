@@ -91,3 +91,4 @@ Append-only record of wiki page updates.
 | 2026-09-01 | updated | projects/auto-ops.md | +2 Oracle entries: real-infra auth validation and consumer-sweep operational rollout patterns |
 | 2026-09-03 | updated | projects/auto-ops.md | +1 Oracle entry: headroom-proxy 192k crash loop fix (ConditionPathExists, headroom-deploy script, PR #62) |
 2026-09-04 PSak: update chela wiki — v1.22.0, Policy Engine complete (#286 closed)
+| 2026-09-05 | updated | projects/chela.md | v1.23.0 Phase 1 shipped + #417/#418/#421 hardening, 3 new patterns, +9 Oracle entries (38→47) |

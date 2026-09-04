@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-09-04
-oracle_entries: 38
+updated: 2026-09-05
+oracle_entries: 47
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -55,13 +55,21 @@ Entry points: `bench/run.py` (only executable surface pre-v0); `crates/chela/src
 ## Overview
 
 Lean, learning agent harness — chela replaces Claude Code / Codex CLI as the runtime
-for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guardrails
+for pool agents. LOC-capped binary (ceiling 29 750, CI-enforced) vs thclaws' 177K; moves CLAUDE.md prose guardrails
 (checkpointing, verify-before-done, never-push-main, budget caps) into kernel code.
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-09-04: v1.22.0 — **Policy Engine COMPLETE** (#286 Track 2 closed).
-v1.22.0: TierPolicy (3-tier tool classification: auto_allow/require_approval/
+Status 2026-09-05: v1.23.0 — **Session Orchestration Phase 1 SHIPPED** (#412, PR #420 →
+520476d, tag v1.23.0, binary in ~/ops/bin): `chela -p … --result <path>` writes a schema-1
+`WorkerResult` (atomic create_new/0600, size-capped) + `tasks.result_json`; exit-code contract
+0/1/2/3/4/10 (panic 101 = no file); E2E on codex, GLM, claude subprocess. Post-Phase-1
+hardening same day: #417 gate-rules guard (PR #425, `gate-rules-guard` required check +
+`gate-rules-change` label), #418 hardened git shell-outs (PR #428, `chela_context::git_cmd`),
+#421 item 2 random tmp suffix (PR #429). LOC ceiling 29 750, main 29 741 (9 free).
+Next: #412 Phase 2 (`--continue`, `--supervise` zero-MCP chain, dirty detection; folds in
+#421 item 1 TOCTOU, #424, #423 if Claude workers) — new plan + LOC row from นุด first.
+v1.22.0 (2026-09-04): **Policy Engine COMPLETE** (#286 Track 2 closed) — TierPolicy (3-tier tool classification: auto_allow/require_approval/
 forbidden with default_tier whitelist posture + startup tool-name validation),
 PolicyEvaluated (every tool call outcome in JSONL), OverridePolicy (git-verified
 config-signed + human-token env var, thread-local audit, symlink rejection,
@@ -69,7 +77,7 @@ repo-root-relative git checks), BudgetPolicy bridge+fallback fix (#397),
 AUTH-NEGATIVE CI fix (#402). Plan R5 peer-reviewed by devlead-codex (3 rounds).
 v1.21.0: Verify-Before-Done (#287), PolicyChain+GitSafety+Budget (#396).
 v1.15.0: Task Awareness + Built-in Skills (#347). Epic #283 ~28/31.
-Next: Tracks 4-8 (Memory, Model Routing, Context Intelligence, Code Intelligence),
+Still pending from v2: Tracks 5-8 (Model Routing, Context Intelligence, Code Intelligence),
 #348 persistent status line.
 
 ## Architecture (DESIGN.md §3 — 5 layers)
@@ -119,6 +127,11 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Known Issues / Watch-items
 
+- **[RESOLVED 2026-09-05] chela#412 Phase 1 worker protocol:** shipped v1.23.0 (PR #420). Gated end to end: plan R6 (plan-validate 35/35), devlead-codex APPROVE, Warden pre-implement r3 + dev-local PASS, 4 review rounds to 0/0/0, merger-bot approved, G2 headless smoke with a real codex call. LOC caps escalated once mid-implementation (29 503 vs frozen 29 500) → นุด approved new rows; estimate LOC post-`cargo fmt` on a scratch branch.
+- **[RESOLVED 2026-09-05] chela#417 gate rules live in the gated repo:** `.github/workflows/gate-rules-guard.yml` on `pull_request_target` (workflow + script taken from the base branch, PR head fetched as objects only), `runs-on: ubuntu-latest` because self-hosted runners share `$HOME` with head-executing jobs, label read live via `gh pr view --json labels` with a strict `true|false` contract, `--no-renames --name-only -z` diff. Cannot run on its own PR — proven post-merge with throwaway PR #427 (unlabelled RED → labelled GREEN). Five review rounds; two redesigns forced by security review (`|| true` grep, rename-out, C-quoted names, label race).
+- **[RESOLVED 2026-09-05] chela#418 hardened git shell-outs:** one helper (`hardened_git`/`hardened_git_diff`) for every harness git call: `-c core.fsmonitor=false -c core.hooksPath=/dev/null -c core.attributesfile=/dev/null`, `--attr-source=<empty tree per object format>` (git ≥ 2.40, else withhold the snapshot — fail closed), `--no-ext-diff`, `--no-optional-locks`, `safe.directory` only when the repo top is owned by the current uid. Verified facts: `git diff` refreshes the index even under `--no-optional-locks` and fires `post-index-change`; `--attr-source` does not cover `.git/info/attributes`; `-c diff.external=` is not a fix. File tools refuse `.git/**` and `.gitattributes` on every write path. Trap-fixture tests (planted fsmonitor/clean/external-diff/hook) with a plain-git control that must fire all four markers.
+- **chela#421 item 1 (TOCTOU validate-then-write):** open, folds into Phase 2 (`openat` on an `O_DIRECTORY|O_NOFOLLOW` parent fd held from validation). Item 2 (predictable tmp name) RESOLVED 2026-09-05 via PR #429: `<name>.<pid>.<8 random hex>.tmp`, one retry, never unlink a peer's entry.
+- **Watch (opened 2026-09-05):** #423 agent/claude path reports `stopped` not `done` (`--result` status wrong for Claude-backed workers) · #424 test-hooks window override for exit-4 live test · #426 CI integrity guard · #430 flaky `tests/base_url_env.rs` env-var race · #431 SessionStore XDG vs CHELA_HOME · ops#99 safe-merge label assertion.
 - **[RESOLVED 2026-08-08] Pre-M7 sweep:** 28/28 issues closed. Last 3: #122 (compaction observability, PR #156), #123 (MessageStop, PR #169), #151 (agent_sdk auth classification, PR #171). Security model: L1=boundary (bash denial), L2=best-effort (documented #112), env credential detection (#125), agent/ delegates to subprocess policy (#129 by-design). Deferred to v2: #91 (SecretString), #93 (URL validation), #101 (credential broker).
 - **[RESOLVED 2026-08-10] GLM URL path bug:** OpenAI client hardcoded `/v1/chat/completions` in path template — GLM base `/v4` produced `/v4/v1/chat/completions` (404). Fixed: moved `/v1` into DEFAULT_BASE_URL (PR #214). Also added `GLM_BASE_URL` env override (PR #215) for api.z.ai via headroom proxy. Note: bigmodel.cn account has zero balance — all GLM access goes via api.z.ai.
 - **[RESOLVED 2026-08-11] vendor-audit MANIFEST:** 6 files from v1.1-v1.2 (openai.rs, provider.rs, jsonrpc.rs, mcp.rs, names.rs, registry.rs) missing from MANIFEST written-fresh section. Fixed PR #216. CI now green on main.
@@ -152,6 +165,9 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Patterns
 
+- **Mutation-test security flags:** a test that pins a hardening flag is accepted only after removing the flag (or reordering the input) turns it red. Four vacuous tests in one night passed review-by-reading (index-untouched assertion that never triggered a stat refresh, SHA-256 `--attr-source` test with nothing to diff, collision test whose first draw never collided, a "hooks untestable" claim that was false). Name the red case in the PR body's "Verified by".
+- **Human approvals on GitHub at decision time:** merger-bot rejects approvals that exist only in a chat session. Post `<decision> — by นุด, session <id> transcript line <L>, <ISO ts>` on the issue the moment it is given and ask for a countersign; an estimated clock time ("~03:55" for 03:45) pointed the auditor at the wrong session.
+- **Review sub-agents in mktemp clones:** never hand a review agent the shared worktree (one dirtied it with a stray branch). Record HEAD + branch before dispatch; verify findings with `git show <branch>:<file>`.
 - **Eval integrity (spoof-proofing):** every checker ships a spoof battery
   (fake-object, unlinked-ingredient, dead-code, constant-env) that must stay RED;
   batteries are append-only; checkers changed only via adversarial review. Two-tier
