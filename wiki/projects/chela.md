@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-08-22
-oracle_entries: 34
+updated: 2026-09-10
+oracle_entries: 36
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -22,19 +22,22 @@ tags: [wiki, chela, agent-harness, rust, benchmark]
 
 - (no exported functions/classes detected)
 
-## Code Structure (manual — repo not ck-indexed yet; refreshed 2026-07-25 @ f4da4b6)
+## Code Structure (manual — refreshed 2026-09-10 @ b001996)
 
 ```
 chela/
-├── crates/                  # Rust workspace — 8 crates, all v0-empty stubs pre-Plan-B
-│   ├── chela-kernel/        # agentic loop + task state machine (budget 6K LOC)
-│   ├── chela-tools/         # read/edit/bash/grep/done built-ins (4K)
-│   ├── chela-providers/     # claude-sub OAuth + Anthropic SSE client (4K)
-│   ├── chela-context/       # session store; compaction lands v1 (3.5K)
-│   ├── chela-policy/        # permission/guardrail engine — v1 (2.5K)
-│   ├── chela-transport/     # stream-json stdio emitter (1.5K)
-│   ├── chela-rpc/           # script-RPC tool server — v1 (1.5K)
-│   └── chela/               # bin — single static binary (0.5K)
+├── crates/                  # Rust workspace — 11 crates
+│   ├── chela-kernel/        # agentic loop + task state machine (budget 6.3K LOC)
+│   ├── chela-tools/         # read/edit/bash/grep/done/content_*/agent_* (6.9K)
+│   ├── chela-providers/     # claude-sub/codex-sub/GLM OAuth + SSE (6.7K)
+│   ├── chela-context/       # session store, worker result, delegation (4.1K)
+│   ├── chela-store/         # content store — blob I/O, SQLite, GC, ref_id (0.7K) [NEW v1.28.0]
+│   ├── chela-orchestrate/   # --continue/--supervise/--orchestrate (1.7K)
+│   ├── chela-policy/        # permission/guardrail engine (2.7K)
+│   ├── chela-hooks/         # PreToolUse/PostToolUse hooks (0.3K)
+│   ├── chela-transport/     # stream-json stdio emitter + text renderer (1.8K)
+│   ├── chela-rpc/           # MCP client + JSON-RPC (1.5K)
+│   └── chela/               # bin — single static binary (4.4K)
 ├── bench/                   # benchmark harness (the dev loop)
 │   ├── run.py               # runner: 3 reps, no retry, stall detect 600s, bwrap
 │   │                        #   per-harness profiles, edit_diff capture, JSONL out
@@ -60,15 +63,16 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
 
-Status 2026-08-19: v1.15.0 — 3-tier Task Awareness + Built-in Skills (#347).
-Auto TaskState from delegation (Tier 1 mandatory), turn-based nudge + edit-
-before-plan warning (Tier 2 proactive), 4 built-in skills (plan/implement/
-review-agents/review-fix with filesystem > built-in priority), durable
-delegation callback with traversal-safe path validation + symlink rejection,
-first-writer-wins reply preservation, tmux pane title updates. 8 review
-rounds (most in project history), 13 findings fixed. v1.14.0: Task State
-Machine (#285). v1.13.x: observability, fallback. Next: #348 persistent
-status line, #350 dynamic loop termination, v2 tracks #286-#292.
+Status 2026-09-10: v1.28.0 — Content Store (#440, PR #456). New `chela-store`
+crate (597/700 LOC): content-addressable blob store (SHA-256, SQLite WAL, 2-step
+GC). 3 agent tools (content_store/content_peek/content_load with offset/max_bytes,
+256KB cap). agent_send --ref for manifest delivery. chela store CLI subcommand.
+Policy: content_store forbidden in plan profile. LOC ceiling 34600. Design
+peer-reviewed R2 by devlead-claude. Before: v1.27.0 Session Orchestration epic
+#412 complete (4 phases: WorkerResult, --continue/--supervise, --orchestrate,
+--recall). Next: #457 L1 skill integration, #458 L2 agent awareness, #460
+Phase 3 WorkerResult refs, #461 Phase 4 auto-store (deferred/data-driven);
+Tracks 5-8 (#289-#292); #348 status line.
 
 ## Architecture (DESIGN.md §3 — 5 layers)
 
@@ -131,6 +135,7 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-22] chela#350 dynamic loop termination:** Static 200-iteration cap replaced with 10,000 safety backstop. Context exhaustion (compaction flow) is the operational terminator — the "context-aware termination" the issue asked for already existed; only the default cap was wrong. CI timeout bumped 10→15 min. PR #354, shipped v1.16.0.
 - **[RESOLVED 2026-08-22] chela#346 bridge-mode delegation callback:** Agent/ ping_reply now satisfies the callback AC (scoped caller+reply_path match), closing the duplicate-auto-callback gap. PolicyAwareBridge::call_tool never credited bridge-mode ping_reply. PR #355 + defensive logging PR #357 (#356), shipped v1.16.0.
 - **[RESOLVED 2026-08-22] agent-devops#1056 harness parity:** chela agents lacked `~/.claude/CLAUDE.md` global rules, serena MCP, and ck (binary missing). Fixed in v1.17.0: chela#360 (global CLAUDE.md discovery + `CLAUDE_CONFIG_HOME` env var), serena added to `~/.chela/config.json`, ck binary rebuilt. Model difference (GPT-5.5 vs Opus) is by design.
+- **[SHIPPED 2026-09-10] chela#440 Content Store:** Reference-over-inline IPC. New `chela-store` crate: content-addressable blobs (SHA-256 keyed, filesystem + SQLite WAL metadata), random ref_id (10 hex), TTL on refs not blobs, 2-step GC (delete refs → delete orphan blobs, `<=` expiry), degraded mode (mirrors SessionStore::mark_degraded). 3 tools: content_store (confinement-gated via ConfinementContext), content_peek (manifest-only), content_load (offset/max_bytes, 256KB hard cap, ToolOutputBudgets NO_TRUNCATION). agent_send --ref delivers manifest with blob path + CLI command for mixed-harness receivers. chela store CLI (put/peek/get/list/gc/delete). Policy: content_store forbidden in plan profile. Store location: same resolver as sessions.db + CHELA_STORE_DIR override. Design doc R2 approved by devlead-claude (2 rounds). Integration pending: #457 L1 skills, #458 L2 awareness, #460 Phase 3 WorkerResult refs, #461 Phase 4 auto-store.
 - **v2 Smarter Core epic (#283):** 8 tracks closing DESIGN.md §4.2 gaps. Sub-issues: ~~#285 task state~~ (SHIPPED v1.14.0), #286 policy completion, #287 verify-before-done, #288 memory loop, #289 model routing (blocked), #290 tools gap (shipped v1.9.0), #291 context intelligence, #292 code intelligence A+B hybrid.
 - **CI gate:** LOC baselines require manual update in 14+ places when budget changes. Diagnostic output added (#161).
 - **F1 (Plan B):** thclaws has NO native claude-sub auth — its `agent_sdk.rs` spawns

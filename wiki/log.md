@@ -93,3 +93,4 @@ Append-only record of wiki page updates.
 - 2026-09-09: clienta-ai.md — v1.18.0 Intelligent RAG Pipeline shipped (clarify+entity+recency ON by default)
 - 2026-09-10: clienta-ai.md — fix PR reference for raw SQL camelCase (#931): #2218 never merged, actual fix is #2263
 - 2026-09-10: clienta-ai.md — fix PR ref for raw SQL camelCase (#931): #2218→#2263
+- 2026-09-10: chela.md — v1.28.0 Content Store shipped (#440): new chela-store crate, 3 tools, agent_send --ref, CLI, integration roadmap (#457-#461)
