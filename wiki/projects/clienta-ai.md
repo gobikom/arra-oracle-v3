@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-08-09
-oracle_entries: 85
+updated: 2026-09-09
+oracle_entries: 88
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -123,7 +123,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - Migration cruft: 2 records recur as failed (`init_with_pgvector`, `fix_subscription_defaults`) but `migrate-database.yml` auto-resolves (`migrate resolve --rolled-back`) before `migrate deploy` — deploys succeed regardless. Not a blocker; hygiene cleanup pending.
 - DB backups run via GH Action `backup-database.yml` (daily cron 2AM UTC → pg_dump pg17 → R2 `s3://clienta-backups/database/` + retention), NOT Supabase automated backups. `SUPABASE_ACCESS_TOKEN` expired (#1868) but does not affect backups.
 - [RESOLVED 2026-07-19] Production schema drift (5 pages 500) — deploy-production.yml had no `prisma migrate deploy` step + PR#2113 added @map without column rename. Fixed: v1.15.2 adds auto-migration to deploy workflow, column rename migration applied, schema-drift CI now blocking (#2140, #2141, #2147).
-- [RESOLVED 2026-08-08] Prisma raw SQL camelCase mismatch (#931) — webhook-dispatch, kb-embedding-dispatch, kb-embedding-reconciler used "createdAt"/"updatedAt" in $queryRaw but actual columns are created_at/updated_at via @map. Fixed in PR#2218.
+- [RESOLVED 2026-09-10] Prisma raw SQL camelCase mismatch (#931) — webhook-dispatch, kb-embedding-dispatch, kb-embedding-reconciler used "createdAt"/"updatedAt" in $queryRaw but actual columns are created_at/updated_at via @map. PR#2218 attempted fix but closed stale (1 month conflicts). Actually fixed in PR#2263.
 - [RESOLVED 2026-08-08] Runner concurrency races (#796) — containerd build race, npm-install ENOTEMPTY, deploy poll-timeout from concurrent jobs on shared runner. Fixed in PR#2219: concurrency groups on 10 workflows, cancel-in-progress: false on deploys.
 - [RESOLVED 2026-07-19] CI-PR gate on GitHub-hosted runners (all jobs 2s/0 steps) — billing/quota issue. Fixed: all CI moved to self-hosted runners (#2145, agent-devops#912).
 - [RESOLVED 2026-07-20] re-embed script finally/disconnect dead code (#2153) + empty checkpoint-path validation (#2154). Fixed: process.exitCode replaces process.exit, empty string rejected with CliArgError. PR#2156.
@@ -146,6 +146,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-08-09] **Flaky E2E: RSS feed title display** (#2183) — missing waitForResponse synchronization after page.goto; inconsistent per-assertion timeouts. Fixed with Promise.all + structural anchor wait. PR #2245.
 - [CLOSED 2026-08-09] **KB re-index tool** (#2059) — closed as already-satisfied. Per-org: `POST /documents/reprocess-all` (PR #110, Mar 2026). Cross-org: `scripts/re-embed-all-vectors.ts` (574 lines, v1.15.0). Issue filed 3 days before script merged.
 
+- **v1.18.0 Intelligent RAG Pipeline SHIPPED** (2026-09-09, PROD verified) — 3 phases, all ON by default. **Phase 1**: Clarifying-question turn — ambiguity detection gate (`ambiguity-detector.ts`) asks back on vague queries; deterministic pre-gate skips LLM for long/product/follow-up; double-gate: `config.RAG_CLARIFY_ENABLED && aiSettings.clarifyEnabled`. **Phase 2**: Entity extraction at ingest time (`entity-extraction-service.ts`, async BullMQ), Redis-cached org aggregation (TTL 600s), entity context in query rewrite prompt. **Phase 3**: Recency-aware context — `documentUpdatedAt` propagated through search, `[Updated: YYYY-MM-DD]` tags, LLM prefers newer on conflict. All fail-open (8 catch sites). 11 PRs (#2247-#2261). Migration: `clarify_enabled` Boolean + backfill true. `DEFAULT_SETTINGS` in `settings/service.ts` is a third source of truth (critical bug caught by review). `/api/chat/test` REST endpoint bypasses clarify — must test via real widget WS chat. Railway explicit env vars override code defaults. Staging E2E 651/651. Vera prod clarify 3/3 + regression 6/6. Warden PASS. GitHub Actions 18h outage → manual Railway deploy.
 - **v1.14.0 Trust Center Phase 2 SHIPPED** (2026-07-17) — in-app `/settings/security` dashboard. DPA management (status/sign/download/countersign), sub-processor list (9 items, `DPA_SUB_PROCESSORS` from contracts) + notification toggle, DSAR per-contact export (PDPA §31), account deletion UI (PDPA §33), security audit log, compliance documents. Admin-only (`requireAdmin` on all new routes). 14 ACs, 6 PRs (#2057 feature + #2058 bump + #2062 toggle fix + #2065 gate audit + #2066 plan-walk + #2068 smoke tests). Migration: `sub_processor_change_notify` Boolean on Organization. New API: `GET /api/settings/security`, `PATCH /api/settings/notifications`, `POST /api/settings/security/dpa/countersign`, `GET /api/legal/dpa/download`. Vera QA: UAT 9/9 + staging 9/9. E2E: staging 7/7. Follow-ups: #2067 (docs), #2069 (countersign toast UX), #2070 (DPA sign E2E).
 
 ## Patterns

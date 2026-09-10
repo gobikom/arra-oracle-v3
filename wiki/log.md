@@ -90,4 +90,7 @@ Append-only record of wiki page updates.
 | 2026-08-30 | updated | projects/agent-psak.md | Bumped entry count for friction-report learning |
 | 2026-09-01 | updated | projects/auto-ops.md | +2 Oracle entries: real-infra auth validation and consumer-sweep operational rollout patterns |
 | 2026-09-03 | updated | projects/auto-ops.md | +1 Oracle entry: headroom-proxy 192k crash loop fix (ConditionPathExists, headroom-deploy script, PR #62) |
-| 2026-09-10 | updated | projects/sniper-s50.md | 2026-09-09 backlog burn-down (#133/#134/#135/#147/#146/#138/#140/#139/#153): 9 Key Decisions rows, RESOLVED entry + open residuals, 4 patterns; oracle_entries 9 → 18 |
+- 2026-09-09: clienta-ai.md — v1.18.0 Intelligent RAG Pipeline shipped (clarify+entity+recency ON by default)
+- 2026-09-10: clienta-ai.md — fix PR reference for raw SQL camelCase (#931): #2218 never merged, actual fix is #2263
+- 2026-09-10: clienta-ai.md — fix PR ref for raw SQL camelCase (#931): #2218→#2263
+- 2026-09-10: chela.md — v1.28.0 Content Store shipped (#440): new chela-store crate, 3 tools, agent_send --ref, CLI, integration roadmap (#457-#461)
