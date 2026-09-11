@@ -94,6 +94,6 @@ Append-only record of wiki page updates.
 - 2026-09-10: clienta-ai.md — fix PR reference for raw SQL camelCase (#931): #2218 never merged, actual fix is #2263
 - 2026-09-10: clienta-ai.md — fix PR ref for raw SQL camelCase (#931): #2218→#2263
 - 2026-09-10: chela.md — v1.28.0 Content Store shipped (#440): new chela-store crate, 3 tools, agent_send --ref, CLI, integration roadmap (#457-#461)
-- 2026-09-12: chela#313 fallback fix (agent/ prefix for sonnet), #442 gpt-5.5 restored upstream — PSak
+- 2026-09-12: chela#313 fallback chain — sonnet hop dead (bare → provider_auth; agent/ rejected, SO#1187 reverted by SO#1189), gap → chela#247; #442 gpt-5.5 restored upstream — PSak
 - 2026-09-12: soul-orchestra Known Issues — runner label gap (agent-devops#1100): workflows runs-on openclaw vs runners goko; temp label fix — PSak
 - 2026-09-12: chela.md — [RESOLVED] chela#442 sticky-model reset F17 (PR #463 d24d1c5); #223 LOC baselines (PR #462 9b2e18f) — PSak
