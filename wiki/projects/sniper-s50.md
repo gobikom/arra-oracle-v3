@@ -2,8 +2,8 @@
 title: Sniper S50
 type: wiki
 status: active
-updated: 2026-09-10
-oracle_entries: 18
+updated: 2026-09-12
+oracle_entries: 19
 sources:
   - https://github.com/gobikom/sniper-s50
 project: github.com/gobikom/sniper-s50
@@ -59,7 +59,7 @@ tags: [wiki, sniper-s50, trading, tfex]
 
 Full-auto TFEX S50 day trade bot — backtesting engine + options trading via Settrade API. Target: +400 THB/contract/day. Production bot runs Monday-Friday 09:40-16:50 BKK via systemd timer (configured on server, not in repo). 7+ strategies including ORB-ATR, 3EMA+RSI, BOL, VRB, and ORB+BOL Combo.
 
-Two modules: **futures backtesting** (data pipeline + strategy engine + walk-forward validation) and **options live trading** (ATM/OTM strike selection, MQTT real-time feeds, Black-Scholes pricing).
+Three modules: **futures backtesting** (data pipeline + strategy engine + walk-forward validation), **options live trading** (ATM/OTM strike selection, MQTT real-time feeds, Black-Scholes pricing), and **futures entry bot** (`sniper/futures/`, account B, P0 shadow mode — epic #162, PR #163 merged 2026-09-12).
 
 ## Architecture
 
@@ -121,6 +121,8 @@ sniper-s50/
 | Structure TP context (#140, PR #151) | Inject `ContextExtractor` into the runner; fail-closed on stale/missing snapshot spot or age (1 % + ½ strike, 120 min; `extract()` measures age against now) | Borrow the signal generator's private `_extractor` | In `--ai-shadow` the live generator is ORB → structure TP was inert for two trading days; snapshot age had always been 0.0 |
 | Entry order not filled in 120 s (#139, PR #150) | Cancel; O001 → evidence → adopt the fill with SL/TP; unresolved → block new entries, retry every 60 s, sweep at EOD/stop; verified market close for orphan lots on exit | Keep the order live (Day validity) and re-enter | Five stacked entry orders on 09-08 filled hours later with no SL/TP |
 | Entry re-attempt policy (#153, PR #154) | 2 attempts per direction (2nd at ask + 1 tick, cap +2 %), block until a real opposite order / new day, 6 attempts/day, quota 5 counted on fill, `entry_events` ledger re-seeded at start | Chase every bar / never re-enter | 3 fills vs 14 timeouts in a week; per-direction cap alone allowed 27 orders on a whipsaw day (found in review) |
+| Futures entry bot account (#162, PR #163) | Dedicated account B with separate journal (`data/trades-futures.db`), separate systemd unit (09:41), PositionArbiter with futures_intents state machine | Shared account A | TFEX nets positions per series — bot and human on one account cannot hold independent positions; separate journals prevent cross-contamination |
+| Futures bot thread safety (#162, PR #163) | RLock for arbiter, consistent lock ordering: close_lock > arbiter.lock > store._lock | Plain Lock | Exit engine thread must read SimBook + close + book P&L atomically with propose(); RLock allows reentrant acquisition from close_sim_position under the outer lock |
 
 ## Known Issues
 
@@ -142,6 +144,7 @@ sniper-s50/
 - **Risk budget with a durable ledger**: every entry-order outcome is a row (`entry_events`: counted_attempt, dry_run); in-memory counters are re-seeded from it at start so a restart cannot reset the day's budget; a global daily cap backs any per-direction budget (opposite-side signals must not reset it).
 - **Everything that silences the bot pages**: blocked direction, daily cap, premium ran away, hook failures, ledger/seed failures, config guards effectively off — with alert-once keys per cause so a benign page cannot mask a severe one.
 - **Review/test hygiene**: never run tests in the live checkout during market hours (scratchpad worktrees); a script-applied patch can silently re-scope code via indentation — keep an entrypoint smoke test; tests must not be able to page Telegram (conftest guard blanks the notify module constants and mocks the transport).
+- **Futures entry bot (P0 shadow)**: `sniper/futures/` — 8 modules, 137 tests. PositionArbiter owns single net position; strategies propose() only. SimBook for shadow P&L, seed() restores halts from `-dry` journal rows across restarts. Config validation fail-closed (SystemExit). Risk reservation: stop×200+fees before accepting. futures_intents state machine: FLAT→RESERVED→PENDING→OPEN→CLOSING→FLAT. Every error path guarded with try/except + Telegram page (trade-persist-failed, intent-persist-failed, quote-fetch-failing, etc). Systemd timer 09:41 weekdays (1 min after options on account A).
 
 ## See Also
 
