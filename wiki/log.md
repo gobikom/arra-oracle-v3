@@ -98,3 +98,4 @@ Append-only record of wiki page updates.
 - 2026-09-12: soul-orchestra Known Issues — runner label gap (agent-devops#1100): workflows runs-on openclaw vs runners goko; temp label fix — PSak
 - 2026-09-12: chela.md — [RESOLVED] chela#442 sticky-model reset F17 (PR #463 d24d1c5); #223 LOC baselines (PR #462 9b2e18f) — PSak
 - 2026-09-12: chela.md — [RESOLVED] bare claude-sonnet-5 via subscription: Claude Code request shape (chela#474) + agent-runner flag (SO#1198); binary deployed — PSak
+- 2026-09-12: soul-orchestra.md — Known Issues: host invariant (no main pushes for runners/cron, #129), auto-deploy-identity resolved via PR-per-repo (SO#1199, run 34676829533), rules #1200/#1201 — PSak
