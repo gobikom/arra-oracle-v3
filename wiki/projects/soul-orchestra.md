@@ -3,7 +3,7 @@ title: Soul Orchestra
 type: wiki
 status: active
 updated: 2026-09-12
-oracle_entries: 86
+oracle_entries: 87
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -99,6 +99,7 @@ soul-orchestra/
 
 ## Known Issues
 
+- **Host invariant — nothing on this host can push to `main`, runners and cron included (agent-devops#129 hook; learned 2026-09-12)**: the global pre-push hook `~/.config/git/hooks/pre-push` applies to every process running as the ops user. `auto-deploy-identity.yml` was designed (#1132) to push each home repo's current branch — `main` for most — and could never have worked here even with the `DEPLOY_PAT` it also lacked; 13 runs failed unseen over 5 weeks (agent-devops#1106). Fixed by soul-orchestra#1199: runner's own `gh` credential, delivery = `identity/auto-<yyyymmdd>` branch + PR per repo, `deploy.py --target` scratch. First green run 34676829533 (18 PRs). Rule now in `conductor/protocol.md` ("Automation is live only when proven" + host invariant) and the global Post-Implement hard rule. Follow-ups: #1200 (failure notifier on every workflow), #1201 (`deploy.py --dry-run` CI smoke).
 - **Post-migration runner label gap (agent-devops#1100, 2026-09-12)**: `ci.yml`, `auto-deploy-identity.yml`, `dashboard-rebuild.yml` use `runs-on: [self-hosted, openclaw]` but the NEW-server runners are labelled `goko`; the old `openclaw` runners were deleted → every CI run since 09-11 09:17 queued forever (no error, just never starts). Temp fix: `openclaw` label added to goko-runner-soul-orchestra (and clienta.ai/chela runners) via API — applies to NEW queue events only; already-queued runs need cancel + `gh run rerun`. Permanent fix pending: migrate `runs-on` to `goko`. Single repo-level runner drains re-queued backlogs serially. Diagnose with `gh api .../runs/{id}/jobs` (labels vs `runner=`) and `~/goko-runner-*/_diag/Runner_*.log` "Running job:" lines — `gh pr checks` "pending" is ambiguous.
 - **Pool context contamination**: Accumulated output from prior tasks bleeds into new runs. Pool agents retain history, causing PLAN_MISMATCH and false-positive completions (observed 2026-05-09).
 - **`--repo` flag leak**: `soul-orchestra run` wrapper doesn't consume `--repo` in `cmd_run`, causing it to pass through to multi-agents CLI. Workaround: omit `--repo` (inject_context.py auto-derives from project-dir git remote).
