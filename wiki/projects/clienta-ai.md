@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-09-09
-oracle_entries: 88
+updated: 2026-09-20
+oracle_entries: 90
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -146,6 +146,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 - [RESOLVED 2026-08-09] **Flaky E2E: RSS feed title display** (#2183) — missing waitForResponse synchronization after page.goto; inconsistent per-assertion timeouts. Fixed with Promise.all + structural anchor wait. PR #2245.
 - [CLOSED 2026-08-09] **KB re-index tool** (#2059) — closed as already-satisfied. Per-org: `POST /documents/reprocess-all` (PR #110, Mar 2026). Cross-org: `scripts/re-embed-all-vectors.ts` (574 lines, v1.15.0). Issue filed 3 days before script merged.
 
+- **v1.19.0 Intent Classification + Agent Tone Analysis SHIPPED** (2026-09-20, PROD verified) — 2 epics (#2265 + #2266), parallel implementation. **Intent** (4 phases): dual-path classifier (keyword + async LLM via BullMQ), analytics dashboard (distribution + trends), intent-based routing rules, custom intents per-org. **Tone** (3 phases): LLM-scored agent messages (5 dimensions), agent performance dashboard (3 tabs), threshold alerts + weekly digest. Shared Phase 0 foundation (IntelligenceEnvelope, MessageAnalysisJob contracts). 14 PRs, 24 ACs, Vera QA PASS. Staging E2E 99.5%. Warden PASS (4 rounds, incl. integrity fix). 3 CI infra fixes (#2274 shard timeout, #2276 pg timeout, #2280 probe race). Follow-ups: #2283 (intent toggle UI), #2284 (docs EN+TH). **Gotcha**: Prisma reserved-migration slots (empty SQL) get marked "applied" — later SQL content updates are NOT re-run; manual ALTER TABLE needed on UAT.
 - **v1.18.0 Intelligent RAG Pipeline SHIPPED** (2026-09-09, PROD verified) — 3 phases, all ON by default. **Phase 1**: Clarifying-question turn — ambiguity detection gate (`ambiguity-detector.ts`) asks back on vague queries; deterministic pre-gate skips LLM for long/product/follow-up; double-gate: `config.RAG_CLARIFY_ENABLED && aiSettings.clarifyEnabled`. **Phase 2**: Entity extraction at ingest time (`entity-extraction-service.ts`, async BullMQ), Redis-cached org aggregation (TTL 600s), entity context in query rewrite prompt. **Phase 3**: Recency-aware context — `documentUpdatedAt` propagated through search, `[Updated: YYYY-MM-DD]` tags, LLM prefers newer on conflict. All fail-open (8 catch sites). 11 PRs (#2247-#2261). Migration: `clarify_enabled` Boolean + backfill true. `DEFAULT_SETTINGS` in `settings/service.ts` is a third source of truth (critical bug caught by review). `/api/chat/test` REST endpoint bypasses clarify — must test via real widget WS chat. Railway explicit env vars override code defaults. Staging E2E 651/651. Vera prod clarify 3/3 + regression 6/6. Warden PASS. GitHub Actions 18h outage → manual Railway deploy.
 - **v1.14.0 Trust Center Phase 2 SHIPPED** (2026-07-17) — in-app `/settings/security` dashboard. DPA management (status/sign/download/countersign), sub-processor list (9 items, `DPA_SUB_PROCESSORS` from contracts) + notification toggle, DSAR per-contact export (PDPA §31), account deletion UI (PDPA §33), security audit log, compliance documents. Admin-only (`requireAdmin` on all new routes). 14 ACs, 6 PRs (#2057 feature + #2058 bump + #2062 toggle fix + #2065 gate audit + #2066 plan-walk + #2068 smoke tests). Migration: `sub_processor_change_notify` Boolean on Organization. New API: `GET /api/settings/security`, `PATCH /api/settings/notifications`, `POST /api/settings/security/dpa/countersign`, `GET /api/legal/dpa/download`. Vera QA: UAT 9/9 + staging 9/9. E2E: staging 7/7. Follow-ups: #2067 (docs), #2069 (countersign toast UX), #2070 (DPA sign E2E).
 

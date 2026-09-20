@@ -101,3 +101,4 @@ Append-only record of wiki page updates.
 - 2026-09-12: soul-orchestra.md — Known Issues: host invariant (no main pushes for runners/cron, #129), auto-deploy-identity resolved via PR-per-repo (SO#1199, run 34676829533), rules #1200/#1201 — PSak
 - 2026-09-14: chela.md — [RESOLVED] chela#472 context_length_exceeded kills merger (PR #480 5260921): error misclassification + no compact+retry + window not re-derived on fallback — PSak
 - 2026-09-20 | chela | +[SHIPPED] chela#491 Secret Isolation (PR #501) | psak
+2026-09-20 clienta-ai: added v1.19.0 (intent classification + tone analysis shipped)
