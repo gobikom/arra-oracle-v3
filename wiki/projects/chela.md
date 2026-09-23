@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-09-20
-oracle_entries: 41
+updated: 2026-09-23
+oracle_entries: 42
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
