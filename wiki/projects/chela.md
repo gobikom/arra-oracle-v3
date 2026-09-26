@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-09-23
-oracle_entries: 42
+updated: 2026-09-26
+oracle_entries: 43
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -175,6 +175,12 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **Review loop:** warm reviewer agents across rounds; every finding reproduced before
   accepted; max-5-cycle escalation exercised once (PR#12/S2 → นุด option A → surgical
   fix).
+
+- **Prompt override cascade (thclaws port):** `.chela/prompt/<name>.md` (project) →
+  `$CHELA_HOME/prompt/<name>.md` (user) → `include_str!` built-in default. Override
+  files validated by `try_read_override`: distinguishes NotFound (expected) from
+  permission/IO errors (logged), enforces 64KB size limit, logs every applied override.
+  Template vars (`{model}`) resolved at builder level, not loader level (#577, PR #585).
 
 ## See Also
 

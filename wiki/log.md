@@ -103,3 +103,4 @@ Append-only record of wiki page updates.
 - 2026-09-20 | chela | +[SHIPPED] chela#491 Secret Isolation (PR #501) | psak
 2026-09-20 clienta-ai: added v1.19.0 (intent classification + tone analysis shipped)
 - 2026-09-23 chela: v1.34.0 shipped (#554 mark_ac+auto-infer+bridge-reset, #555 retry-scan, #553 UX batch). LOC budgets: kernel 7220, chela 5180, total 37660.
+2026-09-26 chela: #577 system-prompt-slim shipped (PR #585) — 6 thclaws patterns ported, prompt override cascade pattern added
