@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-09-26
-oracle_entries: 43
+updated: 2026-09-27
+oracle_entries: 44
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -137,6 +137,7 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 - **[RESOLVED 2026-08-22] agent-devops#1056 harness parity:** chela agents lacked `~/.claude/CLAUDE.md` global rules, serena MCP, and ck (binary missing). Fixed in v1.17.0: chela#360 (global CLAUDE.md discovery + `CLAUDE_CONFIG_HOME` env var), serena added to `~/.chela/config.json`, ck binary rebuilt. Model difference (GPT-5.5 vs Opus) is by design.
 - **[SHIPPED 2026-09-10] chela#440 Content Store:** Reference-over-inline IPC. New `chela-store` crate: content-addressable blobs (SHA-256 keyed, filesystem + SQLite WAL metadata), random ref_id (10 hex), TTL on refs not blobs, 2-step GC (delete refs → delete orphan blobs, `<=` expiry), degraded mode (mirrors SessionStore::mark_degraded). 3 tools: content_store (confinement-gated via ConfinementContext), content_peek (manifest-only), content_load (offset/max_bytes, 256KB hard cap, ToolOutputBudgets NO_TRUNCATION). agent_send --ref delivers manifest with blob path + CLI command for mixed-harness receivers. chela store CLI (put/peek/get/list/gc/delete). Policy: content_store forbidden in plan profile. Store location: same resolver as sessions.db + CHELA_STORE_DIR override. Design doc R2 approved by devlead-claude (2 rounds). Integration pending: #457 L1 skills, #458 L2 awareness, #460 Phase 3 WorkerResult refs, #461 Phase 4 auto-store.
 - **[SHIPPED 2026-09-19] chela#491 Secret Isolation (PR #501, merge 0ee2c75):** Prevents secret values from leaking into AI model context. 4-layer defense: (1) SecretLoader (`chela-kernel/secrets.rs`) — config-driven env injection from `~/.config/chela/secrets.yaml`, reserved-key validation (CLAUDE_*/ANTHROPIC_*/CHELA_*). (2) SecretRedactor (`chela-context/redactor.rs`) — exact-value matching, longest-first, suppression contract (replace→validate→suppress to empty + `was_suppressed` flag). (3) L2 policy expansion — configurable `secret_dirs`, default-deny. (4) Provider-specific content-field redaction at all output boundaries (Anthropic Messages, OpenAI Chat, Responses API, streaming, bridge). Plan peer-reviewed by devlead-codex: 6 rounds, 21 findings. Partially addresses deferred #91 (SecretString) and #101 (credential broker). 1234 tests, 36 new. Triggered by devlead-codex token leak incident.
+- **[RESOLVED 2026-09-27] chela#606 GLM stuck in planning phase (PR #607, v1.36.1):** GLM-5.3 wastes ~$1.16/task failing to call `task_phase("executing")` — doesn't follow tool-call instructions in error messages. Fix: `auto_task_state_from_delegation` now starts delegated tasks in `Executing` phase (skip planning gate). Non-delegated tasks (interactive `set_task_goal`) still start in `Planning`. End-to-end `PhasePolicyLayer` test added. Follow-up #608 (untested invalid transition rejection).
 - **v2 Smarter Core epic (#283):** 8 tracks closing DESIGN.md §4.2 gaps. Sub-issues: ~~#285 task state~~ (SHIPPED v1.14.0), #286 policy completion, #287 verify-before-done, #288 memory loop, #289 model routing (blocked), #290 tools gap (shipped v1.9.0), #291 context intelligence, #292 code intelligence A+B hybrid.
 - **[RESOLVED 2026-09-12] CI gate LOC baselines (#223 → PR #462):** `ci/update-loc-baselines.sh` — no-arg/`--check` reports drift (exit 3, never writes; wired into the `check` job as "LOC baselines in sync"), `--apply` patches `expect_line` assertions + `[test_loc_baseline]` (section-scoped; `[budgets]` untouched), runs the self-test, restores on failure. Adding any `ci/*.sh` must also satisfy the meta-gates: gates-wired `run:` step, `ci-change` label for workflow edits, `NO_DEPS_ALLOWLIST` entry in `ci/test-gate-dependencies.sh` for stdlib-only gates. Diagnostic output (#161) remains.
 - **[RESOLVED 2026-09-12] chela#442 sticky-model reset (F17 → PR #463, squash d24d1c5):** `FallbackApiClient` kept a *gone* sticky fallback model (gpt-5.5 404 on Sep 9) for the whole session. `is_model_gone()` + `MODEL_GONE_PHRASES` now reset to primary at the sticky arm only (other non-retryable errors keep sticky); eprintln surfaces the reset. Tests `non_retryable_resets_sticky_to_primary` / `_keeps_sticky` / `is_model_gone_classification`. Item 3 of #442 (fallback health monitoring) still open — devops-side.
@@ -181,6 +182,10 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
   files validated by `try_read_override`: distinguishes NotFound (expected) from
   permission/IO errors (logged), enforces 64KB size limit, logs every applied override.
   Template vars (`{model}`) resolved at builder level, not loader level (#577, PR #585).
+
+- **web_search tool shipped (2026-09-27, PR #601, #587 PR-A)**: 3 backends (Tavily/Brave/DuckDuckGo fallback), 5s per-backend timeout, 15s total deadline, 256KB streamed response cap. Attribute-aware DDG HTML parser (parse_tag_attrs), HTTP 202 challenge detection, read_capped() extracted pub(crate) from http.rs. TAVILY/BRAVE keys scrubbed from bash child env. 54 tests in crates/chela-tools/src/web_search.rs.
+- **v1.35.6 → v1.36.0 (2026-09-26/27)**: tool-array trim #578 complete (-17.7% bytes, 6 PRs), vendor/MANIFEST.md rule for new crates/* files (CI-enforced), system-prompt slim #577 (PR #585, 6 thclaws patterns ported, prompt override cascade).
+- **Benchmark: chela vs Claude Code on GLM-5.3 (2026-09-26, #588)**: post-#577+#595, chela 4.7x cheaper ($0.23 vs $1.09), T1 speed equal, T2/T3 CC 2-3x faster (cargo compile dominates). read_files batch tool: T1 5 turns/$0.25 → 1 turn/$0.07. Measure-first: 3/5 proposed improvements disproved by ablation.
 
 ## See Also
 
