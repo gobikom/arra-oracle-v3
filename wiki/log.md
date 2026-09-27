@@ -104,3 +104,10 @@ Append-only record of wiki page updates.
 2026-09-20 clienta-ai: added v1.19.0 (intent classification + tone analysis shipped)
 - 2026-09-23 chela: v1.34.0 shipped (#554 mark_ac+auto-infer+bridge-reset, #555 retry-scan, #553 UX batch). LOC budgets: kernel 7220, chela 5180, total 37660.
 2026-09-26 chela: #577 system-prompt-slim shipped (PR #585) — 6 thclaws patterns ported, prompt override cascade pattern added
+- 2026-09-27 | updated | projects/chela.md | +3: web_search shipped (PR #601, 54 tests), v1.35.6→v1.36.0 arc (#578/#577), CC-vs-chela GLM-5.3 benchmark (4.7x cheaper) | psak wiki-freshness
+- 2026-09-27 | updated | projects/soul-orchestra.md | +2: autonomous merge pipeline LIVE (SO#1228/#1241/#1236/#1240), Serena removal full sweep | psak wiki-freshness
+- 2026-09-27 | updated | projects/sniper-s50.md | +2: dedicated broker account decision (epic #162), pre-terminate must disable timers | psak wiki-freshness
+- 2026-09-27 | updated | projects/clienta-ai.md | +2: UAT version-stuck incident (detect-changes HEAD~1), CI silent-skip class | psak wiki-freshness
+- 2026-09-27 | updated | projects/my-ai-soul-mcp.md | +1: stateless_http=True root cause of mcp-remote drops (95f1d22) | psak wiki-freshness
+- 2026-09-27 | updated | projects/oracle-v3.md | +3 Known Issues: TTL not enforced on read (2nd cycle), reindex overdue (3538), concept "[" parser artifact | psak wiki-freshness
+- 2026-09-27: chela — added [RESOLVED] chela#606 GLM planning phase fix (PR #607, v1.36.1)
