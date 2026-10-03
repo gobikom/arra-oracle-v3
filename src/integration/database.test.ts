@@ -53,13 +53,13 @@ describe("Database Integration (Drizzle ORM)", () => {
       const sql = readFileSync(join(migrationsDir, file), "utf-8");
       const statements = sql.split("--> statement-breakpoint").filter(s => s.trim());
       for (const stmt of statements) {
+        // The DB is fresh (deleted above), so no error is expected — not even
+        // "already exists", which would mean one migration re-creates another's object.
         try {
           sqlite.exec(stmt);
         } catch (e) {
-          // Only an object that already exists is tolerated; any other error is a real failure.
-          if (!/already exists|duplicate column/i.test(String(e))) {
-            throw new Error(`migration ${file} failed: ${e}`);
-          }
+          sqlite.close();
+          throw new Error(`migration ${file} failed: ${e}`);
         }
       }
     }
