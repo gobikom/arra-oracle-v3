@@ -105,3 +105,4 @@ Append-only record of wiki page updates.
 - 2026-09-23 chela: v1.34.0 shipped (#554 mark_ac+auto-infer+bridge-reset, #555 retry-scan, #553 UX batch). LOC budgets: kernel 7220, chela 5180, total 37660.
 2026-09-26 chela: #577 system-prompt-slim shipped (PR #585) — 6 thclaws patterns ported, prompt override cascade pattern added
 - 2026-09-27: chela — added [RESOLVED] chela#606 GLM planning phase fix (PR #607, v1.36.1)
+- 2026-10-02: chela — SHIPPED chela-deploy bwrap sandbox (agent-devops#1169, ops#120 e954daa): all cargo and tree code sandboxed, fresh target dir per round (full build ~4-5 min, AC3 accepted)
