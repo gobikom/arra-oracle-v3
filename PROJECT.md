@@ -111,6 +111,13 @@ src/routes/traces.ts:34:  app.get('/api/traces/:id', (c) => {
 - Must run `bun run index` before first use to populate SQLite FTS5
 - OAuth flow requires `MCP_OAUTH_PIN` env var; Bearer auth requires `MCP_AUTH_TOKEN`
 - Package name in package.json is still `arra-oracle-v2` (historical artifact)
+- **This repo is a GitHub fork** (of Soul-Brews-Studio/arra-oracle-v3). GitHub runs no workflows on a fork until they are enabled once in the Actions tab, and the REST API still reports Actions as "enabled" before that.
+  - Until 2026-10-03 no check had ever run here, and PRs merged via safe-merge bypass (agent-devops#1204).
+  - Workflows are now enabled. Upstream's self-hosted `Auto-add to Pulse Inbox` is **disabled** on this fork: it uses `runs-on: self-hosted`, puts issue and PR titles straight into bash, and must never get a runner here.
+- **Wiki PRs are checked by the `Wiki` workflow** (`src/wiki/check-wiki.ts`, agent-devops#1205).
+  - Every page needs frontmatter (`title`, `type`, `status`, a real non-future `updated`), and project pages also need `project` and an integer `oracle_entries`.
+  - A PR that changes a page must append a non-blank line to `wiki/log.md`. The log is append-only, and `updated` never goes backwards.
+  - Run `bun src/wiki/check-wiki.ts --base origin/main` locally before opening a wiki PR.
 
 ---
 

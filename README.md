@@ -225,6 +225,10 @@ bun test:unit         # Unit tests
 bun test:integration  # Integration tests
 bun test:e2e          # Playwright E2E tests
 bun test:coverage     # With coverage
+
+# Wiki (also the `Wiki` CI workflow)
+bun test src/wiki/__tests__/check-wiki.test.ts   # checker self-test
+bun src/wiki/check-wiki.ts --base origin/main    # check wiki/ and this branch's change
 ```
 
 ## References
