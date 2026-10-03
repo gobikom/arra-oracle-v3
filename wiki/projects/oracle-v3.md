@@ -2,8 +2,8 @@
 title: Oracle v3 (Arra)
 type: wiki
 status: active
-updated: 2026-08-07
-oracle_entries: 20
+updated: 2026-10-03
+oracle_entries: 21
 sources:
   - https://github.com/gobikom/arra-oracle-v3
 project: github.com/gobikom/arra-oracle-v3
@@ -127,6 +127,12 @@ Embedding models:
 - Knowledge-lint score (Sunday 20:00) detects contradictions, stale entries, orphans, and cross-store duplicates
 - Oracle DB had 1,339 orphan entries flagged during 2026-05-09 reindex; auto-archive >90d in knowledge-lint. As of 2026-08-07: 2,317 orphans, 1,168 drifted, 318 missing. Reindex fixes non-arra_learn docs only; arra_learn-owned files (5,363) are skipped by `bun run index` and drift permanently (#1012)
 - **[RESOLVED 2026-08-07] Supersede twin-row propagation (#1010)**: arra_supersede now propagates to all rows sharing the same source_file (PR #82). 737 live rows were serving superseded knowledge.
+- **[SHIPPED 2026-10-03] Real CI on this fork, plus a wiki check (agent-devops#1204, #1205; PRs #118 7c966f1, #119 678ccbd).**
+  - **Workflows:** the fork's workflows had never run. นุด enabled them in the Actions tab; the REST "enable" API does not flip the fork switch.
+  - **First run:** it exposed a stale integration test. The hardcoded migration list stopped at 0006, so `expires_at` was missing; it now follows `meta/_journal.json` and fails on any migration error.
+  - **Upstream workflow:** the self-hosted `Auto-add to Pulse Inbox` was disabled because of a script-injection risk.
+  - **Wiki check:** the new `Wiki` workflow (`src/wiki/check-wiki.ts`, 31-case self-test) gives wiki-only PRs a check-run that reads `wiki/**`. Merger approved wiki PR #117 after reading its patch in full; the Wiki check supplied the CI coverage that was missing.
+  - **Follow-up:** CommonMark-parser coverage for rare link forms is agent-devops#1206.
 - **[RESOLVED 2026-08-07] arra_learn drift refresh (#1012)**: Indexer now refreshes arra_learn-owned rows in place when file content drifts, instead of skipping entirely (PR #83). 1,149 files were permanently drifted.
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
 - **P1 — every learning is indexed TWICE, and the duplicate never expires.** Expired
