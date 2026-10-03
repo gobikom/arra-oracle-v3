@@ -1,0 +1,43 @@
+name: Wiki
+
+# A check-run that actually reads wiki/** (agent-devops#1205): the Test workflow
+# runs the TypeScript suites only, so a docs-only wiki PR had no CI covering it.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - "src/wiki/**"
+      - ".github/workflows/wiki.yml"
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - "src/wiki/**"
+      - ".github/workflows/wiki.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Wiki Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Self-test (every rule must catch a planted defect)
+        run: bun test src/wiki/__tests__/check-wiki.test.ts
+      - name: Check wiki tree and (on PRs) the change
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            bun src/wiki/check-wiki.ts --base "origin/$BASE_REF"
+          else
+            bun src/wiki/check-wiki.ts
+          fi
