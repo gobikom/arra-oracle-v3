@@ -115,7 +115,7 @@ src/routes/traces.ts:34:  app.get('/api/traces/:id', (c) => {
   - Until 2026-10-03 no check had ever run here, and PRs merged via safe-merge bypass (agent-devops#1204).
   - Workflows are now enabled. Upstream's self-hosted `Auto-add to Pulse Inbox` is **disabled** on this fork: it uses `runs-on: self-hosted`, puts issue and PR titles straight into bash, and must never get a runner here.
 - **Wiki PRs are checked by the `Wiki` workflow** (`src/wiki/check-wiki.ts`, agent-devops#1205).
-  - Every page needs frontmatter (`title`, `type`, `status`, a real non-future `updated`), and project pages also need `project` and an integer `oracle_entries`.
+  - Every page except `wiki/log.md` needs frontmatter (`title`, `type`, `status`, a real non-future `updated`), and project pages also need `project` and an integer `oracle_entries`.
   - A PR that changes a page must append a non-blank line to `wiki/log.md`. The log is append-only, and `updated` never goes backwards.
   - Run `bun src/wiki/check-wiki.ts --base origin/main` locally before opening a wiki PR.
 
