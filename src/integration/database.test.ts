@@ -37,31 +37,28 @@ describe("Database Integration (Drizzle ORM)", () => {
     sqlite = new Database(TEST_DB_PATH);
     db = drizzle(sqlite, { schema });
 
-    // Apply migrations from migration files
+    // Apply every migration drizzle knows about, in journal order. A hardcoded list
+    // went stale at 0006 and the test schema silently lacked expires_at (0007).
     const migrationsDir = join(PROJECT_ROOT, "src/db/migrations");
-    const migrationFiles = [
-      "0000_unknown_viper.sql",
-      "0001_chunky_dark_phoenix.sql",
-      "0002_mixed_rhodey.sql",
-      "0003_rapid_strong_guy.sql",
-      "0004_warm_mesmero.sql",
-      "0005_add_schedule.sql",
-      "0006_magenta_screwball.sql",
-    ];
+    const journal = JSON.parse(
+      readFileSync(join(migrationsDir, "meta/_journal.json"), "utf-8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    const migrationFiles = [...journal.entries]
+      .sort((a, b) => a.idx - b.idx)
+      .map((e) => `${e.tag}.sql`);
+    expect(migrationFiles.length).toBeGreaterThan(0);
 
     for (const file of migrationFiles) {
-      const sqlPath = join(migrationsDir, file);
-      if (existsSync(sqlPath)) {
-        const sql = readFileSync(sqlPath, "utf-8");
-        // Execute each statement separately (split by --)
-        const statements = sql.split("--> statement-breakpoint").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            try {
-              sqlite.exec(stmt);
-            } catch (e) {
-              // Ignore errors for already existing objects
-            }
+      // A journal entry without its .sql file is a broken migration set — fail, never skip.
+      const sql = readFileSync(join(migrationsDir, file), "utf-8");
+      const statements = sql.split("--> statement-breakpoint").filter(s => s.trim());
+      for (const stmt of statements) {
+        try {
+          sqlite.exec(stmt);
+        } catch (e) {
+          // Only an object that already exists is tolerated; any other error is a real failure.
+          if (!/already exists|duplicate column/i.test(String(e))) {
+            throw new Error(`migration ${file} failed: ${e}`);
           }
         }
       }
