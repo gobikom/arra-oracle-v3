@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-09-27
-oracle_entries: 44
+updated: 2026-10-02
+oracle_entries: 46
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -121,6 +121,15 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Known Issues / Watch-items
 
+- **[SHIPPED 2026-10-02] chela-deploy builds and self-tests in a sandbox (agent-devops#1169, gobikom/ops#120 → e954daa).**
+  - **What is sandboxed:** every cargo run and all code from the chela tree run only inside bwrap in a `systemd-run --user --scope` unit, for main and `--pr` alike. That covers cargo metadata and fetch, build.rs, proc-macros, and the new binary's `--version` and `--self-test`.
+    - Fetch: network, but no host tree and no `~/.cargo/git`.
+    - Build: no network, a fresh target dir each round.
+    - Self-test: host network, and only the tested model's credential (Codex gets a private copy of the store, never copied back).
+  - **Effect on a chela PR:** `build.rs` and the binary cannot touch `~/ops/bin`, `~/.cargo`, `~/.secrets` or `~/repos`, or leave a process running.
+  - **Source rule:** the tree must name crates.io sources only, checked as TOML before cargo runs.
+  - **Cost:** every deploy is a full build, about 4–5 min (นุด accepted this, AC3).
+  - **Watch:** the self-test still has host network (agent-devops#1176); tmux-dash's kill token is unauthenticated on loopback (#1178); final review suggestions are in #1182.
 - **[RESOLVED 2026-08-08] Pre-M7 sweep:** 28/28 issues closed. Last 3: #122 (compaction observability, PR #156), #123 (MessageStop, PR #169), #151 (agent_sdk auth classification, PR #171). Security model: L1=boundary (bash denial), L2=best-effort (documented #112), env credential detection (#125), agent/ delegates to subprocess policy (#129 by-design). Deferred to v2: #91 (SecretString), #93 (URL validation), #101 (credential broker).
 - **[RESOLVED 2026-08-10] GLM URL path bug:** OpenAI client hardcoded `/v1/chat/completions` in path template — GLM base `/v4` produced `/v4/v1/chat/completions` (404). Fixed: moved `/v1` into DEFAULT_BASE_URL (PR #214). Also added `GLM_BASE_URL` env override (PR #215) for api.z.ai via headroom proxy. Note: bigmodel.cn account has zero balance — all GLM access goes via api.z.ai.
 - **[RESOLVED 2026-08-11] vendor-audit MANIFEST:** 6 files from v1.1-v1.2 (openai.rs, provider.rs, jsonrpc.rs, mcp.rs, names.rs, registry.rs) missing from MANIFEST written-fresh section. Fixed PR #216. CI now green on main.
