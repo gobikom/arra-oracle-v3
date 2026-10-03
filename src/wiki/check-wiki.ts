@@ -9,7 +9,8 @@
  *     updated (a real YYYY-MM-DD date, not in the future in any timezone)
  *   - projects/*.md also have project and an integer oracle_entries >= 0
  *   - every relative link resolves: inline, <angle>, "titled", reference-style
- *     (also inside > blockquotes) and HTML href/src; fenced and inline code are
+ *     (also inside > blockquotes) and href/src attributes of HTML tags (quoted or
+ *     not); fenced code (``` or ~~~, any run length) and inline code are
  *     ignored. Out of scope: a link whose target is on the next line.
  *   - every *.json under wiki/ parses
  * With --base (pull requests), on the change since the merge base:
@@ -60,20 +61,28 @@ export function latestToday(now: Date = new Date()): string {
 /** Relative link targets in markdown, outside fenced code blocks. */
 export function linkTargets(text: string): string[] {
   const out: string[] = [];
-  let fence: string | null = null;
+  // Open fence as CommonMark tracks it: its character and run length. A closer uses the
+  // same character, a run at least as long, and no info string.
+  let fence: { ch: string; len: number } | null = null;
   for (const line of text.split(/\r?\n/)) {
-    // A fence opener's info string has no backtick (CommonMark), so ```x``` is inline code.
-    const f = /^\s*(```|~~~)(.*)$/.exec(line);
-    if (f && f[1] === "```" && fence === null && f[2].includes("`")) { /* inline code line */ }
-    else if (f) { fence = fence === null ? f[1] : fence === f[1] ? null : fence; continue; }
-    if (fence !== null) continue;
-    const prose = line.replace(/`[^`]*`/g, ""); // inline code is not a link
+    const f = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (fence !== null) {
+      if (f && f[1][0] === fence.ch && f[1].length >= fence.len && f[2].trim() === "") fence = null;
+      continue;
+    }
+    // A backtick fence's info string has no backtick, so ```x``` at line start is inline code.
+    if (f && !(f[1][0] === "`" && f[2].includes("`"))) { fence = { ch: f[1][0], len: f[1].length }; continue; }
+    const prose = line.replace(/(`+)[^`]*?\1/g, ""); // inline code (any backtick run) is not a link
     // inline: ](target) / ](<target with spaces>) / ](target "title")
     for (const m of prose.matchAll(/\]\(\s*(?:<([^>]+)>|([^)\s]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g)) {
       out.push(m[1] ?? m[2]);
     }
-    // HTML: href="…" / src="…"
-    for (const m of prose.matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) out.push(m[1] ?? m[2]);
+    // HTML: href / src attributes (quoted or not), only inside a real <tag …>
+    for (const tag of prose.matchAll(/<[A-Za-z][\w-]*\s[^>]*>/g)) {
+      for (const m of tag[0].matchAll(/\s(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
+        out.push(m[1] ?? m[2] ?? m[3]);
+      }
+    }
     // reference definition: [label]: target (also inside > blockquotes); [^n]: is a footnote
     const ref = /^\s{0,3}(?:>\s*)*\[(?!\^)[^\]]+\]:\s*(?:<([^>]+)>|(\S+))/.exec(prose);
     if (ref) out.push(ref[1] ?? ref[2]);

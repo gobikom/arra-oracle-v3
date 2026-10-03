@@ -102,6 +102,25 @@ describe("checkTree", () => {
     for (const t of ["gone1.md", "gone2.png", "gone3.md"]) expect(errs).toContain(`broken link -> ${t}`);
     expect(errs).not.toContain("footnote");
   });
+  test("a 4-backtick fence wrapping a 3-backtick one is skipped whole; links after it are checked", () => {
+    w("wiki/projects/demo.md", PAGE() + "\n````md\n```\ncode\n```\n[x](skip.md)\n````\n[b](g3.md)\n");
+    const errs = checkTree(root, TODAY).join("\n");
+    expect(errs).toContain("broken link -> g3.md");
+    expect(errs).not.toContain("skip.md");
+  });
+  test("a ~~~ line does not close a backtick fence", () => {
+    w("wiki/projects/demo.md", PAGE() + "\n```\n~~~\n[x](skip.md)\n```\n[b](g4.md)\n");
+    const errs = checkTree(root, TODAY).join("\n");
+    expect(errs).toContain("g4.md");
+    expect(errs).not.toContain("skip.md");
+  });
+  test("unquoted HTML attributes are checked; src= outside a tag or data-src= are not", () => {
+    w("wiki/projects/demo.md", PAGE() + '\n<img src=g9.png alt=x>\nuse src="prose.png" here, <img data-src="lazy.png">\n');
+    const errs = checkTree(root, TODAY).join("\n");
+    expect(errs).toContain("broken link -> g9.png");
+    expect(errs).not.toContain("prose.png");
+    expect(errs).not.toContain("lazy.png");
+  });
   test(".gitkeep is allowed", () => {
     w("wiki/patterns/.gitkeep", "");
     expect(checkTree(root, TODAY)).toEqual([]);
