@@ -131,7 +131,7 @@ Embedding models:
   - **Workflows:** the fork's workflows had never run. นุด enabled them in the Actions tab; the REST "enable" API does not flip the fork switch.
   - **First run:** it exposed a stale integration test. The hardcoded migration list stopped at 0006, so `expires_at` was missing; it now follows `meta/_journal.json` and fails on any migration error.
   - **Upstream workflow:** the self-hosted `Auto-add to Pulse Inbox` was disabled because of a script-injection risk.
-  - **Wiki check:** the new `Wiki` workflow (`src/wiki/check-wiki.ts`, 31-case self-test) gives wiki-only PRs a check-run that reads `wiki/**`. Merger approved wiki PR #117 on that evidence alone.
+  - **Wiki check:** the new `Wiki` workflow (`src/wiki/check-wiki.ts`, 31-case self-test) gives wiki-only PRs a check-run that reads `wiki/**`. Merger approved wiki PR #117 after reading its patch in full; the Wiki check supplied the CI coverage that was missing.
   - **Follow-up:** CommonMark-parser coverage for rare link forms is agent-devops#1206.
 - **[RESOLVED 2026-08-07] arra_learn drift refresh (#1012)**: Indexer now refreshes arra_learn-owned rows in place when file content drifts, instead of skipping entirely (PR #83). 1,149 files were permanently drifted.
 - Dual allTools arrays in codebase — no single source of truth (tech debt)
