@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "f
 import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
-import { checkTree, checkChange, isRealDate, parseFrontmatter } from "../check-wiki";
+import { checkTree, checkChange, isRealDate, latestToday, parseFrontmatter } from "../check-wiki";
 
 const TODAY = "2026-10-03";
 const PAGE = (updated = "2026-10-01", extra = "") =>
@@ -69,6 +69,41 @@ describe("checkTree", () => {
   test("log.md needs no frontmatter", () => {
     expect(checkTree(root, TODAY).join("\n")).not.toContain("log.md");
   });
+  test("titled and <angle> links are checked; an existing <angle> target is fine", () => {
+    w("wiki/systems/a b.md", SYSTEM);
+    w("wiki/projects/demo.md", PAGE() + '\n[t](nope.md "title") [ok](<../systems/a b.md>) [bad](<gone file.md>)\n');
+    const errs = checkTree(root, TODAY).join("\n");
+    expect(errs).toContain("broken link -> nope.md");
+    expect(errs).toContain("broken link -> gone file.md");
+    expect(errs).not.toContain("a b.md");
+  });
+  test("a reference-style link definition is checked", () => {
+    w("wiki/projects/demo.md", PAGE() + "\nSee [c][r].\n\n[r]: nope3.md\n");
+    expect(checkTree(root, TODAY).join("\n")).toContain("broken link -> nope3.md");
+  });
+  test("links inside fenced or inline code are not links", () => {
+    w("wiki/projects/demo.md", PAGE() + "\n```md\n[g](gone.md)\n```\n`[h](gone2.md)`\n");
+    expect(checkTree(root, TODAY)).toEqual([]);
+  });
+  test("an upper-case .MD page is checked; an unexpected file type is red", () => {
+    w("wiki/patterns/Bad.MD", "# no frontmatter\n");
+    w("wiki/patterns/x.markdown", "# hidden\n");
+    const errs = checkTree(root, TODAY).join("\n");
+    expect(errs).toContain("Bad.MD: missing frontmatter");
+    expect(errs).toContain("x.markdown: unexpected file type");
+  });
+  test(".gitkeep is allowed", () => {
+    w("wiki/patterns/.gitkeep", "");
+    expect(checkTree(root, TODAY)).toEqual([]);
+  });
+});
+
+describe("latestToday", () => {
+  test("is the UTC+14 date, so a Bangkok date before 07:00 is never 'future'", () => {
+    // 2026-10-03T20:30Z is 2026-10-04 03:30 in Bangkok
+    expect(latestToday(new Date("2026-10-03T20:30:00Z"))).toBe("2026-10-04");
+    expect(latestToday(new Date("2026-10-03T05:00:00Z"))).toBe("2026-10-03");
+  });
 });
 
 describe("checkChange (PR mode)", () => {
@@ -84,7 +119,7 @@ describe("checkChange (PR mode)", () => {
   test("a page change without a log entry is red", () => {
     w("wiki/projects/demo.md", PAGE("2026-10-02"));
     commit();
-    expect(checkChange(root, "main").join("\n")).toContain("without a wiki/log.md entry");
+    expect(checkChange(root, "main").join("\n")).toContain("without a non-blank wiki/log.md entry");
   });
   test("removing or editing a log line is red", () => {
     w("wiki/log.md", "# Wiki Change Log\n\n- 2026-10-01: demo — rewritten history\n");
@@ -99,6 +134,36 @@ describe("checkChange (PR mode)", () => {
   });
   test("an unknown base ref is an error, never clean", () => {
     expect(() => checkChange(root, "no-such-ref")).toThrow();
+  });
+  test("a blank line is not a log entry", () => {
+    w("wiki/projects/demo.md", PAGE("2026-10-02"));
+    appendFileSync(join(root, "wiki/log.md"), "\n   \n");
+    commit();
+    expect(checkChange(root, "main").join("\n")).toContain("without a non-blank wiki/log.md entry");
+  });
+  test("deleting a page needs a log entry too", () => {
+    rmSync(join(root, "wiki/systems/services.md"));
+    w("wiki/projects/demo.md", PAGE().replace("See [services](../systems/services.md).", ""));
+    w("wiki/log.md", "# Wiki Change Log\n\n- 2026-10-01: demo — created\n");
+    commit();
+    const errs = checkChange(root, "main").join("\n");
+    expect(errs).toContain("D wiki/systems/services.md");
+  });
+  test("removing a log line that starts with --- is still red", () => {
+    git("checkout", "-q", "main");
+    appendFileSync(join(root, "wiki/log.md"), "--- separator\n");
+    git("commit", "-qam", "sep");
+    git("checkout", "-qB", "pr");
+    w("wiki/log.md", "# Wiki Change Log\n\n- 2026-10-01: demo — created\n");
+    commit();
+    expect(checkChange(root, "main").join("\n")).toContain("append-only");
+  });
+  test("a renamed page's updated is compared with its old path", () => {
+    git("mv", "wiki/projects/demo.md", "wiki/projects/demo2.md");
+    w("wiki/projects/demo2.md", PAGE("2020-01-01"));
+    appendFileSync(join(root, "wiki/log.md"), "- 2026-10-02: demo renamed\n");
+    commit();
+    expect(checkChange(root, "main").join("\n")).toContain("demo2.md: updated went backwards (2026-10-01 -> 2020-01-01)");
   });
 });
 

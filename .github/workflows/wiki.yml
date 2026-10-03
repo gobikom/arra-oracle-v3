@@ -24,20 +24,25 @@ jobs:
     name: Wiki Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
+          bun-version: "1.4.2"
       - name: Self-test (every rule must catch a planted defect)
         run: bun test src/wiki/__tests__/check-wiki.test.ts
       - name: Check wiki tree and (on PRs) the change
         env:
           BASE_REF: ${{ github.base_ref }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ -n "$BASE_REF" ]; then
-            bun src/wiki/check-wiki.ts --base "origin/$BASE_REF"
+          if [ "$EVENT" = "pull_request" ]; then
+            [ -n "$BASE_REF" ] || { echo "pull_request without a base ref — refusing to skip the change check"; exit 2; }
+            bun src/wiki/check-wiki.ts --base "origin/$BASE_REF" | tee check-wiki.out
           else
-            bun src/wiki/check-wiki.ts
+            bun src/wiki/check-wiki.ts | tee check-wiki.out
           fi
+          # The checker always ends with a "check-wiki: OK" line when it really ran clean.
+          grep -q '^check-wiki: OK' check-wiki.out || { echo "check-wiki produced no OK summary"; exit 1; }
