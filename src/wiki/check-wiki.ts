@@ -8,8 +8,9 @@
  *   - every page except wiki/log.md has frontmatter with title, type, status,
  *     updated (a real YYYY-MM-DD date, not in the future in any timezone)
  *   - projects/*.md also have project and an integer oracle_entries >= 0
- *   - every relative link resolves (inline, <angle>, "titled", reference-style;
- *     fenced code is ignored)
+ *   - every relative link resolves: inline, <angle>, "titled", reference-style
+ *     (also inside > blockquotes) and HTML href/src; fenced and inline code are
+ *     ignored. Out of scope: a link whose target is on the next line.
  *   - every *.json under wiki/ parses
  * With --base (pull requests), on the change since the merge base:
  *   - a changed, added, renamed or deleted page needs a non-blank line added
@@ -61,16 +62,20 @@ export function linkTargets(text: string): string[] {
   const out: string[] = [];
   let fence: string | null = null;
   for (const line of text.split(/\r?\n/)) {
-    const f = /^\s*(```|~~~)/.exec(line);
-    if (f) { fence = fence === null ? f[1] : fence === f[1] ? null : fence; continue; }
+    // A fence opener's info string has no backtick (CommonMark), so ```x``` is inline code.
+    const f = /^\s*(```|~~~)(.*)$/.exec(line);
+    if (f && f[1] === "```" && fence === null && f[2].includes("`")) { /* inline code line */ }
+    else if (f) { fence = fence === null ? f[1] : fence === f[1] ? null : fence; continue; }
     if (fence !== null) continue;
     const prose = line.replace(/`[^`]*`/g, ""); // inline code is not a link
     // inline: ](target) / ](<target with spaces>) / ](target "title")
     for (const m of prose.matchAll(/\]\(\s*(?:<([^>]+)>|([^)\s]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g)) {
       out.push(m[1] ?? m[2]);
     }
-    // reference definition: [label]: target
-    const ref = /^\s{0,3}\[[^\]]+\]:\s*(?:<([^>]+)>|(\S+))/.exec(prose);
+    // HTML: href="…" / src="…"
+    for (const m of prose.matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) out.push(m[1] ?? m[2]);
+    // reference definition: [label]: target (also inside > blockquotes); [^n]: is a footnote
+    const ref = /^\s{0,3}(?:>\s*)*\[(?!\^)[^\]]+\]:\s*(?:<([^>]+)>|(\S+))/.exec(prose);
     if (ref) out.push(ref[1] ?? ref[2]);
   }
   return out;

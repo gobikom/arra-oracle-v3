@@ -38,6 +38,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           EVENT: ${{ github.event_name }}
         run: |
+          set -o pipefail   # keep the checker's own exit code (1 problems / 2 cannot run) through tee
           if [ "$EVENT" = "pull_request" ]; then
             [ -n "$BASE_REF" ] || { echo "pull_request without a base ref — refusing to skip the change check"; exit 2; }
             bun src/wiki/check-wiki.ts --base "origin/$BASE_REF" | tee check-wiki.out

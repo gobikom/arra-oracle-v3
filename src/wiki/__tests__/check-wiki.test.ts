@@ -92,6 +92,16 @@ describe("checkTree", () => {
     expect(errs).toContain("Bad.MD: missing frontmatter");
     expect(errs).toContain("x.markdown: unexpected file type");
   });
+  test("a line starting with ```inline``` code is not a fence; links after it are checked", () => {
+    w("wiki/projects/demo.md", PAGE() + "\n```foo``` inline code at line start\n[bad](gone.md)\n");
+    expect(checkTree(root, TODAY).join("\n")).toContain("broken link -> gone.md");
+  });
+  test("HTML href/src and blockquoted reference definitions are checked; footnotes are not links", () => {
+    w("wiki/projects/demo.md", PAGE() + '\n<a href="gone1.md">a</a> <img src="gone2.png">\n> [r]: gone3.md\n\n[^1]: a footnote, not a link\n');
+    const errs = checkTree(root, TODAY).join("\n");
+    for (const t of ["gone1.md", "gone2.png", "gone3.md"]) expect(errs).toContain(`broken link -> ${t}`);
+    expect(errs).not.toContain("footnote");
+  });
   test(".gitkeep is allowed", () => {
     w("wiki/patterns/.gitkeep", "");
     expect(checkTree(root, TODAY)).toEqual([]);
