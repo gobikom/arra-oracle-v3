@@ -2,8 +2,8 @@
 title: Multi-Agents
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 20
+updated: 2026-10-04
+oracle_entries: 23
 sources:
   - https://github.com/gobikom/multi-agents
 project: github.com/gobikom/multi-agents
@@ -128,6 +128,8 @@ multi-agents/
 
 ## Known Issues
 
+- **[OPEN] Multi-step DAG scores mint a NEW pool task per step — executors re-run the whole brief (2026-09-20)**: knowledge-lint cron fired once but 3 at-* tasks appeared in 7 min, each with the previous step's report attached; executors see "FRESH task + prior report" and redo Part A–D instead of the next sub-task. `runner_dedup_recent` only dedups cron re-fires, not DAG fan-out. Fix direction: step payload banners ("DAG STEP 2/4: <subtask> — consume attached prior output") + optional workflow_id echo. Cost of ambiguity: ~3× full probe batches.
+- **[RESOLVED 2026-09-12, PR #234] `is_available()` timeout race silently fell back to subprocess**: 3.0s health-check timeout vs ~2.8s real dashboard GET latency — intermittent "pool unreachable" → subprocess spawning that masked the chela pool integration entirely. Fix: 10.0s timeout. Pattern: measure real latency (curl timing) BEFORE setting health-check timeouts.
 - `agents run --prd <file>` requires specific PRD format with Implementation Phases table — NOT compatible with arbitrary markdown
 - Pool task "completed" means delivered to agent, not executed — verify worktree/branch/PR existence
 - `feature_loop.py` doesn't forward `plan_path` to DAG planner node (line 141)

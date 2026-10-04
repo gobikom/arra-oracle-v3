@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-09-14
-oracle_entries: 87
+updated: 2026-10-03
+oracle_entries: 88
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -99,6 +99,8 @@ soul-orchestra/
 
 ## Known Issues
 
+- **[RESOLVED 2026-10-03, SO#1254] Agent secret-handling rules landed in conductor/protocol.md (agent-devops#1184)**: "Never print a secret VALUE" + `scripts/secret-keys.awk` (key names only; stops at first non-self-contained line; exit 3 = incomplete, never "absent"); check keys with `grep -c '^NAME='`, never by reading the file. YAML/JSON listers on conductor/wiki/secret-handling.md. goko home now 750; merger-bot gh brokered via `/usr/local/bin/merger-gh` (ops#126) — merger uid cannot read goko's home.
+- **[FIX PROPOSED 2026-09-20 — PR #1230 still OPEN/unmerged] knowledge-lint stale exit-4 WARNING healed via `--force`; root-caused (agent-devops#1126)**: Sep 6 pre-submission workflow death + Sep 13 weekly slot missed (host reboots) — 38 consecutive collector WARNINGs were BY-DESIGN weekly-cadence suppression (#677), not parsing faults. Regression-pinned weekly-cadence suppression + new `slot_missed_since_tick` metadata flag; consumer rule 2b-slot teaches the report to recommend `--force` rerun. Ops lesson: sandbox HOME shadowing breaks runner secrets — run scores with HOME=/home/goko. Regression pin (weekly-cadence suppression + `slot_missed_since_tick` flag + 2b-slot consumer rule) is in PR #1230 — NOT yet in main; `soul-orchestra deploy` still required after it merges.
 - **`main` push policy on this host (agent-devops#129 hook; clarified 2026-09-12)**: `~/.config/git/hooks/pre-push` blocks direct `main`/`master` pushes for every process running as goko — agents, scores, cron — **except** inside a GitHub Actions job (`GITHUB_ACTIONS=true`) and repos opted out via `git config hooks.allowmainpush true` (agent-devops#986). Correction of the same day's first reading: PSak tested from an interactive shell and wrongly concluded the runner was blocked too. `auto-deploy-identity.yml` never worked for a different reason — no `DEPLOY_PAT` was ever configured (13 failed runs over 5 weeks, agent-devops#1106). soul-orchestra#1199 made it work without a secret (runner's own `gh` credential) and switched delivery to `identity/auto-<yyyymmdd>` branch + PR per repo (policy-uniform with how identity updates always landed, e.g. agent-psak #79–#83); first green run 34676829533 (18 PRs). Direct main push from the workflow would also have been allowed by the hook — keeping PR-per-repo is a policy choice, revisitable. Rules now in `conductor/protocol.md` ("Automation is live only when proven" + hook-exemption awareness) and the global Post-Implement hard rule. Follow-ups: #1200 (failure notifier), #1201 (`deploy.py --dry-run` CI smoke).
 - **[RESOLVED 2026-09-14] Post-migration runner label gap (agent-devops#1100)**: `runs-on: [self-hosted, openclaw]` migrated to `[self-hosted, goko]` in soul-orchestra#1213 (3 workflows) and chela#479 (2 workflows). `openclaw` custom label removed from all 4 goko runners. Stale `openclaw-runner-chela` (offline OLD server) deregistered. CI verified running on goko-labelled runners. Lesson: verify `runs-on` labels match registered runner labels immediately after runner re-registration during server migration.
 - **Pool context contamination**: Accumulated output from prior tasks bleeds into new runs. Pool agents retain history, causing PLAN_MISMATCH and false-positive completions (observed 2026-05-09).

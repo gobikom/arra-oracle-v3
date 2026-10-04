@@ -2,8 +2,8 @@
 title: Agent PSak
 type: wiki
 status: active
-updated: 2026-08-30
-oracle_entries: 15
+updated: 2026-10-04
+oracle_entries: 16
 sources:
   - https://github.com/gobikom/agent-psak
 project: github.com/gobikom/agent-psak
@@ -83,6 +83,7 @@ agent-psak/
 
 ## Known Issues
 
+- **[OPEN P1 — tracked SO#1252] Pool exit-4 cluster: deterministic 2nd-task dispatch failure (2026-10-04 pattern)**: The 09:33 content-pipeline death is NOT cron collision/starvation — it is the SECOND sequential mako task in the workflow (draft completes ~100s; review never progresses, dies at exactly 900s). Cross-family signature: all failing nodes are LATER nodes (never step 1) — dev-task-v3 on-demand fails, infra-health 120s step-3 devops timeouts. Working hypothesis: pool worker pick-up loop not re-armed after same-agent previous task completes → dispatcher defect. Diagnosis: SO#1252 comments 5980166914 + 5980175975.
 - CLAUDE.md generation depends on soul-orchestra scripts — if generator changes format, must re-test identity loading
 - Cross-project work via absolute paths sometimes confuses PRP skill (wrong-repo artifacts)
 - Pool session detection relies on tmux session name — fails if tmux unavailable (defaults to pool/cron-triage-only mode)

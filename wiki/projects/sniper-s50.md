@@ -2,8 +2,8 @@
 title: Sniper S50
 type: wiki
 status: active
-updated: 2026-09-12
-oracle_entries: 19
+updated: 2026-10-03
+oracle_entries: 22
 sources:
   - https://github.com/gobikom/sniper-s50
 project: github.com/gobikom/sniper-s50
@@ -126,6 +126,8 @@ sniper-s50/
 
 ## Known Issues
 
+- **[OPEN P2, #207] Morning feed-stale blind window (2026-09-29)**: futures bot (starts 09:41) reads a feed not refreshed until 09:48–10:13 (worst 31 min, feed age ~62,000s = yesterday's close) — entries blocked + daily false-positive Telegram stale alerts through the whole opening range. Fix direction: treat pre-open feed age as `preopen` state (quiet, non-blocking).
+- **[OPEN P3, #206 + pattern 2026-09-23] Zero-width ORB range false signals → filter pyramid**: low-volume opening bars (1–3 contracts) collapse ORB range to zero (high==low); 9 signals across 2 days all AI-VETO'd ("degenerate (zero width)") — no financial risk (shadow mode) but ~3s latency + API cost per wasted call. Fix: `min_range_width` guard pre-AI. Principle: cheap checks first, expensive AI last — don't use a neural net to check if a number equals zero.
 - Max 1 contract per trade — multi-contract support not yet implemented
 - Options chain snapshots require systemd timer configured on server — not portable
 - [RESOLVED 2026-08-26] Phase 5 futures live trading shipped: intraday TP monitor (PR #118), EOD sweep closes all positions (PR #116), ATR-based dynamic TP (PR #124)

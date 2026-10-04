@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-09-03
-oracle_entries: 26
+updated: 2026-10-03
+oracle_entries: 28
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -96,6 +96,8 @@ auto-ops/
 
 ## Known Issues
 
+- **[2026-10-02 INCIDENT] Global pre-commit delegator overwritten by lefthook (agent-devops#129 followup)**: `bun install` without `--ignore-scripts` in a worktree ran `lefthook install -f`, which wrote into the GLOBAL hooks dir and renamed the delegator to `pre-commit.old`. No repo-local pre-commit ran on goko for any repo, silently. Pre-push main guard intact. Rule: always `bun install --ignore-scripts` in agent worktrees.
+- **[FACTS 2026-10-02, auto-ops#67] safe-merge merge-audit ground truth**: (1) safe-merge does NOT log successful merges — journald tag carries only REVIEW_MARKER/NO_CI_MARKER/BYPASS/AGENT_BYPASS_BLOCKED/DOCS_ONLY/chela-deploy lines; a MERGED log line is prerequisite for any "merged via safe-merge" audit (AC B1). *(Since then: ops#128 MERGED 2026-10-03 — safe-merge now logs MERGED after a confirmed merge.)* (2) The journald tag is forgeable by any uid-goko process (`logger -t safe-merge`); the non-forgeable anchor is merger-bot's APPROVED review with `commit_id == PR head` (bin/safe-merge:286-329). *(Since then: ops#126 MERGED 2026-10-03 — merger-gh broker versions the credential; re-derive the anchor assumption post-uid-move.)* (3) goko runner pattern: one dir + one systemd unit per repo (goko-runner-<repo>.service); user accounts cannot share runners. (4) soul-skills and ops have no workflows → `.no-ci`.
 - Concurrent cron writes use atomic `os.replace()` but are still last-writer-wins — no locking
 - `systemctl --user` requires `XDG_RUNTIME_DIR` when running as root for openclaw user
 - Telegram plugin path pattern (`bun.*\.claude/plugins/.*telegram`) must stay in sync across ops repo and auto-ops (tagged `claude-plugin-path` concept)
