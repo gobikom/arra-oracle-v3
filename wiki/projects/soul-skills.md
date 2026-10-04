@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-10-03
-oracle_entries: 16
+updated: 2026-10-05
+oracle_entries: 17
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -112,6 +112,8 @@ soul-install-all --dry-run    # Preview without executing
 ```
 
 ## Key Decisions
+
+- **2026-10-03 SHIPPED CI on the goko self-hosted runner (#214, auto-ops#67 (a)).** Runner `goko-runner-soul-skills` (user unit). `ci.yml` runs `bun install --frozen-lockfile --ignore-scripts`, because lefthook's prepare/postinstall would write into goko's global hooksPath guard (agent-devops#1191). Then `bun test`, assert-test-count reading the test log (one suite run), and a README sync check. Checkout is pinned by SHA (v4.4.0). `.no-ci` is removed. A mutation run (#215) went red, which proves the gate. One test timeout was raised (cloud-delegate-l2-recipe, 4.4–4.7s on goko vs 5s).
 
 | Decision | Chosen | Rejected | Why |
 |----------|--------|----------|-----|

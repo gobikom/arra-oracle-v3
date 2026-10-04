@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-03
-oracle_entries: 88
+updated: 2026-10-05
+oracle_entries: 90
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -87,6 +87,8 @@ soul-orchestra/
 - MCP-FAIL-SAFE — continue score when MCP tools are unreachable
 
 ## Key Decisions
+
+- **2026-10-03 devlead-codex → `chatgpt-codex/gpt-6-sol` on the chela harness (#1257).** The YAML now says `preferred_platform: chela`, so a default restart or a reboot (which clears the runtime overrides) lands on chela + gpt-6-sol. `_write_model_override` keeps a multi-provider preferred harness for `chatgpt-codex/` models. The picker includes it in the CHELA/CODEX lists. It runs with no fallback (นุด). The same day, the identity deploy backlog since the failed 2026-09-26 runs was cleared: 16 identity PRs, byte-identical to a regeneration from d6fb557, carried the #1254 secret rule to every agent repo. Follow-up: #1258 (crash-loop fallback writes only model-override).
 
 | Decision | Chosen | Rejected | Why |
 |----------|--------|----------|-----|
