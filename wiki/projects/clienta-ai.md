@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-09-20
-oracle_entries: 90
+updated: 2026-10-03
+oracle_entries: 91
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -105,6 +105,7 @@ User message → queryRewrite (OpenAI, 2 calls)
 
 ## Known Issues
 
+- **[RESOLVED 2026-09-26] UAT stuck at v1.18.0 for 7 days (Sep 19–26)**: build-uat-images `detect-changes` only diffs HEAD~1 on push — a landing change merged just before another commit is invisible to the next build; deploy-uat then failed resolving `ghcr.io/gobikom/clienta-uat-landing:7b8f5ee` (tag never built) and nightly E2E reported "success" while the UAT suite silently skipped every night (version-mismatch gate). Fix: `workflow_dispatch` build-uat-images services=all → deploy-uat auto-triggered → UAT v1.19.0 (runs 36244873636/36249017033). Lesson: "green but skipped" nightly suites need a version-echo assertion, not just exit 0.
 - Supabase pooler (port 6543, transaction mode) doesn't support Prisma advisory locks — migrations MUST use direct URL (port 5432)
 - When adding new workspace packages that API depends on, MUST update Dockerfile to COPY both package.json (stage 1) and source files (stage 2)
 - Railway API write access requires elevated permissions beyond what CLI login provides on non-interactive servers

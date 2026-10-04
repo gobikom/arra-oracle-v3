@@ -2,8 +2,8 @@
 title: My AI Soul MCP
 type: wiki
 status: active
-updated: 2026-08-07
-oracle_entries: 23
+updated: 2026-09-26
+oracle_entries: 24
 sources:
   - https://github.com/gobikom/my-ai-soul-mcp
 project: github.com/gobikom/my-ai-soul-mcp
@@ -110,6 +110,7 @@ my-ai-soul-mcp/
 
 ## Known Issues
 
+- **[MEASURED 2026-09-26, chela#578] soul-mcp tool schemas cost ~3K tokens of the ~8.7K-token chela tool array (62% is MCP)**: FastMCP pastes Python docstrings verbatim (`Args:` sections duplicate the JSON Schema; `list_soul_evolutions` ~900 chars of caveats) and emits `"title"` on every property — pure noise. chela built-ins are already lean (~3.3K tok for 21 tools). Trim path: docstring dedup + title suppression at the server.
 - OAuth 2.1 browser flow can stall if Qdrant Cloud is slow (tokens timeout before handshake completes)
 - Daily/weekly digest quality depends on LLM prompt — Thai content occasionally mis-categorized
 - `sync_from_mcp.py` / `sync_to_mcp.py` are one-directional — no conflict resolution for diverged state

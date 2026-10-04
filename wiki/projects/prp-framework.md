@@ -2,8 +2,8 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-08-01
-oracle_entries: 24
+updated: 2026-09-22
+oracle_entries: 25
 sources:
   - https://github.com/gobikom/prp-framework
 project: github.com/gobikom/prp-framework
@@ -124,6 +124,7 @@ prp-framework/
 
 ## Known Issues
 
+- **[RESOLVED 2026-09-22, PR #133] gen-ai-context sandbox contamination**: chela sandbox runtime dirs (`.sandbox-home`/`.sandbox-tmp`) inside the working repo leaked into PROJECT.md auto-gen filesystem scans — fake "Stack: SQLite" from sqlite3 matches in sandbox .py files, fake API endpoints from an `app.get` prefix collision on `app.getHostCapabilities()` in sandbox mcp-host.js. Fixed 4 scan sites (failure class #72/#73). Rule: scanners must exclude sandbox dot-dirs; consumers should add them to .gitignore and regen.
 - `prp-review-agents` agents read absolute paths that resolve to main worktree, not PR worktree — verify findings with `git show <branch>:<file>` (feedback_worktree_agent_path)
 - Cross-repo invocation (`--project-dir`) not reliably parsed — use `cd` prefix + absolute path Edit as workaround
 - Adapters.yml is the most-changed file (12 changes) — merge conflicts common when multiple PRs touch it

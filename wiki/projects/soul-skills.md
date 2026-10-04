@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-08-16
-oracle_entries: 14
+updated: 2026-10-03
+oracle_entries: 16
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -123,6 +123,8 @@ soul-install-all --dry-run    # Preview without executing
 
 ## Known Issues
 
+- **[2026-10-01, PR #211 near-miss] Terminal-signal reap rules are unsafe when DONE can arrive before content integration**: Warden's first DONE arrived while review rounds 3–6 existed ONLY as an untracked worktree file — had the reap run at the letter's moment, that work would have been destroyed. Saved by: DONE cited the artifact PATH (signal carried a pointer, not a claim of integration) + operator read the file instead of reaping on signal. Protocol shape: reap rules REQUIRE a preservation check (all files committed / embedded / explicitly disposable) before force-removal; DONE messages distinguish "seat complete" from "content preserved". Corollary: untracked files are invisible to every commit-based safety claim — only `git status` reveals them.
+- **[2026-10-02 INCIDENT, #213 L2] `bun install` without `--ignore-scripts` overwrote the GLOBAL pre-commit delegator**: lefthook postinstall ran `lefthook install -f` into the global hooks dir (core.hooksPath), renaming the delegator to `pre-commit.old` — no repo-local pre-commit ran anywhere on goko, silently. Rule for this repo's worktrees: `bun install --ignore-scripts` always.
 - Skill discovery relies on filesystem walk — compiled binary uses VFS (virtual filesystem) which must be regenerated after adding skills
 - `detectInstalledAgents()` checks for Claude Code, Codex, Gemini, etc. config dirs — may false-positive on empty dirs
 - `initWindsurf` / `initAmazonQ` require mcp-remote bridge — extra dependency for Tier 3 platforms

@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-10-02
-oracle_entries: 46
+updated: 2026-10-04
+oracle_entries: 47
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -121,6 +121,7 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Known Issues / Watch-items
 
+- **[SHIPPED 2026-09-29] #610 Monitor tool (v1.37.0, PR #618)**: `monitor_start`/`monitor_check`/`monitor_stop` — session-owned supervisor, autonomous reaper, two-stage redaction, 6-layer policy parity with other tools. +2846 LOC, 5-round review. Follow-up: #620 ac23 flaky test.
 - **[SHIPPED 2026-10-02] chela-deploy builds and self-tests in a sandbox (agent-devops#1169, gobikom/ops#120 → e954daa).**
   - **What is sandboxed:** every cargo run and all code from the chela tree run only inside bwrap in a `systemd-run --user --scope` unit, for main and `--pr` alike. That covers cargo metadata and fetch, build.rs, proc-macros, and the new binary's `--version` and `--self-test`.
     - Fetch: network, but no host tree and no `~/.cargo/git`.
