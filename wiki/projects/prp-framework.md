@@ -124,7 +124,7 @@ prp-framework/
 
 ## Known Issues
 
-- **[RESOLVED 2026-09-22, PR #133] gen-ai-context sandbox contamination**: chela sandbox runtime dirs (`.sandbox-home`/`.sandbox-tmp`) inside the working repo leaked into PROJECT.md auto-gen filesystem scans — fake "Stack: SQLite" from sqlite3 matches in sandbox .py files, fake API endpoints from an `app.get` prefix collision on `app.getHostCapabilities()` in sandbox mcp-host.js. Fixed 4 scan sites (failure class #72/#73). Rule: scanners must exclude sandbox dot-dirs; consumers should add them to .gitignore and regen.
+- **[FIX PROPOSED 2026-09-22 — PR #133 still OPEN/unmerged] gen-ai-context sandbox contamination**: chela sandbox runtime dirs (`.sandbox-home`/`.sandbox-tmp`) inside the working repo leaked into PROJECT.md auto-gen filesystem scans — fake "Stack: SQLite" from sqlite3 matches in sandbox .py files, fake API endpoints from an `app.get` prefix collision on `app.getHostCapabilities()` in sandbox mcp-host.js. Fix (4 scan sites, failure class #72/#73) is in PR #133 — NOT yet in main. Rule: scanners must exclude sandbox dot-dirs; consumers should add them to .gitignore and regen.
 - `prp-review-agents` agents read absolute paths that resolve to main worktree, not PR worktree — verify findings with `git show <branch>:<file>` (feedback_worktree_agent_path)
 - Cross-repo invocation (`--project-dir`) not reliably parsed — use `cd` prefix + absolute path Edit as workaround
 - Adapters.yml is the most-changed file (12 changes) — merge conflicts common when multiple PRs touch it
