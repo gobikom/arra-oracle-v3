@@ -12,14 +12,38 @@ export function parseFrontmatterTags(content: string): string[] {
 
   const frontmatter = frontmatterMatch[1];
 
-  // Match tags: [tag1, tag2] or tags: tag1, tag2
-  const tagsMatch = frontmatter.match(/^tags:\s*\[?([^\]\n]+)\]?/m);
-  if (!tagsMatch) return [];
+  // Match tags: [tag1, tag2] or tags: tag1, tag2, or multi-line flow style:
+  //   tags: [
+  //     "tag1",
+  //     "tag2"
+  //   ]
+  // A flow list may span lines but must not swallow a subsequent `key:` line:
+  // newlines are only allowed inside the list when NOT followed by a key-like
+  // `word:` — so an unclosed `tags: [a, b` before e.g. `title: "[x]"` fails the
+  // flow match and degrades to the single-line form instead of capturing across
+  // keys. A bare '[' capture (regex backtrack artifact) must never surface as a
+  // concept (#124). Note: block-style lists (`tags:\n  - a`) yield no tags —
+  // the historical parser emitted junk `- a` concepts for those; pinned by test.
+  const flowMatch = frontmatter.match(
+    /^tags:[ \t]*(?:\n[ \t]*)?\[((?:[^\[\]\n]|\n(?![ \t]*[\w'-]+:))*)\]/m
+  );
+  const lineMatch = frontmatter.match(/^tags:[ \t]*([^\n]+)/m);
+  let raw = flowMatch ? flowMatch[1] : lineMatch ? lineMatch[1] : null;
+  if (!raw) return [];
+  // A trusted multi-line flow body has every continuation line indented
+  // (list items or the closing bracket). If any newline is followed by an
+  // UNindented line, the capture is prose from an unclosed list — distrust the
+  // flow match and degrade to the first line (vera-claude round-2 finding 3:
+  // old parser was line-bounded; never swallow prose into a concept).
+  if (flowMatch && /^\S/m.test(raw.slice(1))) {
+    raw = raw.split('\n')[0];
+  }
 
-  return tagsMatch[1]
+  return raw
+    .replace(/^\[|\]$/g, '')
     .split(',')
-    .map(t => t.trim().toLowerCase())
-    .filter(t => t.length > 0);
+    .map(t => t.trim().replace(/^[\"']|[\"']$/g, '').toLowerCase())
+    .filter(t => t.length > 0 && t !== '[' && t !== ']');
 }
 
 /**
