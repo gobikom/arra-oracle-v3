@@ -111,3 +111,18 @@ describe('parseFrontmatterTags — multi-agent review round 2 (#126)', () => {
     expect(parseFrontmatterTags(content)).toEqual(['infra-health', 'agent:devops']);
   });
 });
+
+describe('parseFrontmatterTags — vera-claude silent-failure round (#126)', () => {
+  test('unclosed flow + prose + later "]" never swallows prose (finding 3)', () => {
+    const content = '---\ntitle: t\ntags: [a, b\nsome prose here\n]\n---\nb';
+    expect(parseFrontmatterTags(content)).toEqual(['a', 'b']);
+  });
+
+  test('multi-line flow with bracket inside item degrades to line 1, no bare bracket (finding 1)', () => {
+    const content = '---\ntitle: t\ntags: [\n  "[a]",\n  b\n]\n---\nb';
+    // flow capture contains a bracket char -> flowMatch fails -> line fallback
+    // captures "[" -> stripped/filtered -> []; must never emit bare brackets.
+    const tags = parseFrontmatterTags(content);
+    expect(tags.every((t) => !t.includes('[') && !t.includes(']'))).toBe(true);
+  });
+});

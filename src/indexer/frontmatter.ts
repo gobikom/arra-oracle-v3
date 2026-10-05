@@ -28,8 +28,16 @@ export function parseFrontmatterTags(content: string): string[] {
     /^tags:[ \t]*(?:\n[ \t]*)?\[((?:[^\[\]\n]|\n(?![ \t]*[\w'-]+:))*)\]/m
   );
   const lineMatch = frontmatter.match(/^tags:[ \t]*([^\n]+)/m);
-  const raw = flowMatch ? flowMatch[1] : lineMatch ? lineMatch[1] : null;
+  let raw = flowMatch ? flowMatch[1] : lineMatch ? lineMatch[1] : null;
   if (!raw) return [];
+  // A trusted multi-line flow body has every continuation line indented
+  // (list items or the closing bracket). If any newline is followed by an
+  // UNindented line, the capture is prose from an unclosed list — distrust the
+  // flow match and degrade to the first line (vera-claude round-2 finding 3:
+  // old parser was line-bounded; never swallow prose into a concept).
+  if (flowMatch && /^\S/m.test(raw.slice(1))) {
+    raw = raw.split('\n')[0];
+  }
 
   return raw
     .replace(/^\[|\]$/g, '')
