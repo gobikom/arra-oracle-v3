@@ -98,3 +98,16 @@ describe('parseFrontmatterTags — merger-bot review findings (#126)', () => {
     expect(parseFrontmatterTags(content)).toEqual(['score-output', 'identity-drift']);
   });
 });
+
+describe('parseFrontmatterTags — multi-agent review round 2 (#126)', () => {
+  test('next-line flow style "tags:\\n  [a, b]" parses (round-2 finding 1)', () => {
+    const content = '---\ntitle: t\ntags:\n  [a, b]\n---\nb';
+    expect(parseFrontmatterTags(content)).toEqual(['a', 'b']);
+  });
+
+  test('single-line flow with colon-bearing tags still parses (pinned)', () => {
+    // e.g. real vault style: tags: [infra-health, agent:devops]
+    const content = '---\ntitle: t\ntags: [infra-health, agent:devops]\n---\nb';
+    expect(parseFrontmatterTags(content)).toEqual(['infra-health', 'agent:devops']);
+  });
+});

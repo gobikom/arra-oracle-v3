@@ -25,7 +25,7 @@ export function parseFrontmatterTags(content: string): string[] {
   // concept (#124). Note: block-style lists (`tags:\n  - a`) yield no tags —
   // the historical parser emitted junk `- a` concepts for those; pinned by test.
   const flowMatch = frontmatter.match(
-    /^tags:[ \t]*\[((?:[^\[\]\n]|\n(?![ \t]*[\w'-]+:))*)\]/m
+    /^tags:[ \t]*(?:\n[ \t]*)?\[((?:[^\[\]\n]|\n(?![ \t]*[\w'-]+:))*)\]/m
   );
   const lineMatch = frontmatter.match(/^tags:[ \t]*([^\n]+)/m);
   const raw = flowMatch ? flowMatch[1] : lineMatch ? lineMatch[1] : null;
