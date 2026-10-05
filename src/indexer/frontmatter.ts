@@ -12,14 +12,22 @@ export function parseFrontmatterTags(content: string): string[] {
 
   const frontmatter = frontmatterMatch[1];
 
-  // Match tags: [tag1, tag2] or tags: tag1, tag2
-  const tagsMatch = frontmatter.match(/^tags:\s*\[?([^\]\n]+)\]?/m);
+  // Match tags: [tag1, tag2] or tags: tag1, tag2 or multi-line flow style:
+  //   tags: [
+  //     "tag1",
+  //     "tag2"
+  //   ]
+  // Grab from 'tags:' to the line end (or closing bracket across newlines), strip
+  // surrounding brackets, then split on commas. A bare '[' capture (regex backtrack
+  // artifact on multi-line flow style) must never surface as a concept (#124).
+  const tagsMatch = frontmatter.match(/^tags:[ \t]*(\[[\s\S]*?\]|[^\n]+)/m);
   if (!tagsMatch) return [];
 
   return tagsMatch[1]
+    .replace(/^\[|\]$/g, '')
     .split(',')
-    .map(t => t.trim().toLowerCase())
-    .filter(t => t.length > 0);
+    .map(t => t.trim().replace(/^[\"']+|[\"']+$/g, '').toLowerCase())
+    .filter(t => t.length > 0 && t !== '[' && t !== ']');
 }
 
 /**
