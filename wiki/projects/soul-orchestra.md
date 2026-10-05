@@ -88,7 +88,7 @@ soul-orchestra/
 
 ## Key Decisions
 
-- **2026-10-03 devlead-codex → `chatgpt-codex/gpt-6-sol` on the chela harness (#1257).** The YAML now says `preferred_platform: chela`, so a default restart or a reboot (which clears the runtime overrides) lands on chela + gpt-6-sol. `_write_model_override` keeps a multi-provider preferred harness for `chatgpt-codex/` models. The picker includes it in the CHELA/CODEX lists. It runs with no fallback (นุด). The same day, the identity deploy backlog since the failed 2026-09-26 runs was cleared: 16 identity PRs, byte-identical to a regeneration from d6fb557, carried the #1254 secret rule to every agent repo. Follow-up: #1258 (crash-loop fallback writes only model-override).
+- **2026-10-03 devlead-codex → `chatgpt-codex/gpt-6-sol` on the chela harness (#1257).** The YAML now says `preferred_platform: chela`, so a default restart or a reboot (which clears the runtime overrides) lands on chela + gpt-6-sol. `_write_model_override` keeps a multi-provider preferred harness for `chatgpt-codex/` models. The picker includes it in the CHELA/CODEX lists. นุด decided on no fallback platform for it, but #1257 did not carry that through: the YAML kept `fallback: [claude_code]` until #1262 (open at the time of writing). The same day, 16 identity PRs, byte-identical to a regeneration from d6fb557, carried the #1254 secret rule to the 15 agent repos that received regen PRs. agent-devops and agent-dora still await a fresh regeneration (their 2026-09-20 PRs are open). agent-merger does not get the rule, by design (`protocol: none`, agent-devops#1195). 17 older identity PRs are still open. Follow-up: #1258 (crash-loop fallback writes only model-override).
 
 | Decision | Chosen | Rejected | Why |
 |----------|--------|----------|-----|
