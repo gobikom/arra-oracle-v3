@@ -77,3 +77,24 @@ describe('parseFrontmatterTags', () => {
     expect(tags.every((t) => t.length > 0)).toBe(true);
   });
 });
+
+describe('parseFrontmatterTags — merger-bot review findings (#126)', () => {
+  test('unclosed flow list degrades to single-line; later "]" in a title is not swallowed', () => {
+    const content = '---\ntitle: t\ntags: [a, b\ntitle2: "[x]"\n---\nb';
+    // flow match must FAIL (newline followed by key-like line), then the
+    // single-line fallback captures "[a, b" -> strip bracket -> [a, b]
+    expect(parseFrontmatterTags(content)).toEqual(['a', 'b']);
+  });
+
+  test('block-style list yields no tags (pinned behavior change)', () => {
+    // Historical parser emitted junk concept "- a" here; now: no tags.
+    // Documented in PR #126; proper block-style support is follow-up scope.
+    const content = '---\ntitle: t\ntags:\n  - a\n  - b\n---\nb';
+    expect(parseFrontmatterTags(content)).toEqual([]);
+  });
+
+  test('multi-line flow list still parses when items are key-like on their own lines', () => {
+    const content = '---\ntitle: t\ntags: [\n  score-output,\n  identity-drift\n]\n---\nb';
+    expect(parseFrontmatterTags(content)).toEqual(['score-output', 'identity-drift']);
+  });
+});

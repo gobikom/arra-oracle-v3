@@ -12,21 +12,29 @@ export function parseFrontmatterTags(content: string): string[] {
 
   const frontmatter = frontmatterMatch[1];
 
-  // Match tags: [tag1, tag2] or tags: tag1, tag2 or multi-line flow style:
+  // Match tags: [tag1, tag2] or tags: tag1, tag2, or multi-line flow style:
   //   tags: [
   //     "tag1",
   //     "tag2"
   //   ]
-  // Grab from 'tags:' to the line end (or closing bracket across newlines), strip
-  // surrounding brackets, then split on commas. A bare '[' capture (regex backtrack
-  // artifact on multi-line flow style) must never surface as a concept (#124).
-  const tagsMatch = frontmatter.match(/^tags:[ \t]*(\[[\s\S]*?\]|[^\n]+)/m);
-  if (!tagsMatch) return [];
+  // A flow list may span lines but must not swallow a subsequent `key:` line:
+  // newlines are only allowed inside the list when NOT followed by a key-like
+  // `word:` — so an unclosed `tags: [a, b` before e.g. `title: "[x]"` fails the
+  // flow match and degrades to the single-line form instead of capturing across
+  // keys. A bare '[' capture (regex backtrack artifact) must never surface as a
+  // concept (#124). Note: block-style lists (`tags:\n  - a`) yield no tags —
+  // the historical parser emitted junk `- a` concepts for those; pinned by test.
+  const flowMatch = frontmatter.match(
+    /^tags:[ \t]*\[((?:[^\[\]\n]|\n(?![ \t]*[\w'-]+:))*)\]/m
+  );
+  const lineMatch = frontmatter.match(/^tags:[ \t]*([^\n]+)/m);
+  const raw = flowMatch ? flowMatch[1] : lineMatch ? lineMatch[1] : null;
+  if (!raw) return [];
 
-  return tagsMatch[1]
+  return raw
     .replace(/^\[|\]$/g, '')
     .split(',')
-    .map(t => t.trim().replace(/^[\"']+|[\"']+$/g, '').toLowerCase())
+    .map(t => t.trim().replace(/^[\"']|[\"']$/g, '').toLowerCase())
     .filter(t => t.length > 0 && t !== '[' && t !== ']');
 }
 
