@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-10-03
-oracle_entries: 28
+updated: 2026-10-05
+oracle_entries: 31
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -84,6 +84,8 @@ auto-ops/
 - Atomic writes: `os.replace()` for state files (last-writer-wins under concurrent cron)
 
 ## Key Decisions
+
+- **2026-10-04 SHIPPED merge audit phase 1, live on goko (auto-ops#67 (b)).** ops#128 (B1): safe-merge logs `MERGED`, or `ALREADY_MERGED`, after a confirmed OPEN→MERGED merge at the pinned head. ops#129: `bin/merge-audit` with classes PASS/NO_VOUCH/STALE_VOUCH/OUTSIDE_SAFE_MERGE/BYPASS/PRE_B1/DEFERRED, an INVARIANT that bypass evidence is checked first, and fail-closed AUDIT_FAILED. ops#130: `B1_CUTOVER=2026-10-03T05:35:00Z` (goko reflog), and conf parsing fails closed. A `merge-audit.timer` runs every 15 min, starting with cursors seeded at go-live; the Telegram channel is proven. B7 backfill: 108 PRs, 51 true positives (50 BYPASS + chela#622 NO_VOUCH), 1 false positive (soul-skills#205 matched by PR number to sniper-s50#205's bypass). Next: a time-window fix for that match, then B8 (≥7 clean days). (c) tiers/veto are blocked on agent-devops#1197 (goko NOPASSWD:ALL sudo + its own key in root authorized_keys).
 
 | Decision | Chosen | Rejected | Why |
 |----------|--------|----------|-----|

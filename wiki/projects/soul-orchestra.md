@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-03
-oracle_entries: 88
+updated: 2026-10-05
+oracle_entries: 90
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -87,6 +87,8 @@ soul-orchestra/
 - MCP-FAIL-SAFE — continue score when MCP tools are unreachable
 
 ## Key Decisions
+
+- **2026-10-03 devlead-codex → `chatgpt-codex/gpt-6-sol` on the chela harness (#1257).** The YAML now says `preferred_platform: chela`, so a default restart or a reboot (which clears the runtime overrides) lands on chela + gpt-6-sol. `_write_model_override` keeps a multi-provider preferred harness for `chatgpt-codex/` models. The picker includes it in the CHELA/CODEX lists. นุด decided on no fallback platform for it, but #1257 did not carry that through: the YAML kept `fallback: [claude_code]` until #1262 landed the no-fallback decision. The same day, 16 identity PRs, byte-identical to a regeneration from d6fb557, carried the #1254 secret rule to the 15 agent repos that received regen PRs. agent-merger does not get the rule, by design (`protocol: none`, agent-devops#1195). 15 superseded older identity PRs were closed unmerged on 2026-10-04. As of 2026-10-05 the identity-rule rollout is complete: agent-devops#1213 merged 04:12Z and agent-dora#21 merged 06:33Z (both mains carry the secret rule), and the last holdovers agent-devops#1150 and agent-dora#20 were closed. Follow-up #1258 (crash-loop fallback writes only model-override) was fixed by #1259 (merged 04:24Z, squash 8acf112). Separately, #1262 (merged 04:08Z) implemented นุด's no-fallback-platform decision for devlead-codex (`fallback: []`, Refs #1258/#1257).
 
 | Decision | Chosen | Rejected | Why |
 |----------|--------|----------|-----|
