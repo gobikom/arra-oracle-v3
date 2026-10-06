@@ -17,12 +17,20 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun test:unit --coverage
+      # Coverage upload is informational (fail_ci_if_error: false), but codecov-action@v4 still
+      # throws when its own upload fails (TLS handshake alert to the coverage service, from
+      # 2026-10-05) — that red Unit Tests job also skips Integration. Keep it non-blocking.
       - name: Upload coverage
+        id: codecov
         uses: codecov/codecov-action@v4
         if: always()
+        continue-on-error: true
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
+      - name: Warn on coverage upload failure
+        if: always() && steps.codecov.outcome == 'failure'
+        run: echo "::warning title=Coverage upload failed::codecov-action failed (see the Upload coverage log); coverage for this run was not reported"
 
   integration:
     name: Integration Tests
