@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-05
-oracle_entries: 90
+updated: 2026-10-06
+oracle_entries: 93
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -88,6 +88,15 @@ soul-orchestra/
 
 ## Key Decisions
 
+- **2026-10-06 SHIPPED crash-loop breaker that actually trips (#1263 → #1264, squash 908c26d).**
+  - **Why it never tripped:** `_crash_count` was cleared on the first alive tick, so it never exceeded 1.
+  - **Stability window:** it now resets only after `_CRASH_STABLE_WINDOW_SEC` (5 ticks) alive.
+  - **Failed restarts count:** an auto-restart that is still absent one tick later, times out or raises goes back through the breaker. That includes the `tmgr.spawn` fallback.
+  - **Reaper path:** a crash found by the reaper ends the alive streak.
+  - **Operator hooks:** all three stop routes call `forget_pending_restart`. It drops queued restarts and bumps a stop generation, so an in-flight restart is not re-armed. start/restart reset the count only after they succeed.
+  - **Scope narrowed:** after the 5-round cap and an authorised round 6 (#1266), the operator-stop invariant was narrowed out to **#1267** (reference branch `feat/1263-operator-stop-invariant`). Executor/warm-up/Chat.tsx spawns that ignore the breaker are **#1265**.
+  - **Not live yet:** it takes effect after a dashboard restart, which goes through the deploy gate.
+  - Same day: #1260 (psak soul: "Measured, not remembered" + merger operator-turn discipline, 3b42320) and #1261 (ci.yml `npm ci --ignore-scripts`, agent-devops#1191, 0e61900).
 - **2026-10-03 devlead-codex → `chatgpt-codex/gpt-6-sol` on the chela harness (#1257).** The YAML now says `preferred_platform: chela`, so a default restart or a reboot (which clears the runtime overrides) lands on chela + gpt-6-sol. `_write_model_override` keeps a multi-provider preferred harness for `chatgpt-codex/` models. The picker includes it in the CHELA/CODEX lists. นุด decided on no fallback platform for it, but #1257 did not carry that through: the YAML kept `fallback: [claude_code]` until #1262 landed the no-fallback decision. The same day, 16 identity PRs, byte-identical to a regeneration from d6fb557, carried the #1254 secret rule to the 15 agent repos that received regen PRs. agent-merger does not get the rule, by design (`protocol: none`, agent-devops#1195). 15 superseded older identity PRs were closed unmerged on 2026-10-04. As of 2026-10-05 the identity-rule rollout is complete: agent-devops#1213 merged 04:12Z and agent-dora#21 merged 06:33Z (both mains carry the secret rule), and the last holdovers agent-devops#1150 and agent-dora#20 were closed. Follow-up #1258 (crash-loop fallback writes only model-override) was fixed by #1259 (merged 04:24Z, squash 8acf112). Separately, #1262 (merged 04:08Z) implemented นุด's no-fallback-platform decision for devlead-codex (`fallback: []`, Refs #1258/#1257).
 
 | Decision | Chosen | Rejected | Why |
