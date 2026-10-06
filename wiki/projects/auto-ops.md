@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-10-05
-oracle_entries: 31
+updated: 2026-10-06
+oracle_entries: 32
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -85,6 +85,15 @@ auto-ops/
 
 ## Key Decisions
 
+- **2026-10-06 SHIPPED B7 false-positive root fix + hooks-guard detection + Telegram plugin presence.**
+  - **ops#132 (c10db72), B7 FP fix:** safe-merge now logs the repo gh resolved (`LOG_REPO`, from the PR URL) instead of `<cwd>`.
+  - **ops#133 (651b390), hooks-guard detection:** the `git-hooks-integrity` suite (live 40/0) detects drift of the global main-push hooks guard (agent-devops#1191). Prevention still waits on agent-devops#1197.
+  - **ops#135 (33e4c07), Telegram plugin presence (agent-devops#1202):**
+    - Step 6 of `telegram-health-check.sh` watched a heartbeat file that nothing wrote. It is now a plugin-presence check: the wrapper inside claude's own tree with a live, non-zombie child, found by `pgrep -P`, since pstree lists threads as children.
+    - Alerting: alert-only, with a page at tick 3, an hourly re-page, ≤3 retries, and a Recovered push.
+    - A cron-fired run at 22:25:01 logged nothing for a healthy bot. Before the fix it had logged CRITICAL on every tick for 5 months.
+  - **Still open:** ops#136 (ops#134) binds cwd review evidence to the repo gh merges and is L2 READY. Its CI-evidence sibling is ops#137. Follow-ups: agent-devops#1215 (Telegram socket liveness, measure first) and #1218.
+  - **A5:** ticked on auto-ops#67. soul-skills#216 was merged via the CI-green path, with no NO_CI_MARKER.
 - **2026-10-04 SHIPPED merge audit phase 1, live on goko (auto-ops#67 (b)).** ops#128 (B1): safe-merge logs `MERGED`, or `ALREADY_MERGED`, after a confirmed OPEN→MERGED merge at the pinned head. ops#129: `bin/merge-audit` with classes PASS/NO_VOUCH/STALE_VOUCH/OUTSIDE_SAFE_MERGE/BYPASS/PRE_B1/DEFERRED, an INVARIANT that bypass evidence is checked first, and fail-closed AUDIT_FAILED. ops#130: `B1_CUTOVER=2026-10-03T05:35:00Z` (goko reflog), and conf parsing fails closed. A `merge-audit.timer` runs every 15 min, starting with cursors seeded at go-live; the Telegram channel is proven. B7 backfill: 108 PRs, 51 true positives (50 BYPASS + chela#622 NO_VOUCH), 1 false positive (soul-skills#205 matched by PR number to sniper-s50#205's bypass). Next: a time-window fix for that match, then B8 (≥7 clean days). (c) tiers/veto are blocked on agent-devops#1197 (goko NOPASSWD:ALL sudo + its own key in root authorized_keys).
 
 | Decision | Chosen | Rejected | Why |
