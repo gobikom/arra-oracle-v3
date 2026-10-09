@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-10-04
-oracle_entries: 47
+updated: 2026-10-09
+oracle_entries: 51
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -121,6 +121,7 @@ difficulty (codex arm −20pp on a different model). Full matrix + re-grade meth
 
 ## Known Issues / Watch-items
 
+- **[SHIPPED 2026-10-08/09] v1.39.1 → v1.39.2 batch (7 PRs, all merged at merger-bot-approved heads, deployed with self-test PASS):** #647 SHA-pinned CI actions + bench rule B moved to a base-pinned `pull_request_target` guard (unblocks merger's GATE-INTEGRITY-VERIFIED for chela); #646 #469 part 1 (LLM-decision dir 0700 + random suffix, existing dir = ABORT); #648 #626 (self-test names the recorded startup cause, `/model`+`/status` assert active model / 0 MCP; text-mode startup failures no longer silent); #650 #633 ac8/ac12/ac26 hermetic pgrep probes; #652 #633 ac38 = REAL silent data loss: `BoundedBuffer::front_abs` counted `partial_line`, so a mid-line `monitor_check` skipped bytes (fixed; first chela PR approved under GATE-INTEGRITY-VERIFIED); #653 docs. Open: #469 part 2 (prompt via stdin; LOC bump approved by นุด 2026-10-09), #654 (`dropped_bytes` over-counts already-delivered evictions).
 - **[SHIPPED 2026-09-29] #610 Monitor tool (v1.37.0, PR #618)**: `monitor_start`/`monitor_check`/`monitor_stop` — session-owned supervisor, autonomous reaper, two-stage redaction, 6-layer policy parity with other tools. +2846 LOC, 5-round review. Follow-up: #620 ac23 flaky test.
 - **[SHIPPED 2026-10-02] chela-deploy builds and self-tests in a sandbox (agent-devops#1169, gobikom/ops#120 → e954daa).**
   - **What is sandboxed:** every cargo run and all code from the chela tree run only inside bwrap in a `systemd-run --user --scope` unit, for main and `--pr` alike. That covers cargo metadata and fetch, build.rs, proc-macros, and the new binary's `--version` and `--self-test`.
