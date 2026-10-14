@@ -2,8 +2,8 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-10-10
-oracle_entries: 53
+updated: 2026-10-14
+oracle_entries: 54
 sources:
   - https://github.com/gobikom/chela
 project: github.com/gobikom/chela
@@ -104,6 +104,7 @@ machine, policy, compaction, REPL) → v2 ecosystem (MCP, hooks, skills) → v3 
 | Suite | 15 tasks + 3 adjudicated STOPs (I1/F3/R3) | b4 kept as hard-diagnostic (prompt under-determines root cause, fair across arms) |
 | GLM baseline arm | deferred to v1 | arm must map to the model-routing calibration decision |
 | v0/v1 exit bars | v0 ≥60% (≥27/45); v1 ≥73.3% + 0 unrecovered stalls/45 + p95 ≤345s; parity 80.0% | corrected-mechanical grading, protocol §8.1 |
+| LOC envelope self-raise (chela#729, นุด 2026-10-13) | Merger self-raises `[total]` up to +2% of `original` in `loc-envelope.toml` on the default branch, measured against that ORIGINAL | soul-orchestra#1341 (`by_class.envelope_raise`, f94ed999) + mirror #742 (5026938ad), shipped 2026-10-14; no `loc-envelope.toml` yet, so ENVELOPE NONE until a file-only PR on นุด's merger-session decision; follow-ups #743, soul-orchestra#1342 |
 
 ## Baselines (2026-07-25 — LOCKED, do not re-measure)
 
