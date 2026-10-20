@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-14
-oracle_entries: 94
+updated: 2026-10-21
+oracle_entries: 95
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -111,6 +111,7 @@ soul-orchestra/
 
 ## Known Issues
 
+- **[RESOLVED 2026-10-17, SO#1355] Agent self-compact + resume**: decision (นุด, 2026-10-17) — a self-injected `/compact` is allowed only after `/pre-compact` passes (fresh handoff, `/segment-checkpoint`, gate selfcheck PASS). PR-1 #1357 (6b915837) added the SessionStart(compact) resume-inject hook; PR-2 is soul-skills#253. Live proof on goko (pane %1042, Claude Code 2.1.302): `send-keys /compact` is accepted as a slash command, the hook sees `$TMUX_PANE`, opt-out and no-marker negative cases pass. Scope caveat: proven only on Claude Code panes — the fleet agent panes (dev-*, devops, vera-*, warden) run the chela harness, and SO#1355 helps only Claude Code sessions unless chela honours SessionStart(compact) and `/compact` (unverified). Failures are logged only to `~/.task-state/<agent>/precompact.log`; surfacing them is #1363.
 - **[RESOLVED 2026-10-03, SO#1254] Agent secret-handling rules landed in conductor/protocol.md (agent-devops#1184)**: "Never print a secret VALUE" + `scripts/secret-keys.awk` (key names only; stops at first non-self-contained line; exit 3 = incomplete, never "absent"); check keys with `grep -c '^NAME='`, never by reading the file. YAML/JSON listers on conductor/wiki/secret-handling.md. goko home now 750; merger-bot gh brokered via `/usr/local/bin/merger-gh` (ops#126) — merger uid cannot read goko's home.
 - **[FIX PROPOSED 2026-09-20 — PR #1230 still OPEN/unmerged] knowledge-lint stale exit-4 WARNING healed via `--force`; root-caused (agent-devops#1126)**: Sep 6 pre-submission workflow death + Sep 13 weekly slot missed (host reboots) — 38 consecutive collector WARNINGs were BY-DESIGN weekly-cadence suppression (#677), not parsing faults. Regression-pinned weekly-cadence suppression + new `slot_missed_since_tick` metadata flag; consumer rule 2b-slot teaches the report to recommend `--force` rerun. Ops lesson: sandbox HOME shadowing breaks runner secrets — run scores with HOME=/home/goko. Regression pin (weekly-cadence suppression + `slot_missed_since_tick` flag + 2b-slot consumer rule) is in PR #1230 — NOT yet in main; `soul-orchestra deploy` still required after it merges.
 - **`main` push policy on this host (agent-devops#129 hook; clarified 2026-09-12)**: `~/.config/git/hooks/pre-push` blocks direct `main`/`master` pushes for every process running as goko — agents, scores, cron — **except** inside a GitHub Actions job (`GITHUB_ACTIONS=true`) and repos opted out via `git config hooks.allowmainpush true` (agent-devops#986). Correction of the same day's first reading: PSak tested from an interactive shell and wrongly concluded the runner was blocked too. `auto-deploy-identity.yml` never worked for a different reason — no `DEPLOY_PAT` was ever configured (13 failed runs over 5 weeks, agent-devops#1106). soul-orchestra#1199 made it work without a secret (runner's own `gh` credential) and switched delivery to `identity/auto-<yyyymmdd>` branch + PR per repo (policy-uniform with how identity updates always landed, e.g. agent-psak #79–#83); first green run 34676829533 (18 PRs). Direct main push from the workflow would also have been allowed by the hook — keeping PR-per-repo is a policy choice, revisitable. Rules now in `conductor/protocol.md` ("Automation is live only when proven" + hook-exemption awareness) and the global Post-Implement hard rule. Follow-ups: #1200 (failure notifier), #1201 (`deploy.py --dry-run` CI smoke).

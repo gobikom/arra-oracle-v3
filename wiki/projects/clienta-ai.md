@@ -2,8 +2,8 @@
 title: Clienta.ai
 type: wiki
 status: active
-updated: 2026-10-03
-oracle_entries: 91
+updated: 2026-10-21
+oracle_entries: 93
 sources:
   - https://github.com/gobikom/clienta.ai
 project: github.com/gobikom/clienta.ai
@@ -110,6 +110,12 @@ User message → queryRewrite (OpenAI, 2 calls)
 - When adding new workspace packages that API depends on, MUST update Dockerfile to COPY both package.json (stage 1) and source files (stage 2)
 - Railway API write access requires elevated permissions beyond what CLI login provides on non-interactive servers
 - meeting-memory scope pivoted from clienta.ai batch worker to standalone tool (2026-04-07 decision)
+- **[RESOLVED 2026-10-17] SLA breach monitor burst (#2304 Part A, PR #2317 → 183d615e)**: the per-org SLA sweep ran ~3,500 queries at 150–200/s for ~21 s every 2 min (API CPU 155–193%). It became one cross-org query (partial index migration `20261017120000_sla_pending_partial_index`) plus a single BullMQ repeatable runner (`sla-breach-monitor-recurring`). UAT measurement at 183d615e (3,597 orgs, read-only, `pg_stat_database` xact deltas): +1–2 transactions per cycle, max 14/s; CPU mean 8.2%, max 9.36%; Redis `ZCARD bull:sla-breach-monitor:repeat` = 1. AC3 (seeded breach on UAT) was still open on 2026-10-21; Part B (NODE_ENV, log rotation) is devops work. Evidence: #2304 comment 6240733837. Follow-up #2319.
+- **[RESOLVED 2026-10-17] Self-hosted PR CI collisions on goko (#2314 → 6973193d, #2324 → d678b26e, #2325 → 95274451)**: concurrent jobs on the same host shared `~/.docker/config.json` (ghcr "denied" on parallel pushes → per-job `DOCKER_CONFIG`), `~/setup-pnpm` (→ per-job pnpm/action-setup `dest`) and the per-PR postgres readiness probe accepted a not-yet-final server (→ probe accepts only the final server over TCP, #2279). Probe follow-ups (Medium/Low): #2326.
+- **[RESOLVED 2026-10-17] KB outbox raw SQL column name (#2312, PR #2313 → 193cf0b2)**: reconciler sweeps and document-processor writers used `"createdAt"` in raw SQL; the column is `created_at`.
+- **[RESOLVED 2026-10-17] Stripe E2E TC1/TC2 flake (#2322, PR #2328 → 7bd7be69)**: explicit time budget for TC1/TC2 and condition waits in TC2 instead of fixed sleeps.
+- **deploy-uat.yml defects (observed 2026-10-17, no issue yet)**: (1) the `workflow_run` trigger deploys `all` services even when only api was built, so the pull of a never-built landing tag fails (same failure class as #2318); workaround is `workflow_dispatch services=api` on main. (2) The Health check step `echo "API:" && curl -sf … && echo ""` cannot fail under `bash -e` (a failing command inside an `&&` list does not trigger `-e`), and Verify curls once ~15 s after `up` while the API needs ~47 s to listen (curl exit 56/52 in runs 39067120804 / 38997795785). A re-dispatch with the same image does not recreate the container, so Verify then passes. Fix direction: bounded `/health` retry loop that fails on timeout.
+- **`.prp` symlink tracked in git (#2330, open)**: the committed `.prp` symlink points at a `/home/openclaw` path that no longer exists on goko; review footers then report a different prp version per round. Chosen direction (option b): untrack + `.gitignore` + a per-host setup step.
 - UAT auto-deploy removed (2026-05-16) — build-uat-images.yml is workflow_dispatch only. Runner queue congestion caused the change. Must trigger manually after merge for UAT verification.
 - Stripe Checkout UI changed (2026-05-23) — iframe removed, card inputs now in direct DOM. Test selectors: getByPlaceholder for card number/expiry, getByLabel for CVC.
 - Channel routing URL mismatch (2026-05-19) — /channels/web and /channels/line redirect to ?tab=web/?tab=line. Pages render correctly but URL routing is inconsistent.
