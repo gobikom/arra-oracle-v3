@@ -3,7 +3,7 @@ title: Soul Orchestra
 type: wiki
 status: active
 updated: 2026-10-27
-oracle_entries: 96
+oracle_entries: 97
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -88,6 +88,20 @@ soul-orchestra/
 
 ## Key Decisions
 
+- **2026-10-27 SHIPPED rule-diet Stage 1 tooling (agent-devops#1301 C0): #1453 20bd1757, #1454 1b5e56a1, #1455 58a1dc96, #1456 3d9c822c.** Before any rule text is shortened (Stage 2, PR-C/D*), every changed rule unit has to be accounted for mechanically.
+  - **C0a:** `--unit-table` emits machine rows for each unit.
+  - **C0b:** `generator/rule_diet/<stem>.disposition.yaml` is committed evidence. A CI test re-runs the table for origin/base..HEAD.
+  - **C0c-1:** each ref's render reads only that ref's own exported tree. Failures that are not findings exit 2.
+  - **C0c-2:** merger runs `--check-review-required <repo> <pr> F` from origin/main on every soul-orchestra PR, with no path condition. Each `review-required:<hash>` must be quoted in the per-pass comments linked by the L2 at F.
+  - **Design lesson:** C0c-2 hit the same fail-open family in 4 review rounds:
+    - removing the evidence skipped the check;
+    - `pulls/N/files` was not bound to the head;
+    - a base retarget allowed an ABA;
+    - a 404 on a private repo read as "absent".
+
+    Point patches did not converge. Plan Amendment v14.4 did. It requires that every input is SHA-addressed, or validated inside the single `pulls/N` answer that binds F (`base.ref == default_branch`, `base.repo == repo`). Absence counts only from a successful listing at that SHA, so any error is rc 2.
+  - **Outcome:** R6 and R7 were clean, and the PR shipped with a size exception (842 lines).
+  - **Plan:** psak `~/tmp/plans/rule-diet-1301.plan.md` v14.4. Follow-ups are on agent-devops#1301 (c6439234978).
 - **2026-10-27 SHIPPED merger REGEN-ONLY restored (agent-devops#1298: #1450 499d760a, #1451 66957c63, #1452 2e8f1f24).** `MERGER_ID_BASELINE` in `scripts/merger-policy-source.sh` moved b9030a3 → 5dde708, by นุด's decision after merger's retroactive Step 0 review of the commits up to it. This was needed because soul-orchestra#1369 merged with no merger-bot review, which broke the walk. The walk requires every main commit after the baseline to be a merger-bot-APPROVED PR merge at its final head. Moving the baseline also meant re-pinning the script's `Pinned blob:` in `agents/merger.yaml` and a generator declare/spend pair: #1451 declared the change and #1452 spent it, following the #1446/#1448 pattern. Verified by: walk 5dde708..2e8f1f24 gives FAILS 0, and agent-merger#19 prints `REGEN-ONLY`. Follow-ups are agent-devops#1304 and #1305.
 - **2026-10-14 SHIPPED `merger_decision.by_class.envelope_raise` (#1341, f94ed999; chela#729).** For gobikom/chela, Merger self-raises an epic's `[total]` LOC cap up to +2% of the ORIGINAL in `loc-envelope.toml` on the default branch, checked by `scripts/merger-envelope-check.py`; beyond that, REQUEST_CHANGES and an `ENVELOPE STOP` record. Review round 1 moved the ORIGINAL out of merger-bot issue comments (editable by the shared gobikom account) into the committed file. Follow-ups #1342.
 - **2026-10-06 SHIPPED crash-loop breaker that actually trips (#1263 → #1264, squash 908c26d).**
