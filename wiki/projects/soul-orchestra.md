@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-21
-oracle_entries: 95
+updated: 2026-10-27
+oracle_entries: 96
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -88,6 +88,7 @@ soul-orchestra/
 
 ## Key Decisions
 
+- **2026-10-27 SHIPPED merger REGEN-ONLY restored (agent-devops#1298: #1450 499d760a, #1451 66957c63, #1452 2e8f1f24).** `MERGER_ID_BASELINE` in `scripts/merger-policy-source.sh` moved b9030a3 → 5dde708, by นุด's decision after merger's retroactive Step 0 review of the commits up to it. This was needed because soul-orchestra#1369 merged with no merger-bot review, which broke the walk. The walk requires every main commit after the baseline to be a merger-bot-APPROVED PR merge at its final head. Moving the baseline also meant re-pinning the script's `Pinned blob:` in `agents/merger.yaml` and a generator declare/spend pair: #1451 declared the change and #1452 spent it, following the #1446/#1448 pattern. Verified by: walk 5dde708..2e8f1f24 gives FAILS 0, and agent-merger#19 prints `REGEN-ONLY`. Follow-ups are agent-devops#1304 and #1305.
 - **2026-10-14 SHIPPED `merger_decision.by_class.envelope_raise` (#1341, f94ed999; chela#729).** For gobikom/chela, Merger self-raises an epic's `[total]` LOC cap up to +2% of the ORIGINAL in `loc-envelope.toml` on the default branch, checked by `scripts/merger-envelope-check.py`; beyond that, REQUEST_CHANGES and an `ENVELOPE STOP` record. Review round 1 moved the ORIGINAL out of merger-bot issue comments (editable by the shared gobikom account) into the committed file. Follow-ups #1342.
 - **2026-10-06 SHIPPED crash-loop breaker that actually trips (#1263 → #1264, squash 908c26d).**
   - **Why it never tripped:** `_crash_count` was cleared on the first alive tick, so it never exceeded 1.
