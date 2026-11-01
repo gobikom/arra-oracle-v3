@@ -2,8 +2,8 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-09-22
-oracle_entries: 25
+updated: 2026-11-01
+oracle_entries: 27
 sources:
   - https://github.com/gobikom/prp-framework
 project: github.com/gobikom/prp-framework
@@ -125,6 +125,8 @@ prp-framework/
 ## Known Issues
 
 - **[FIX PROPOSED 2026-09-22 — PR #133 still OPEN/unmerged] gen-ai-context sandbox contamination**: chela sandbox runtime dirs (`.sandbox-home`/`.sandbox-tmp`) inside the working repo leaked into PROJECT.md auto-gen filesystem scans — fake "Stack: SQLite" from sqlite3 matches in sandbox .py files, fake API endpoints from an `app.get` prefix collision on `app.getHostCapabilities()` in sandbox mcp-host.js. Fix (4 scan sites, failure class #72/#73) is in PR #133 — NOT yet in main. Rule: scanners must exclude sandbox dot-dirs; consumers should add them to .gitignore and regen.
+- **[2026-10-28, prp-framework#228] Worktree `.prp` can be a self-referential symlink**: in a worktree made for a prp-framework PR, `.prp` may point at the worktree itself instead of `~/repos/agents/prp-framework`, so anything resolving PRP_DIR through it silently runs the PR's own unmerged code, not main's rule-in-force behavior (round 6 of #228 hit this). Rules: run zero-delta confirmation rounds from a checkout of main or pin PRP_DIR to the installed framework, and check with one marker (`grep -c UNCHANGED-HEAD prompts/review-agents.md` should be 0 on main); delete or repoint the worktree's `.prp` symlink at creation. First-class docs for the zero-delta round are tracked as agent-devops#1305 item 1.
+- **[RESOLVED 2026-10-20] prp-framework#176 and #178**: #176 closed by #177 (1c378ac) and #181; #178 closed by #183 (fcc228d, prior-findings and check-l2-body helpers, part 1). Follow-on work continues as #185 (stack: #186 = 1/3).
 - `prp-review-agents` agents read absolute paths that resolve to main worktree, not PR worktree — verify findings with `git show <branch>:<file>` (feedback_worktree_agent_path)
 - Cross-repo invocation (`--project-dir`) not reliably parsed — use `cd` prefix + absolute path Edit as workaround
 - Adapters.yml is the most-changed file (12 changes) — merge conflicts common when multiple PRs touch it

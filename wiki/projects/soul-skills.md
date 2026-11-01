@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-10-21
-oracle_entries: 18
+updated: 2026-11-01
+oracle_entries: 19
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -129,6 +129,7 @@ soul-install-all --dry-run    # Preview without executing
 - **[2026-10-02 INCIDENT, #213 L2] `bun install` without `--ignore-scripts` overwrote the GLOBAL pre-commit delegator**: lefthook postinstall ran `lefthook install -f` into the global hooks dir (core.hooksPath), renaming the delegator to `pre-commit.old` — no repo-local pre-commit ran anywhere on goko, silently. Rule for this repo's worktrees: `bun install --ignore-scripts` always.
 - **[RESOLVED 2026-10-17] `bun install` hook writes outside the repo (#240, PR #248 → 334b44be)**: `prepare` is guarded and the lefthook postinstall is blocked, so an install no longer touches the global hooks dir.
 - **[SHIPPED 2026-10-17] /pre-compact Step 5 self-inject (SO#1355 PR-2, PR #253 → cf133f5a)**: after a same-run gate PASS the skill queues `/compact` into its own tmux pane and writes a `compact-request` marker; the SessionStart(compact) hook from soul-orchestra#1357 claims the marker and injects a resume line. `PRECOMPACT_SELF_INJECT=0` opts out. Live proof on goko 2026-10-17 (SO#1355 comment 6234429126), on Claude Code panes only — chela fleet panes are unverified (see soul-orchestra Known Issues, SO#1355). Installed on goko via `scripts/install-skills.sh --global` at cf133f5. Version bumped to 1.1.0 in PR #255 (3d049054).
+- **[SHIPPED 2026-10-26] /correct skill (soul-skills#267, PR #289 -> main 344b8ef)**: SKILL.md + route.sh + drift tests, merged after 6 review rounds (R5 abfbecd and R6 d58f91d clean; merger APPROVE at d58f91d). Lessons: (1) an uncaught Python exception in an inline `python3 - <<EOF` gate exits 1, the same code as a deliberate refuse, so callers that route rc 1 to a destructive action keep going; wrap the body in `except SystemExit: raise` / `except Exception: internal()` that exits 3 (check-add-only.sh fix). (2) A ruling that asks for a test plus a mutation must be checked against the fix commit's file list; abfbecd shipped the fix with no test. (3) A whitespace-only re-indent inflates `pr-risk-tier --size`; measure with `git diff -w` for the size-exception reason. Follow-ups: #294, #277.
 - Skill discovery relies on filesystem walk — compiled binary uses VFS (virtual filesystem) which must be regenerated after adding skills
 - `detectInstalledAgents()` checks for Claude Code, Codex, Gemini, etc. config dirs — may false-positive on empty dirs
 - `initWindsurf` / `initAmazonQ` require mcp-remote bridge — extra dependency for Tier 3 platforms
