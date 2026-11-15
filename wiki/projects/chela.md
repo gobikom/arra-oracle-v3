@@ -2,7 +2,7 @@
 title: chela
 type: wiki
 status: active
-updated: 2026-10-14
+updated: 2026-11-15
 oracle_entries: 54
 sources:
   - https://github.com/gobikom/chela
@@ -62,6 +62,14 @@ for pool agents. ≤25K LOC binary vs thclaws' 177K; moves CLAUDE.md prose guard
 (checkpointing, verify-before-done, never-push-main, budget caps) into kernel code.
 Name: zoology "pincer claw" + Sanskrit "disciple/learner". Private repo
 (`gobikom/chela` → `~/repos/agents/chela`), MIT/Apache-2.0 dual, open-source later.
+
+Status 2026-11-15: v1.44.0 (chela#895, 29509da5). Model registry pricing
+(agent-devops#1382): chela#891 added a registry `models:` table. Per-model
+`pricing` and `context_window` set in soul-orchestra's `/models` page now drive
+chela's cost accounting. With no registry, output is byte-identical to the built-in
+table (test `no_registry_is_byte_identical_to_the_builtin_table`). chela#890 priced
+`glm-5.3-flash` and `gpt-6.1-terra` correctly. Release 1.44.0 also bundles
+#873, #879, #881, #885, #886 and #890. Pair it with SO ≥ 702f436b.
 
 Status 2026-09-10: v1.28.0 — Content Store (#440, PR #456). New `chela-store`
 crate (597/700 LOC): content-addressable blob store (SHA-256, SQLite WAL, 2-step

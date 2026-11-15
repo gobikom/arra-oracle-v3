@@ -2,7 +2,7 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-10-27
+updated: 2026-11-15
 oracle_entries: 97
 sources:
   - https://github.com/gobikom/soul-orchestra
@@ -88,6 +88,7 @@ soul-orchestra/
 
 ## Key Decisions
 
+- **2026-11-15 SHIPPED model registry pricing (agent-devops#1382): SO#1627, #1630, #1632, #1634 f203e09c, #1635 702f436b.** `/models` edits per-model `pricing` and `context_window` through `registry/admin.py` `apply_override`. The validator rejects negative, non-numeric or ≤0 values with `AdminInvalid`, and nothing is promoted to lastgood. chela ≥ 1.44.0 bills at the registry rate. Gotcha (#1637): `generator/deploy.py` does not restart `soul-orchestra-dashboard`; restart it so webui changes go live.
 - **2026-10-27 SHIPPED rule-diet Stage 1 tooling (agent-devops#1301 C0): #1453 20bd1757, #1454 1b5e56a1, #1455 58a1dc96, #1456 3d9c822c.** Before any rule text is shortened (Stage 2, PR-C/D*), every changed rule unit has to be accounted for mechanically.
   - **C0a:** `--unit-table` emits machine rows for each unit.
   - **C0b:** `generator/rule_diet/<stem>.disposition.yaml` is committed evidence. A CI test re-runs the table for origin/base..HEAD.
