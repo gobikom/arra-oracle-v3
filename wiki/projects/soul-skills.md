@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-10-21
-oracle_entries: 18
+updated: 2026-11-19
+oracle_entries: 20
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -136,6 +136,9 @@ soul-install-all --dry-run    # Preview without executing
 - **[RESOLVED 2026-08-07] Ping-reply insurance file silent failure (#1003)**: Insurance file write had no logging — failures were invisible. Fixed in PR #165: syslog instrumentation (tag: ping-reply) for INSURANCE_WRITTEN, MKDIR_FAIL, WRITE_FAIL, NO_REPLY_PATH. Root cause of original dir absence not yet established.
 
 ## Patterns
+
+- **[RESOLVED 2026-11-19] Bun timeouts in CI prerequisites**. PR #329 (`9373c3f`) raised the deadlines for recursive Git fixture cleanup and three audit subprocess tests to 30 seconds. CI attempt 1 ran 1,392 tests across 40 files, with 1,390 passed and two skipped. The test and hook failure paths remained observable in separate probes. [PR #329](https://github.com/gobikom/soul-skills/pull/329)
+- **[RESOLVED 2026-11-19] Self-hosted CI job budget**. PR #330 (`19e6666`) changed the test-job ceiling from 15 to 25 minutes. The exact-head job completed in 15 minutes 17 seconds with all 40 test files collected. Workflow parsing confirmed that the job ceiling was the only behavior change. [PR #330](https://github.com/gobikom/soul-skills/pull/330)
 
 - **SKILL.md convention**: Every skill is a directory with `SKILL.md` (instructions) + optional `scripts/` (helper scripts in TypeScript/Python). YAML frontmatter defines name, description, trigger patterns, tier.
 - **`/gate` pre-implement = checklist-centric sweep (2026-07-09, agent-devops#799):** `src/skills/gate/SKILL.md` Step 3e-1 iterates every APPLICABLE `new_feature` + `post_ship` item (+ `multi_phase_epic` when epic-gated) from the project rules YAML and BLOCKs on unowned operational items — catching gaps with no acceptance criterion (smoke-test, seed data, entry points). `rules/_default.yaml` now ships generic new_feature/post_ship/multi_phase_epic checklists so the sweep works fleet-wide, not just for clienta-ai. Behavior-proven: BLOCK on gappy plan (14 items), PASS on compliant (0).
