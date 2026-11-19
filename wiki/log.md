@@ -120,3 +120,4 @@ Append-only record of wiki page updates.
 - 2026-11-19 — PRP 2.14.1 shipped the two-round ceiling and L2 posting check. The project page and wiki index record the verified native package and the consumer jq follow-up. [PRP #259](https://github.com/gobikom/prp-framework/pull/259), [PRP #260](https://github.com/gobikom/prp-framework/issues/260).
 - 2026-11-19: soul-skills#329 CI test deadlines documented with exact merge and run evidence in soul-skills.md.
 - 2026-11-19: soul-skills#330 self-hosted CI job budget recorded with exact merge and first-attempt evidence.
+- 2026-11-20 — Recorded Chela 1.46.0 install evidence and the separately merged 1.46.1 timeout floor in chela.md. [Install receipt](https://github.com/gobikom/agent-devops/issues/1386#issuecomment-7016404410) · [Chela #948](https://github.com/gobikom/chela/pull/948)
