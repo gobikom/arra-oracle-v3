@@ -2,8 +2,8 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-09-22
-oracle_entries: 25
+updated: 2026-11-19
+oracle_entries: 26
 sources:
   - https://github.com/gobikom/prp-framework
 project: github.com/gobikom/prp-framework
@@ -119,11 +119,12 @@ prp-framework/
 | Adapter format | Auto-generated via `generate-adapters.py` | Manual per-platform | 32 commands × 6 adapters = 192 files; manual = impossible to keep in sync |
 | Installation | Git submodule or local clone + symlink | npm package / pip install | No dependency; works offline; target project stays clean |
 | Review model | Multi-agent parallel (8 specialists) | Single reviewer | Each dimension (security, deps, quality) gets dedicated focus |
-| Fix loop | Loop until 0 issues across all severities | Fix once and ship | Iterative perfection catches cascading issues from fixes |
+| Fix loop | Two total reviews, including the input review | Open-ended review rounds | Blocking findings from R1 can use one fix and one re-review |
 | Monorepo | Auto-detect pnpm/Turborepo/Nx/Lerna + `--package` flag | Ignore monorepo structure | Real-world projects are often monorepos; scoping matters |
 
 ## Known Issues
 
+- **Step C runtime compatibility** — PRP 2.14.1 uses standalone `jq` for L2 publication. The supported consumer path without that dependency is tracked in [PRP #260](https://github.com/gobikom/prp-framework/issues/260).
 - **[FIX PROPOSED 2026-09-22 — PR #133 still OPEN/unmerged] gen-ai-context sandbox contamination**: chela sandbox runtime dirs (`.sandbox-home`/`.sandbox-tmp`) inside the working repo leaked into PROJECT.md auto-gen filesystem scans — fake "Stack: SQLite" from sqlite3 matches in sandbox .py files, fake API endpoints from an `app.get` prefix collision on `app.getHostCapabilities()` in sandbox mcp-host.js. Fix (4 scan sites, failure class #72/#73) is in PR #133 — NOT yet in main. Rule: scanners must exclude sandbox dot-dirs; consumers should add them to .gitignore and regen.
 - `prp-review-agents` agents read absolute paths that resolve to main worktree, not PR worktree — verify findings with `git show <branch>:<file>` (feedback_worktree_agent_path)
 - Cross-repo invocation (`--project-dir`) not reliably parsed — use `cd` prefix + absolute path Edit as workaround
@@ -132,9 +133,9 @@ prp-framework/
 ## Patterns
 
 - **Canonical + overlay**: Single prompt file → platform-specific overlays add wrapping/frontmatter without modifying the source. Overlays support `wrap_before`, `wrap_after`, `skip_before` sections.
-- **Review-fix loop**: `prp-review-agents` → `prp-review-fix` → re-run `prp-review-agents` → repeat until artifact shows 0 issues. Max 5 cycles with escalation.
+- **Two-round ceiling** — PRP 2.14.1 counts the input review and caps review-fix at two. The L2 producer checks the same final footer per trusted comment before dispatch and posting. A partially posted review consumes its run ID. The native Codex package shipped and was verified with 32 skills. [PRP #259](https://github.com/gobikom/prp-framework/pull/259), [README update](https://github.com/gobikom/prp-framework/pull/261).
 - **Artifact-based verification**: Every review produces `.prp-output/reviews/pr-<N>-agents-review.md` — merge blocked without this artifact via `safe-merge`.
-- **3-round review to 0 issues**: Standard workflow: round 1 finds issues → fix → round 2 catches cascading → fix → round 3 confirms 0. Established pattern across all projects.
+- **Review stop** — One clean exact-head round can proceed through the merge checks. When R1 reports a blocker, any qualifying re-review is R2. Remaining blockers at that point follow the applicable follow-up or re-scoping rule.
 - **prp-plan §Gate Compliance scaffold (2026-07-09, v2.13.0, agent-devops#799):** `prompts/plan.md` Phase 6 emits an always-present `## Gate Compliance` plan section (tiered: full new_feature/epic_kickoff/post_ship item→task mapping for user-facing changes; enumerated-`N/A` for internal-only, blanket-N/A rejected) so the pre-implement gate-audit (Layer 3) can mechanically verify operational compliance. Loose-coupling: prp scaffolds, `/gate audit` verifies — prp never hard-reads the gate rules YAML (stays tool-agnostic). Conditional `/gate` hint in the base prompt degrades gracefully for non-gate toolchains (no codex overlay — only claude-code has overlay support).
 - **Plan artifacts committed to git (2026-07-09, #801):** prp-plan commits the plan artifact to the feature branch (`[ -n "$BR" ]` guards detached-HEAD; never main); prp-implement Phase 5.4 archives via `git mv` (not `mv`) so the completed/ move stays tracked (`.prp-output/**` is gitignored for NEW paths → a plain mv silently un-tracks it).
 
