@@ -117,3 +117,5 @@ Append-only record of wiki page updates.
 - 2026-10-27: agent-devops#1298 merger REGEN-ONLY restored — soul-orchestra#1450/#1451/#1452 (MERGER_ID_BASELINE b9030a3→5dde708, blob re-pin, generator declare/spend); soul-orchestra.md Key Decisions updated — PSak goko session.
 - 2026-10-27: agent-devops#1301 rule-diet Stage 1 tooling shipped — soul-orchestra#1453/#1454/#1455/#1456 (C0a/C0b/C0c-1/C0c-2, last 3d9c822c); soul-orchestra.md Key Decisions updated with the v14.4 binding-invariant lesson — PSak goko session.
 - 2026-11-15: agent-devops#1382 model registry pricing — chela.md status v1.44.0 (chela#890/#891/#895); soul-orchestra.md Key Decisions (SO#1627–#1635, #1637 gotcha) — PSak goko session.
+- 2026-11-19: soul-skills#329 CI test deadlines documented with exact merge and run evidence in soul-skills.md.
+- 2026-11-19: soul-skills#330 self-hosted CI job budget recorded with exact merge and first-attempt evidence.
