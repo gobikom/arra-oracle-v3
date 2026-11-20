@@ -2,8 +2,8 @@
 title: Auto-Ops
 type: wiki
 status: active
-updated: 2026-10-21
-oracle_entries: 33
+updated: 2026-11-21
+oracle_entries: 34
 sources:
   - https://github.com/gobikom/auto-ops
 project: github.com/gobikom/auto-ops
@@ -84,6 +84,8 @@ auto-ops/
 - Atomic writes: `os.replace()` for state files (last-writer-wins under concurrent cron)
 
 ## Key Decisions
+
+- **2026-11-21 CI notification routing.** Main `338aa4e5` tries `TK_OPS_BOT_TOKEN` before `TK_PSAK_BOT_TOKEN` in the red main or dispatch alert step. Main run `44719556917` passed and skipped that step. Persistent fallback visibility remains tracked under agent-devops #1405. [Auto-Ops #74](https://github.com/gobikom/auto-ops/pull/74) · [Main CI](https://github.com/gobikom/auto-ops/actions/runs/44719556917)
 
 - **2026-10-06 SHIPPED B7 false-positive root fix + hooks-guard detection + Telegram plugin presence.**
   - **ops#132 (c10db72), B7 FP fix:** safe-merge now logs the repo gh resolved (`LOG_REPO`, from the PR URL) instead of `<cwd>`.

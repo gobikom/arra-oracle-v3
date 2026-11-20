@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-11-20
-oracle_entries: 99
+updated: 2026-11-21
+oracle_entries: 100
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -87,6 +87,8 @@ soul-orchestra/
 - MCP-FAIL-SAFE — continue score when MCP tools are unreachable
 
 ## Key Decisions
+
+- **2026-11-21 Infra-health OK notification.** SO `9414737e` tries Ops then PSak, retains the collector result through send failure, and exits the dry-run path before sending. The Chela runner fixture in parent `7fbf9167` handles procfs process disappearance while retaining permission errors. Claude PSak recorded rollout of SO `9414737e` and Ops `2275d98f` with a live Ops delivery proof. [SO #1713](https://github.com/gobikom/soul-orchestra/pull/1713) · [SO #1714](https://github.com/gobikom/soul-orchestra/pull/1714) · [Rollout receipt](https://github.com/gobikom/agent-devops/issues/1405#issuecomment-7050049511)
 
 - **2026-11-15 SHIPPED model registry pricing (agent-devops#1382): SO#1627, #1630, #1632, #1634 f203e09c, #1635 702f436b.** `/models` edits per-model `pricing` and `context_window` through `registry/admin.py` `apply_override`. The validator rejects negative, non-numeric or ≤0 values with `AdminInvalid`, and nothing is promoted to lastgood. chela ≥ 1.44.0 bills at the registry rate. Gotcha (#1637): `generator/deploy.py` does not restart `soul-orchestra-dashboard`; restart it so webui changes go live.
 - **2026-10-27 SHIPPED rule-diet Stage 1 tooling (agent-devops#1301 C0): #1453 20bd1757, #1454 1b5e56a1, #1455 58a1dc96, #1456 3d9c822c.** Before any rule text is shortened (Stage 2, PR-C/D*), every changed rule unit has to be accounted for mechanically.
