@@ -122,3 +122,4 @@ Append-only record of wiki page updates.
 - 2026-11-19: soul-skills#330 self-hosted CI job budget recorded with exact merge and first-attempt evidence.
 - 2026-11-20 — Recorded Chela 1.46.0 install evidence and the separately merged 1.46.1 timeout floor in chela.md. [Install receipt](https://github.com/gobikom/agent-devops/issues/1386#issuecomment-7016404410) · [Chela #948](https://github.com/gobikom/chela/pull/948)
 - 2026-11-20 — Documented the merged pool status projection and its live verification dependencies in soul-orchestra.md. [SO #1701](https://github.com/gobikom/soul-orchestra/pull/1701)
+- 2026-11-20 — Recorded the shallow-checkout CI evidence race and its lock-lifetime fix in soul-orchestra.md. [SO #1702](https://github.com/gobikom/soul-orchestra/pull/1702)
