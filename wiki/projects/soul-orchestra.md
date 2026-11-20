@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-11-15
-oracle_entries: 97
+updated: 2026-11-20
+oracle_entries: 98
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -127,6 +127,7 @@ soul-orchestra/
 
 ## Known Issues
 
+- **Pool status projection merged 2026-11-20.** The task detail endpoint accepts `status_only=true` and returns the task ID and status without the stored instruction or result. The existing session-token check applies when dashboard authentication is configured. The default response is unchanged. The squash commit `1ef042ee` passed 13 isolated delegation tests. The integration test tracked a task with a 50,000-character Thai instruction and a 32,000-character result. Live verification depends on rolling out the dashboard and provisioning the client's credential. [SO #1701](https://github.com/gobikom/soul-orchestra/pull/1701) · [Client draft](https://github.com/gobikom/soul-skills/pull/333)
 - **[RESOLVED 2026-10-17, SO#1355] Agent self-compact + resume**: decision (นุด, 2026-10-17) — a self-injected `/compact` is allowed only after `/pre-compact` passes (fresh handoff, `/segment-checkpoint`, gate selfcheck PASS). PR-1 #1357 (6b915837) added the SessionStart(compact) resume-inject hook; PR-2 is soul-skills#253. Live proof on goko (pane %1042, Claude Code 2.1.302): `send-keys /compact` is accepted as a slash command, the hook sees `$TMUX_PANE`, opt-out and no-marker negative cases pass. Scope caveat: proven only on Claude Code panes — the fleet agent panes (dev-*, devops, vera-*, warden) run the chela harness, and SO#1355 helps only Claude Code sessions unless chela honours SessionStart(compact) and `/compact` (unverified). Failures are logged only to `~/.task-state/<agent>/precompact.log`; surfacing them is #1363.
 - **[RESOLVED 2026-10-03, SO#1254] Agent secret-handling rules landed in conductor/protocol.md (agent-devops#1184)**: "Never print a secret VALUE" + `scripts/secret-keys.awk` (key names only; stops at first non-self-contained line; exit 3 = incomplete, never "absent"); check keys with `grep -c '^NAME='`, never by reading the file. YAML/JSON listers on conductor/wiki/secret-handling.md. goko home now 750; merger-bot gh brokered via `/usr/local/bin/merger-gh` (ops#126) — merger uid cannot read goko's home.
 - **[FIX PROPOSED 2026-09-20 — PR #1230 still OPEN/unmerged] knowledge-lint stale exit-4 WARNING healed via `--force`; root-caused (agent-devops#1126)**: Sep 6 pre-submission workflow death + Sep 13 weekly slot missed (host reboots) — 38 consecutive collector WARNINGs were BY-DESIGN weekly-cadence suppression (#677), not parsing faults. Regression-pinned weekly-cadence suppression + new `slot_missed_since_tick` metadata flag; consumer rule 2b-slot teaches the report to recommend `--force` rerun. Ops lesson: sandbox HOME shadowing breaks runner secrets — run scores with HOME=/home/goko. Regression pin (weekly-cadence suppression + `slot_missed_since_tick` flag + 2b-slot consumer rule) is in PR #1230 — NOT yet in main; `soul-orchestra deploy` still required after it merges.
