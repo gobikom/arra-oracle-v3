@@ -2,8 +2,8 @@
 title: Soul Skills
 type: wiki
 status: active
-updated: 2026-11-19
-oracle_entries: 20
+updated: 2026-11-20
+oracle_entries: 21
 sources:
   - https://github.com/gobikom/soul-skills
 project: github.com/gobikom/soul-skills
@@ -125,6 +125,7 @@ soul-install-all --dry-run    # Preview without executing
 
 ## Known Issues
 
+- **Pool authentication and tracking merged 2026-11-20.** The delegate-dev client reads a private derived credential, submits once, and uses the accepted task ID for bounded status lookups. The HTTP transaction timer also covers a response that keeps sending bytes. CI passed on first attempt at `b834dca`. All 45 focused tests and the CLI build passed at squash `a43a448e`. One live POST was accepted and the same task was tracked through terminal timeout. Disposable tests also exercised completion. The installed client and its credential provisioning remain to verify. [Soul Skills #333](https://github.com/gobikom/soul-skills/pull/333) · [Live evidence](https://github.com/gobikom/soul-skills/pull/333#issuecomment-7027022481)
 - **[2026-10-01, PR #211 near-miss] Terminal-signal reap rules are unsafe when DONE can arrive before content integration**: Warden's first DONE arrived while review rounds 3–6 existed ONLY as an untracked worktree file — had the reap run at the letter's moment, that work would have been destroyed. Saved by: DONE cited the artifact PATH (signal carried a pointer, not a claim of integration) + operator read the file instead of reaping on signal. Protocol shape: reap rules REQUIRE a preservation check (all files committed / embedded / explicitly disposable) before force-removal; DONE messages distinguish "seat complete" from "content preserved". Corollary: untracked files are invisible to every commit-based safety claim — only `git status` reveals them.
 - **[2026-10-02 INCIDENT, #213 L2] `bun install` without `--ignore-scripts` overwrote the GLOBAL pre-commit delegator**: lefthook postinstall ran `lefthook install -f` into the global hooks dir (core.hooksPath), renaming the delegator to `pre-commit.old` — no repo-local pre-commit ran anywhere on goko, silently. Rule for this repo's worktrees: `bun install --ignore-scripts` always.
 - **[RESOLVED 2026-10-17] `bun install` hook writes outside the repo (#240, PR #248 → 334b44be)**: `prepare` is guarded and the lefthook postinstall is blocked, so an install no longer touches the global hooks dir.
