@@ -125,3 +125,4 @@ Append-only record of wiki page updates.
 - 2026-11-20 — Recorded the shallow-checkout CI evidence race and its lock-lifetime fix in soul-orchestra.md. [SO #1702](https://github.com/gobikom/soul-orchestra/pull/1702)
 - 2026-11-20 — Recorded delegate-dev client authentication, task tracking and live verification status in soul-skills.md. [Soul Skills #333](https://github.com/gobikom/soul-skills/pull/333)
 - 2026-11-21 — Recorded CI notification routing and main test receipts in multi-agents.md and auto-ops.md, plus the infra-health OK source and rollout receipt in soul-orchestra.md. [Telegram follow-up](https://github.com/gobikom/agent-devops/issues/1405)
+- 2026-11-22 — Recorded the ship-faster policy (push once, review alongside CI, batch PR) in soul-orchestra.md and prp-framework.md. [SO #1724](https://github.com/gobikom/soul-orchestra/pull/1724), [PRP #263](https://github.com/gobikom/prp-framework/pull/263)

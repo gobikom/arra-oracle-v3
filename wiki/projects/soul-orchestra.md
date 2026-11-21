@@ -2,8 +2,8 @@
 title: Soul Orchestra
 type: wiki
 status: active
-updated: 2026-11-21
-oracle_entries: 100
+updated: 2026-11-22
+oracle_entries: 101
 sources:
   - https://github.com/gobikom/soul-orchestra
 project: github.com/gobikom/soul-orchestra
@@ -126,6 +126,7 @@ soul-orchestra/
 | Task scheduling | Append-only JSONL + fcntl locking | Redis / PostgreSQL queue | Zero external dependencies, survives reboots, simple to debug |
 | Score versioning | dev-task-v3 (Sonnet implement + Opus verify) | v1 (single Opus session) | v3 is cheaper with safety net; v1 reserved for architecture/breaking changes |
 | Blocked tools enforcement | Prompt-level (CLAUDE.md section) | Engine-level MCP middleware | Prompt-level is sufficient for non-adversarial agents; engine enforcement deferred to Phase 2 |
+| Ship-faster policy (2026-11-21, [#1724](https://github.com/gobikom/soul-orchestra/pull/1724), squash 66e55745; supersedes #1721) | Review rounds and CI may run in parallel on the same head; push once per round; `merger_decision` BATCH PR item accepts a multi-issue PR when every issue is listed as `Fixes #n`, there is one commit per issue, every hunk maps to one issue, counted lines are ≤400, and no gate/crown-jewel/deploy/own-definition/security/parser path is touched; protocol line "Always `/prp-core:prp-plan` → `/prp-core:prp-implement <plan>`" | CI green before any review (pre-review gate 2026-11-01); one issue per PR | The order was never checked by merger or safe-merge: head binding (CI gate and linked round at the same head) is the gate, so this relaxes a convention, not a gate. Stop rule, tier clause, REVIEW CAP, CARRY-OVER and PR SIZE are unchanged. Deployed 2026-11-22 (deploy.py at 66e55745, identity regen run 44929990720) |
 
 ## Known Issues
 
