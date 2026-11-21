@@ -2,8 +2,8 @@
 title: PRP Framework
 type: wiki
 status: active
-updated: 2026-11-19
-oracle_entries: 26
+updated: 2026-11-22
+oracle_entries: 27
 sources:
   - https://github.com/gobikom/prp-framework
 project: github.com/gobikom/prp-framework
@@ -121,6 +121,7 @@ prp-framework/
 | Review model | Multi-agent parallel (8 specialists) | Single reviewer | Each dimension (security, deps, quality) gets dedicated focus |
 | Fix loop | Two total reviews, including the input review | Open-ended review rounds | Blocking findings from R1 can use one fix and one re-review |
 | Monorepo | Auto-detect pnpm/Turborepo/Nx/Lerna + `--package` flag | Ignore monorepo structure | Real-world projects are often monorepos; scoping matters |
+| Push and review order (2026-11-21, [#263](https://github.com/gobikom/prp-framework/pull/263), squash 9f2a7e95) | `prp-implement` and `prp-pr` push the branch once, at the final head of a round; `prp-review-agents` may run while CI is still pending; `prp-pr` can open a batch PR (several `Fixes #n`, one commit per issue, hunk→issue map) | CI green before any review round (pre-review gate 2026-11-01); incremental pushes; one issue per PR | นุด ordered ship-faster: serial CI → review → fix cycles multiplied rounds. Nothing is weaker: the L2 marker stays bound to the reviewed head, a push during a round voids it, and merge still needs CI green and the clean linked round at the same head. Binding text is soul-orchestra merger-policy.yaml ([SO#1724](https://github.com/gobikom/soul-orchestra/pull/1724)) |
 
 ## Known Issues
 
